@@ -11,27 +11,30 @@ package kgdashboard
 // entity with both the generic `Entity` label and its specific label, so we
 // match on the specific label and project labels(n) as the node's type set.
 
-// mainViewLabels is the entity label set of the MAIN view. It includes the
-// attack-chain backbone (Host, Port, Service, Vulnerability, ...) plus the
-// supporting evidence types (Artifact, Evidence, Endpoint, Capability,
-// Agent, AttackTechnique) so the graph is connected and useful even in early
-// flows where the full attack chain has not yet been extracted.
+// mainViewLabels is the entity label set of the MAIN view: only attack-chain
+// entities. Artifact, Evidence, Agent, Attempt, Endpoint, Capability,
+// AttackTechnique are excluded — they are either noise (command outputs,
+// extracted facts) or progress tracking, not part of the attack chain backbone.
 var mainViewLabels = []string{
 	"Host", "Port", "Service", "Vulnerability", "Misconfiguration",
-	"ValidAccess", "Account", "Credential", "Attempt", "PrivChange",
-	"WebApp", "Vhost", "Endpoint", "Artifact", "Evidence",
-	"Capability", "Agent", "AttackTechnique",
+	"ValidAccess", "Account", "Credential", "PrivChange",
+	"WebApp", "Vhost",
 }
 
-// mainViewEdgeTypes restricts the MAIN view to attack-chain relationships.
-var mainViewEdgeTypes = []string{
-	"HAS_PORT", "RUNS_SERVICE", "ON_HOST", "HAS_VULNERABILITY",
-	"DETECTED_VULNERABILITY", "CONFIRMED_VULNERABILITY", "HAS_MISCONFIGURATION",
-	"HAS_ENDPOINT", "HOSTS_APP", "HAS_VHOST",
-	"AUTHENTICATES_TO", "BELONGS_TO_ACCOUNT", "OWNS_ACCOUNT",
-	"YIELDED_ACCESS", "YIELDED_PRIV_ACCESS", "AS_ACCOUNT", "VIA_SERVICE",
-	"ESCALATED_VIA", "PIVOTED_TO",
+// hostAttackEdgeTypes are the edge types that indicate a Host is a real attack
+// target (as opposed to localhost, VPN, gateway infrastructure that
+// Graphiti happens to extract from command output).
+var hostAttackEdgeTypes = []string{
+	"HAS_PORT", "HAS_VULNERABILITY", "HAS_MISCONFIGURATION",
+	"HOSTS_APP", "RUNS_SERVICE", "HAS_VHOST",
+	"DETECTED_VULNERABILITY", "CONFIRMED_VULNERABILITY",
 }
+
+// minHostDegree is the minimum number of outgoing attack-chain edges a Host
+// must have to be included in the MAIN view. The real target host (e.g.
+// 10.129.244.174 with 34 connections) passes easily; noise hosts (localhost,
+// VPN, gateway with 0-2 spurious edges) are filtered out.
+const minHostDegree = 3
 
 // attackSurfaceLabels is the entity label set watched by the attack surface
 // overview block. Order is kept stable for stable frontend rendering.
@@ -50,13 +53,20 @@ RETURN label AS tag, count(*) AS count
 ORDER BY count DESC, label ASC
 `
 
-// attackGraphMainQuery returns the bounded MAIN subgraph: every node whose
-// label set intersects mainViewLabels, plus every edge between two such
-// nodes whose type is in mainViewEdgeTypes. The LIMIT is applied client-side
-// after the driver returns (the cap is enforced via the maxNodes option).
+// attackGraphMainQuery returns the MAIN subgraph: attack-chain entity nodes,
+// filtered to only include Hosts with enough connections to be real targets
+// (minHostDegree). Non-Host nodes (Port, Service, Vulnerability, etc.) are
+// always included since they are already filtered by mainViewLabels.
 const attackGraphMainQuery = `
 MATCH (n) WHERE n.group_id = $group_id
   AND ANY(l IN labels(n) WHERE l IN $labels)
+  AND (
+    NOT 'Host' IN labels(n)
+    OR EXISTS {
+      MATCH (h:Host) WHERE h.uuid = n.uuid AND h.group_id = $group_id
+        AND size([(h)-[:HAS_PORT|HAS_VULNERABILITY|HAS_MISCONFIGURATION|HOSTS_APP|RUNS_SERVICE|HAS_VHOST|DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY]->() | 1]) >= $minDegree
+    }
+  )
 RETURN n AS n, coalesce(n.created_at, n.valid_at) AS ts
 ORDER BY ts DESC
 LIMIT $cap
@@ -80,10 +90,18 @@ RETURN coalesce(src.uuid, src.elementId) AS srcUUID,
 `
 
 // attackGraphMainCountQuery returns the total node count for the MAIN view
-// (before the cap) so the resolver can report truncation.
+// (before the cap) so the resolver can report truncation. Applies the same
+// Host degree filter as attackGraphMainQuery.
 const attackGraphMainCountQuery = `
 MATCH (n) WHERE n.group_id = $group_id
   AND ANY(l IN labels(n) WHERE l IN $labels)
+  AND (
+    NOT 'Host' IN labels(n)
+    OR EXISTS {
+      MATCH (h:Host) WHERE h.uuid = n.uuid AND h.group_id = $group_id
+        AND size([(h)-[:HAS_PORT|HAS_VULNERABILITY|HAS_MISCONFIGURATION|HOSTS_APP|RUNS_SERVICE|HAS_VHOST|DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY]->() | 1]) >= $minDegree
+    }
+  )
 RETURN count(n) AS total
 `
 

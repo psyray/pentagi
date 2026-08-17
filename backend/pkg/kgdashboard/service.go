@@ -143,20 +143,33 @@ func (s *service) GetAttackGraph(ctx context.Context, flowID int64, groupID stri
 	}
 
 	out := &AttackGraph{Nodes: []AttackGraphNode{}, Edges: []AttackGraphEdge{}}
-	baseParams := map[string]any{"group_id": groupID, "cap": int64(s.maxNodes)}
 
-	var nodesCypher, edgesCypher, countCypher string
+	var (
+		nodesCypher, edgesCypher, countCypher string
+		baseParams                            map[string]any
+	)
 	switch view {
 	case AttackGraphViewFull:
+		baseParams = map[string]any{"group_id": groupID, "cap": int64(s.maxNodes)}
 		nodesCypher = attackGraphFullQuery
 		edgesCypher = attackGraphFullEdgesQuery
 		countCypher = attackGraphFullCountQuery
 	case AttackGraphViewMain:
+		// The MAIN view uses a tighter cap than FULL — it only shows the attack
+		// chain backbone, which is a small fraction of the full graph.
+		mainCap := s.maxNodes
+		if mainCap > 200 {
+			mainCap = 200
+		}
+		baseParams = map[string]any{
+			"group_id":  groupID,
+			"cap":       int64(mainCap),
+			"labels":    mainViewLabels,
+			"minDegree": int64(minHostDegree),
+		}
 		nodesCypher = attackGraphMainQuery
 		edgesCypher = attackGraphMainEdgesQuery
 		countCypher = attackGraphMainCountQuery
-		mainParams := map[string]any{"group_id": groupID, "cap": int64(s.maxNodes), "labels": mainViewLabels}
-		baseParams = mainParams
 	default:
 		return out, fmt.Errorf("kgdashboard: unknown attack graph view %q", view)
 	}
