@@ -44,7 +44,7 @@ var attackSurfaceLabels = []string{
 const minHostEdgeTypes = 2
 
 // targetHostsFragment is a reusable Cypher preamble that identifies "target"
-// Host UUIDs — Hosts with ≥ minHostEdgeTypes distinct outgoing attack-chain
+// Host UUIDs — Hosts with >= minHostEdgeTypes distinct outgoing attack-chain
 // edge types. Queries that need to filter to the attack target(s) prepend
 // this fragment and use the resulting `targetUUIDs` list in their WHERE
 // clause. Requires $group_id and $minEdgeTypes parameters.
@@ -56,16 +56,19 @@ WHERE tCount >= $minEdgeTypes
 WITH collect(th.uuid) AS targetUUIDs
 `
 
-// ─── Attack graph queries ───────────────────────────────────────────────
-
-// attackGraphMainQuery returns the MAIN subgraph: attack-chain entity nodes
-// that are connected to target hosts (identified by edge-type diversity).
-// Non-Host nodes must be connected to a target Host via an attack-chain
-// edge or ON_HOST — this filters out orphan nodes like "read_file command"
-// (a tool name misclassified as Port by Graphiti).
-const attackGraphMainQuery = targetHostsFragment + `
-MATCH (n) WHERE n.group_id = $group_id
-  AND ANY(l IN labels(n) WHERE l IN $labels)
+// targetConnectedFilter is a reusable Cypher WHERE clause fragment that keeps
+// only nodes connected to a target Host (directly at depth 1, or indirectly
+// at depth 2 through a Service/Port/Endpoint). This filters out orphan noise
+// like "read_file command" (a tool name misclassified as Port) while keeping
+// Vulnerabilities and Credentials that connect to the Host through a Service.
+//
+// Depth 1: Host -> n (HAS_PORT, RUNS_SERVICE, HAS_VHOST, etc.)
+// Depth 1 (reverse): n -> Host (ON_HOST)
+// Depth 2: Host -> Service <- DETECTED_VULNERABILITY <- Vulnerability
+// Depth 2: Host -> Service <- AUTHENTICATES_TO <- Credential
+// Depth 2: Host -> Service <- VIA_SERVICE <- ValidAccess
+// Depth 2 (reverse): Service -> ON_HOST -> Host, Service -> DETECTED_VULN -> Vuln
+const targetConnectedFilter = `
   AND (
     n.uuid IN targetUUIDs
     OR EXISTS {
@@ -75,7 +78,28 @@ MATCH (n) WHERE n.group_id = $group_id
     OR EXISTS {
       MATCH (n)-[:ON_HOST]->(th) WHERE th.uuid IN targetUUIDs
     }
+    OR EXISTS {
+      MATCH (th)-[:RUNS_SERVICE|HAS_PORT|HAS_VHOST|HOSTS_APP|HAS_ENDPOINT]->(mid)
+            <-[:DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY|AUTHENTICATES_TO|VIA_SERVICE|YIELDED_ACCESS|YIELDED_PRIV_ACCESS|ESCALATED_VIA]-(n)
+      WHERE th.uuid IN targetUUIDs
+    }
+    OR EXISTS {
+      MATCH (th)<-[:ON_HOST]-(mid)-[:DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY|AUTHENTICATES_TO|VIA_SERVICE]->(n)
+      WHERE th.uuid IN targetUUIDs
+    }
   )
+`
+
+// ─── Attack graph queries ───────────────────────────────────────────────
+
+// attackGraphMainQuery returns the MAIN subgraph: attack-chain entity nodes
+// that are connected to target hosts (directly at depth 1, or via a Service
+// at depth 2). This filters out orphan noise like "read_file command" (a tool
+// name misclassified as Port by Graphiti) while keeping Vulnerabilities and
+// Credentials connected through Services.
+const attackGraphMainQuery = targetHostsFragment + `
+MATCH (n) WHERE n.group_id = $group_id
+  AND ANY(l IN labels(n) WHERE l IN $labels)` + targetConnectedFilter + `
 RETURN n AS n, coalesce(n.created_at, n.valid_at) AS ts
 ORDER BY ts DESC
 LIMIT $cap
@@ -97,17 +121,7 @@ RETURN coalesce(src.uuid, src.elementId) AS srcUUID,
 // attackGraphMainCountQuery returns the total node count for the MAIN view.
 const attackGraphMainCountQuery = targetHostsFragment + `
 MATCH (n) WHERE n.group_id = $group_id
-  AND ANY(l IN labels(n) WHERE l IN $labels)
-  AND (
-    n.uuid IN targetUUIDs
-    OR EXISTS {
-      MATCH (th)-[:HAS_PORT|RUNS_SERVICE|HAS_VHOST|HAS_VULNERABILITY|HAS_MISCONFIGURATION|HOSTS_APP|HAS_ENDPOINT|ON_HOST|DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY]->(n)
-      WHERE th.uuid IN targetUUIDs
-    }
-    OR EXISTS {
-      MATCH (n)-[:ON_HOST]->(th) WHERE th.uuid IN targetUUIDs
-    }
-  )
+  AND ANY(l IN labels(n) WHERE l IN $labels)` + targetConnectedFilter + `
 RETURN count(n) AS total
 `
 
@@ -138,20 +152,10 @@ RETURN count(n) AS total
 
 // tagStatsQuery counts entities per specific label, excluding the generic
 // `Entity` and `Episodic` labels. Only entities connected to target hosts
-// are counted — this ensures the tag stats reflect the attack surface of the
-// pentest target(s), not infrastructure noise (localhost, VPN, wordlists).
+// (depth 1 or 2) are counted — this ensures the tag stats reflect the attack
+// surface of the pentest target(s), not infrastructure noise.
 const tagStatsQuery = targetHostsFragment + `
-MATCH (n) WHERE n.group_id = $group_id
-  AND (
-    n.uuid IN targetUUIDs
-    OR EXISTS {
-      MATCH (th)-[:HAS_PORT|RUNS_SERVICE|HAS_VHOST|HAS_VULNERABILITY|HAS_MISCONFIGURATION|HOSTS_APP|HAS_ENDPOINT|ON_HOST|DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY]->(n)
-      WHERE th.uuid IN targetUUIDs
-    }
-    OR EXISTS {
-      MATCH (n)-[:ON_HOST]->(th) WHERE th.uuid IN targetUUIDs
-    }
-  )
+MATCH (n) WHERE n.group_id = $group_id` + targetConnectedFilter + `
 UNWIND [l IN labels(n) WHERE NOT l IN ['Entity', 'Episodic']] AS label
 RETURN label AS tag, count(*) AS count
 ORDER BY count DESC, label ASC
@@ -160,22 +164,10 @@ ORDER BY count DESC, label ASC
 // ─── Attack surface ──────────────────────────────────────────────────────
 
 // attackSurfaceQuery lists attack-chain entities connected to target hosts,
-// newest first, capped by $limit. The targetHostsFragment identifies which
-// Hosts are real targets; the query then returns entities that are either a
-// target Host itself or connected to one via an attack-chain edge.
+// newest first, capped by $limit.
 const attackSurfaceQuery = targetHostsFragment + `
 MATCH (n) WHERE n.group_id = $group_id
-  AND ANY(l IN labels(n) WHERE l IN $labels)
-  AND (
-    n.uuid IN targetUUIDs
-    OR EXISTS {
-      MATCH (th)-[:HAS_PORT|RUNS_SERVICE|HAS_VHOST|HAS_VULNERABILITY|HAS_MISCONFIGURATION|HOSTS_APP|HAS_ENDPOINT|ON_HOST|DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY]->(n)
-      WHERE th.uuid IN targetUUIDs
-    }
-    OR EXISTS {
-      MATCH (n)-[:ON_HOST]->(th) WHERE th.uuid IN targetUUIDs
-    }
-  )
+  AND ANY(l IN labels(n) WHERE l IN $labels)` + targetConnectedFilter + `
 RETURN labels(n) AS labels, n.name AS name, n.summary AS summary,
        coalesce(n.created_at, n.valid_at) AS createdAt
 ORDER BY createdAt DESC
@@ -223,7 +215,7 @@ ORDER BY va.created_at DESC
 
 // ─── Infrastructure map ──────────────────────────────────────────────────
 
-// infraMapQuery returns Host → Port → Service rows, filtered to target hosts
+// infraMapQuery returns Host -> Port -> Service rows, filtered to target hosts
 // only so localhost, VPN, and container IPs don't clutter the map.
 const infraMapQuery = targetHostsFragment + `
 MATCH (h:Host)-[:HAS_PORT]->(p:Port)
@@ -246,10 +238,16 @@ ORDER BY toInteger(p.name), host
 
 // ─── Vulnerabilities ────────────────────────────────────────────────────
 
-// allVulnerabilitiesQuery returns every Vulnerability node on a target host
-// with its name and summary (used to bucket by category and detect CVEs).
+// allVulnerabilitiesQuery returns every Vulnerability node connected to a
+// target host (directly via HAS_VULNERABILITY, or via a Service at depth 2
+// through DETECTED_VULNERABILITY/CONFIRMED_VULNERABILITY).
 const allVulnerabilitiesQuery = targetHostsFragment + `
 MATCH (v:Vulnerability) WHERE v.group_id = $group_id
+  AND (
+    EXISTS { MATCH (h:Host)-[:HAS_VULNERABILITY]->(v) WHERE h.uuid IN targetUUIDs }
+    OR EXISTS { MATCH (h:Host)-[:RUNS_SERVICE]->(s:Service)-[:DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY]->(v) WHERE h.uuid IN targetUUIDs }
+    OR EXISTS { MATCH (h:Host)<-[:ON_HOST]-(s:Service)-[:DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY]->(v) WHERE h.uuid IN targetUUIDs }
+  )
 OPTIONAL MATCH (src)-[rel:DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY]->(v)
 OPTIONAL MATCH (v)<-[:HAS_VULNERABILITY]-(h:Host) WHERE h.uuid IN targetUUIDs
 RETURN v.uuid AS uuid, v.name AS name, v.summary AS summary,
