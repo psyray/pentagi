@@ -13,10 +13,13 @@ package kgdashboard
 
 // mainViewLabels is the entity label set of the MAIN view: only attack-chain
 // entities. Artifact, Evidence, Agent, Attempt, Endpoint, Capability,
-// AttackTechnique are excluded — they are either noise (command outputs,
-// extracted facts) or progress tracking, not part of the attack chain backbone.
+// AttackTechnique, and Misconfiguration are excluded — they are either noise
+// (command outputs, extracted facts, wordlist files misclassified as misconfig)
+// or progress tracking, not part of the attack chain backbone. Real
+// misconfigurations remain visible in the FULL view and the Vulnerability
+// breakdown table.
 var mainViewLabels = []string{
-	"Host", "Port", "Service", "Vulnerability", "Misconfiguration",
+	"Host", "Port", "Service", "Vulnerability",
 	"ValidAccess", "Account", "Credential", "PrivChange",
 	"WebApp", "Vhost",
 }
