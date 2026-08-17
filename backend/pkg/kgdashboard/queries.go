@@ -81,7 +81,7 @@ const targetConnectedFilter = `
     }
     OR EXISTS {
       MATCH (th)-[:RUNS_SERVICE|HAS_PORT|HAS_VHOST|HOSTS_APP|HAS_ENDPOINT]->(mid)
-            -[:DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY]->(n)
+            -[:DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY|HOSTS_APP|HAS_ENDPOINT|HAS_VHOST]->(n)
       WHERE th.uuid IN targetUUIDs
     }
     OR EXISTS {
@@ -90,7 +90,7 @@ const targetConnectedFilter = `
       WHERE th.uuid IN targetUUIDs
     }
     OR EXISTS {
-      MATCH (th)<-[:ON_HOST]-(mid)-[:DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY]->(n)
+      MATCH (th)<-[:ON_HOST]-(mid)-[:DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY|HOSTS_APP|HAS_ENDPOINT|HAS_VHOST]->(n)
       WHERE th.uuid IN targetUUIDs
     }
     OR EXISTS {
