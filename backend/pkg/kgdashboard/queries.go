@@ -33,11 +33,12 @@ var hostAttackEdgeTypes = []string{
 	"DETECTED_VULNERABILITY", "CONFIRMED_VULNERABILITY",
 }
 
-// minHostDegree is the minimum number of outgoing attack-chain edges a Host
-// must have to be included in the MAIN view. The real target host (e.g.
-// 10.129.244.174 with 34 connections) passes easily; noise hosts (localhost,
-// VPN, gateway with 0-2 spurious edges) are filtered out.
-const minHostDegree = 3
+// minHostEdgeTypes is the minimum number of distinct attack-chain edge types
+// a Host must have to be included in the MAIN view. The real target host
+// (e.g. 10.129.244.174 with 4 types: HAS_PORT, RUNS_SERVICE, HAS_VHOST,
+// HOSTS_APP) passes easily; noise hosts (localhost, VPN, gateway with only
+// HAS_PORT from `ip a` output) are filtered out.
+const minHostEdgeTypes = 2
 
 // attackSurfaceLabels is the entity label set watched by the attack surface
 // overview block. Order is kept stable for stable frontend rendering.
@@ -57,19 +58,21 @@ ORDER BY count DESC, label ASC
 `
 
 // attackGraphMainQuery returns the MAIN subgraph: attack-chain entity nodes,
-// filtered to only include Hosts with enough connections to be real targets
-// (minHostDegree). Non-Host nodes (Port, Service, Vulnerability, etc.) are
-// always included since they are already filtered by mainViewLabels.
+// filtered to only include Hosts with enough connection diversity to be real
+// targets (≥2 distinct attack-chain edge types). Non-Host nodes (Port, Service,
+// Vulnerability, etc.) are always included since they are already filtered by
+// mainViewLabels. The query first identifies target Host UUIDs in a
+// preliminary MATCH, then returns all attack-chain nodes, keeping Hosts only
+// if they appear in the target set.
 const attackGraphMainQuery = `
+MATCH (h:Host)-[r:HAS_PORT|HAS_VULNERABILITY|HAS_MISCONFIGURATION|HOSTS_APP|RUNS_SERVICE|HAS_VHOST|DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY]->()
+WHERE h.group_id = $group_id
+WITH h, count(DISTINCT type(r)) AS typeCount
+WHERE typeCount >= $minEdgeTypes
+WITH collect(h.uuid) AS targetUUIDs
 MATCH (n) WHERE n.group_id = $group_id
   AND ANY(l IN labels(n) WHERE l IN $labels)
-  AND (
-    NOT 'Host' IN labels(n)
-    OR EXISTS {
-      MATCH (h:Host) WHERE h.uuid = n.uuid AND h.group_id = $group_id
-        AND size([(h)-[:HAS_PORT|HAS_VULNERABILITY|HAS_MISCONFIGURATION|HOSTS_APP|RUNS_SERVICE|HAS_VHOST|DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY]->() | 1]) >= $minDegree
-    }
-  )
+  AND (NOT 'Host' IN labels(n) OR n.uuid IN targetUUIDs)
 RETURN n AS n, coalesce(n.created_at, n.valid_at) AS ts
 ORDER BY ts DESC
 LIMIT $cap
@@ -94,17 +97,16 @@ RETURN coalesce(src.uuid, src.elementId) AS srcUUID,
 
 // attackGraphMainCountQuery returns the total node count for the MAIN view
 // (before the cap) so the resolver can report truncation. Applies the same
-// Host degree filter as attackGraphMainQuery.
+// Host edge-type-diversity filter as attackGraphMainQuery.
 const attackGraphMainCountQuery = `
+MATCH (h:Host)-[r:HAS_PORT|HAS_VULNERABILITY|HAS_MISCONFIGURATION|HOSTS_APP|RUNS_SERVICE|HAS_VHOST|DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY]->()
+WHERE h.group_id = $group_id
+WITH h, count(DISTINCT type(r)) AS typeCount
+WHERE typeCount >= $minEdgeTypes
+WITH collect(h.uuid) AS targetUUIDs
 MATCH (n) WHERE n.group_id = $group_id
   AND ANY(l IN labels(n) WHERE l IN $labels)
-  AND (
-    NOT 'Host' IN labels(n)
-    OR EXISTS {
-      MATCH (h:Host) WHERE h.uuid = n.uuid AND h.group_id = $group_id
-        AND size([(h)-[:HAS_PORT|HAS_VULNERABILITY|HAS_MISCONFIGURATION|HOSTS_APP|RUNS_SERVICE|HAS_VHOST|DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY]->() | 1]) >= $minDegree
-    }
-  )
+  AND (NOT 'Host' IN labels(n) OR n.uuid IN targetUUIDs)
 RETURN count(n) AS total
 `
 
