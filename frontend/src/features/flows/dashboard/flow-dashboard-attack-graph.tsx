@@ -4,10 +4,12 @@ import {
     BackgroundVariant,
     Controls,
     type Edge,
+    Handle,
     MarkerType,
     MiniMap,
     type Node,
     type NodeMouseHandler,
+    Position,
     ReactFlow,
 } from '@xyflow/react';
 import { Expand, Loader2, Maximize2, Shrink } from 'lucide-react';
@@ -118,6 +120,10 @@ function EntityNode({ data }: { data: EntityNodeData }) {
                 minWidth: 140,
             }}
         >
+            {/* Handles are required for edges to connect — without them ReactFlow
+                silently drops all edges. Made invisible since they are just
+                connection points, not interactive elements. */}
+            <Handle position={Position.Left} style={{ opacity: 0 }} type="target" />
             <div className="text-[10px] font-bold uppercase tracking-wider opacity-70">
                 {data.type}
             </div>
@@ -129,6 +135,7 @@ function EntityNode({ data }: { data: EntityNodeData }) {
                     {data.summary}
                 </div>
             ) : null}
+            <Handle position={Position.Right} style={{ opacity: 0 }} type="source" />
         </div>
     );
 }
