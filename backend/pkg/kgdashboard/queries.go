@@ -57,17 +57,18 @@ WITH collect(th.uuid) AS targetUUIDs
 `
 
 // targetConnectedFilter is a reusable Cypher WHERE clause fragment that keeps
-// only nodes connected to a target Host (directly at depth 1, or indirectly
-// at depth 2 through a Service/Port/Endpoint). This filters out orphan noise
+// only nodes connected to a target Host (directly at depth 1, or indirectly at
+// depth 2 through a Service/Port/Endpoint). This filters out orphan noise
 // like "read_file command" (a tool name misclassified as Port) while keeping
 // Vulnerabilities and Credentials that connect to the Host through a Service.
 //
 // Depth 1: Host -> n (HAS_PORT, RUNS_SERVICE, HAS_VHOST, etc.)
 // Depth 1 (reverse): n -> Host (ON_HOST)
-// Depth 2: Host -> Service <- DETECTED_VULNERABILITY <- Vulnerability
-// Depth 2: Host -> Service <- AUTHENTICATES_TO <- Credential
-// Depth 2: Host -> Service <- VIA_SERVICE <- ValidAccess
-// Depth 2 (reverse): Service -> ON_HOST -> Host, Service -> DETECTED_VULN -> Vuln
+// Depth 2 forward: Host -> Service -> DETECTED_VULNERABILITY -> Vulnerability
+// Depth 2 backward: Host -> Service <- AUTHENTICATES_TO <- Credential
+// Depth 2 backward: Host -> Service <- VIA_SERVICE <- ValidAccess
+// Depth 2 reverse: Service -> ON_HOST -> Host, Service -> DETECTED_VULN -> Vuln
+// Depth 2 reverse: Service -> ON_HOST -> Host, Service <- AUTHENTICATES_TO <- Cred
 const targetConnectedFilter = `
   AND (
     n.uuid IN targetUUIDs
@@ -80,11 +81,20 @@ const targetConnectedFilter = `
     }
     OR EXISTS {
       MATCH (th)-[:RUNS_SERVICE|HAS_PORT|HAS_VHOST|HOSTS_APP|HAS_ENDPOINT]->(mid)
-            <-[:DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY|AUTHENTICATES_TO|VIA_SERVICE|YIELDED_ACCESS|YIELDED_PRIV_ACCESS|ESCALATED_VIA]-(n)
+            -[:DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY]->(n)
       WHERE th.uuid IN targetUUIDs
     }
     OR EXISTS {
-      MATCH (th)<-[:ON_HOST]-(mid)-[:DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY|AUTHENTICATES_TO|VIA_SERVICE]->(n)
+      MATCH (th)-[:RUNS_SERVICE|HAS_PORT|HAS_VHOST|HOSTS_APP|HAS_ENDPOINT]->(mid)
+            <-[:AUTHENTICATES_TO|VIA_SERVICE|YIELDED_ACCESS|YIELDED_PRIV_ACCESS|ESCALATED_VIA]-(n)
+      WHERE th.uuid IN targetUUIDs
+    }
+    OR EXISTS {
+      MATCH (th)<-[:ON_HOST]-(mid)-[:DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY]->(n)
+      WHERE th.uuid IN targetUUIDs
+    }
+    OR EXISTS {
+      MATCH (th)<-[:ON_HOST]-(mid)<-[:AUTHENTICATES_TO|VIA_SERVICE|YIELDED_ACCESS|YIELDED_PRIV_ACCESS]-(n)
       WHERE th.uuid IN targetUUIDs
     }
   )
