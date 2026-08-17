@@ -155,7 +155,7 @@ func (s *service) GetAttackGraph(ctx context.Context, flowID int64, groupID stri
 		nodesCypher = attackGraphMainQuery
 		edgesCypher = attackGraphMainEdgesQuery
 		countCypher = attackGraphMainCountQuery
-		mainParams := map[string]any{"group_id": groupID, "cap": int64(s.maxNodes), "labels": mainViewLabels, "edgeTypes": mainViewEdgeTypes}
+		mainParams := map[string]any{"group_id": groupID, "cap": int64(s.maxNodes), "labels": mainViewLabels}
 		baseParams = mainParams
 	default:
 		return out, fmt.Errorf("kgdashboard: unknown attack graph view %q", view)

@@ -516,18 +516,19 @@ function toFlowEdges(edges: AttackGraphEdgeFragmentFragment[]): Edge[] {
             labelBgBorderRadius: 4,
             labelBgPadding: [4, 2] as [number, number],
             labelBgStyle: { fill: '#1a1a2e' },
+            labelShowBg: true,
             labelStyle: { fill: '#9ca3af', fontSize: 9, fontWeight: 500 },
             // Arrow on every edge to show the direction of the relationship.
             markerEnd: {
-                color: isAttack ? '#f97316' : '#4b5563',
+                color: isAttack ? '#f97316' : '#9ca3af',
                 height: 16,
                 type: MarkerType.ArrowClosed,
                 width: 16,
             },
             source: e.sourceUUID,
             style: {
-                stroke: isAttack ? '#f97316' : '#4b5563',
-                strokeWidth: isAttack ? 2 : 1.2,
+                stroke: isAttack ? '#f97316' : '#9ca3af',
+                strokeWidth: isAttack ? 2 : 1.5,
             },
             target: e.targetUUID,
         };
