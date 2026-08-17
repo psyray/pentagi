@@ -118,6 +118,12 @@ type AgentsPrompts struct {
 	Summarizer    *AgentPrompt  `json:"summarizer"`
 }
 
+type ArtifactRow struct {
+	Artifact   string `json:"artifact"`
+	ProducedBy string `json:"producedBy"`
+	Summary    string `json:"summary"`
+}
+
 type Assistant struct {
 	ID        int64      `json:"id"`
 	Title     string     `json:"title"`
@@ -142,6 +148,38 @@ type AssistantLog struct {
 	CreatedAt    time.Time      `json:"createdAt"`
 }
 
+type AttackGraph struct {
+	Nodes      []*AttackGraphNode `json:"nodes"`
+	Edges      []*AttackGraphEdge `json:"edges"`
+	TotalNodes int                `json:"totalNodes"`
+	TotalEdges int                `json:"totalEdges"`
+	Truncated  bool               `json:"truncated"`
+}
+
+type AttackGraphEdge struct {
+	UUID       string     `json:"uuid"`
+	Type       string     `json:"type"`
+	Fact       string     `json:"fact"`
+	SourceUUID string     `json:"sourceUUID"`
+	TargetUUID string     `json:"targetUUID"`
+	CreatedAt  *time.Time `json:"createdAt,omitempty"`
+}
+
+type AttackGraphNode struct {
+	UUID      string     `json:"uuid"`
+	Labels    []string   `json:"labels"`
+	Name      string     `json:"name"`
+	Summary   string     `json:"summary"`
+	CreatedAt *time.Time `json:"createdAt,omitempty"`
+}
+
+type AttackSurfaceItem struct {
+	Type      string     `json:"type"`
+	Name      string     `json:"name"`
+	Summary   string     `json:"summary"`
+	CreatedAt *time.Time `json:"createdAt,omitempty"`
+}
+
 type CreateAPITokenInput struct {
 	Name *string `json:"name,omitempty"`
 	TTL  int     `json:"ttl"`
@@ -160,6 +198,12 @@ type CreateKnowledgeDocumentInput struct {
 	GuideType   *KnowledgeGuideType  `json:"guideType,omitempty"`
 	AnswerType  *KnowledgeAnswerType `json:"answerType,omitempty"`
 	CodeLang    *string              `json:"codeLang,omitempty"`
+}
+
+type CredentialStatusRow struct {
+	Status   CredentialStatus `json:"status"`
+	Count    int              `json:"count"`
+	Examples []string         `json:"examples"`
 }
 
 type DailyFlowsStats struct {
@@ -202,6 +246,12 @@ type DefaultProvidersConfig struct {
 	Minimax   *ProviderConfig `json:"minimax,omitempty"`
 	Mistral   *ProviderConfig `json:"mistral,omitempty"`
 	Xai       *ProviderConfig `json:"xai,omitempty"`
+}
+
+type DetectedCVERow struct {
+	Cve     string `json:"cve"`
+	FoundOn string `json:"foundOn"`
+	Source  string `json:"source"`
 }
 
 type Flow struct {
@@ -267,6 +317,22 @@ type FunctionToolcallsStats struct {
 	TotalCount           int     `json:"totalCount"`
 	TotalDurationSeconds float64 `json:"totalDurationSeconds"`
 	AvgDurationSeconds   float64 `json:"avgDurationSeconds"`
+}
+
+type GraphitiTagStat struct {
+	Tag   string `json:"tag"`
+	Count int    `json:"count"`
+}
+
+type GraphitiToolUsageRow struct {
+	Tool       string `json:"tool"`
+	Executions int    `json:"executions"`
+}
+
+type InfraMapRow struct {
+	Host    string `json:"host"`
+	Port    string `json:"port"`
+	Service string `json:"service"`
 }
 
 type KnowledgeDocument struct {
@@ -356,6 +422,12 @@ type ModelUsageStats struct {
 }
 
 type Mutation struct {
+}
+
+type OpenPortRow struct {
+	Port    string `json:"port"`
+	Service string `json:"service"`
+	Host    string `json:"host"`
 }
 
 type PromptValidationResult struct {
@@ -645,6 +717,14 @@ type UserResource struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
+type ValidAccessRow struct {
+	Access  string `json:"access"`
+	Account string `json:"account"`
+	Host    string `json:"host"`
+	Service string `json:"service"`
+	Summary string `json:"summary"`
+}
+
 type VectorStoreLog struct {
 	ID        int64             `json:"id"`
 	Initiator AgentType         `json:"initiator"`
@@ -667,6 +747,12 @@ type VersionInfo struct {
 	Strategy  string      `json:"strategy"`
 	CheckedAt *time.Time  `json:"checkedAt,omitempty"`
 	FailedAt  *time.Time  `json:"failedAt,omitempty"`
+}
+
+type VulnBreakdownRow struct {
+	Category VulnCategory `json:"category"`
+	Count    int          `json:"count"`
+	Examples []string     `json:"examples"`
 }
 
 type AgentConfigType string
@@ -796,6 +882,90 @@ func (e *AgentType) UnmarshalGQL(v interface{}) error {
 }
 
 func (e AgentType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type AttackGraphView string
+
+const (
+	AttackGraphViewMain AttackGraphView = "MAIN"
+	AttackGraphViewFull AttackGraphView = "FULL"
+)
+
+var AllAttackGraphView = []AttackGraphView{
+	AttackGraphViewMain,
+	AttackGraphViewFull,
+}
+
+func (e AttackGraphView) IsValid() bool {
+	switch e {
+	case AttackGraphViewMain, AttackGraphViewFull:
+		return true
+	}
+	return false
+}
+
+func (e AttackGraphView) String() string {
+	return string(e)
+}
+
+func (e *AttackGraphView) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AttackGraphView(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AttackGraphView", str)
+	}
+	return nil
+}
+
+func (e AttackGraphView) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type CredentialStatus string
+
+const (
+	CredentialStatusCompromised CredentialStatus = "Compromised"
+	CredentialStatusDiscovered  CredentialStatus = "Discovered"
+	CredentialStatusUnknown     CredentialStatus = "Unknown"
+)
+
+var AllCredentialStatus = []CredentialStatus{
+	CredentialStatusCompromised,
+	CredentialStatusDiscovered,
+	CredentialStatusUnknown,
+}
+
+func (e CredentialStatus) IsValid() bool {
+	switch e {
+	case CredentialStatusCompromised, CredentialStatusDiscovered, CredentialStatusUnknown:
+		return true
+	}
+	return false
+}
+
+func (e CredentialStatus) String() string {
+	return string(e)
+}
+
+func (e *CredentialStatus) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = CredentialStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid CredentialStatus", str)
+	}
+	return nil
+}
+
+func (e CredentialStatus) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
@@ -1792,5 +1962,54 @@ func (e *VectorStoreAction) UnmarshalGQL(v interface{}) error {
 }
 
 func (e VectorStoreAction) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type VulnCategory string
+
+const (
+	VulnCategoryCve      VulnCategory = "CVE"
+	VulnCategoryCritical VulnCategory = "Critical"
+	VulnCategoryHigh     VulnCategory = "High"
+	VulnCategoryMedium   VulnCategory = "Medium"
+	VulnCategoryLow      VulnCategory = "Low"
+	VulnCategoryInfo     VulnCategory = "Info"
+)
+
+var AllVulnCategory = []VulnCategory{
+	VulnCategoryCve,
+	VulnCategoryCritical,
+	VulnCategoryHigh,
+	VulnCategoryMedium,
+	VulnCategoryLow,
+	VulnCategoryInfo,
+}
+
+func (e VulnCategory) IsValid() bool {
+	switch e {
+	case VulnCategoryCve, VulnCategoryCritical, VulnCategoryHigh, VulnCategoryMedium, VulnCategoryLow, VulnCategoryInfo:
+		return true
+	}
+	return false
+}
+
+func (e VulnCategory) String() string {
+	return string(e)
+}
+
+func (e *VulnCategory) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = VulnCategory(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid VulnCategory", str)
+	}
+	return nil
+}
+
+func (e VulnCategory) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
