@@ -1,7 +1,17 @@
 import { useQuery } from '@apollo/client/react';
-import { Background, BackgroundVariant, Controls, MiniMap, ReactFlow } from '@xyflow/react';
+import {
+    Background,
+    BackgroundVariant,
+    Controls,
+    type Edge,
+    MarkerType,
+    MiniMap,
+    type Node,
+    type NodeMouseHandler,
+    ReactFlow,
+} from '@xyflow/react';
 import { Expand, Loader2, Maximize2, Shrink } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,61 +34,103 @@ import { cn } from '@/lib/utils';
 
 import '@xyflow/react/dist/style.css';
 
-// labelColumnOrder fixes the horizontal reading order of the attack chain:
-// Host → Port → Service → Vulnerability / Misconfiguration → ValidAccess →
-// Account / Credential. Labels outside the list land in a trailing column,
-// ordered alphabetically.
+// ─── Color scheme ───────────────────────────────────────────────────────
+// Each entity type gets a hex triplet used for the node background (at 20%
+// alpha), border (at 60% alpha), text, and MiniMap swatch. The scheme is
+// designed for a black graph background.
+interface LabelColor {
+    bg: string;
+    border: string;
+    dot: string;
+    text: string;
+}
+
+const labelColors: Record<string, LabelColor> = {
+    Account:       { bg: '#7c3aed20', border: '#7c3aed99', dot: '#7c3aed', text: '#c4b5fd' }, // purple
+    Agent:          { bg: '#64748b20', border: '#64748b99', dot: '#64748b', text: '#cbd5e1' }, // slate
+    Artifact:       { bg: '#78716c20', border: '#78716c99', dot: '#78716c', text: '#d6d3d1' }, // stone
+    Attempt:        { bg: '#eab30820', border: '#eab30899', dot: '#eab308', text: '#fde047' }, // yellow
+    Capability:     { bg: '#84cc1620', border: '#84cc1699', dot: '#84cc16', text: '#bef264' }, // lime
+    Credential:     { bg: '#f59e0b20', border: '#f59e0b99', dot: '#f59e0b', text: '#fcd34d' }, // amber
+    Endpoint:       { bg: '#6366f120', border: '#6366f199', dot: '#6366f1', text: '#a5b4fc' }, // indigo
+    Episodic:       { bg: '#40404020', border: '#52525299', dot: '#525252', text: '#a3a3a3' }, // neutral
+    Evidence:       { bg: '#14b8a620', border: '#14b8a699', dot: '#14b8a6', text: '#5eead4' }, // teal
+    Host:           { bg: '#3b82f620', border: '#3b82f699', dot: '#3b82f6', text: '#93c5fd' }, // blue
+    Misconfiguration:{ bg: '#fb923c20', border: '#fb923c99', dot: '#fb923c', text: '#fdba74' }, // orange-light
+    Port:           { bg: '#06b6d420', border: '#06b6d499', dot: '#06b6d4', text: '#67e8f9' }, // cyan
+    PrivChange:     { bg: '#f43f5e20', border: '#f43f5e99', dot: '#f43f5e', text: '#fda4af' }, // rose
+    Service:        { bg: '#22c55e20', border: '#22c55e99', dot: '#22c55e', text: '#86efac' }, // green
+    ValidAccess:    { bg: '#f9731620', border: '#f9731699', dot: '#f97316', text: '#fdba74' }, // orange
+    Vhost:          { bg: '#ec489920', border: '#ec489999', dot: '#ec4899', text: '#f9a8d4' }, // pink
+    Vulnerability:  { bg: '#ef444420', border: '#ef444499', dot: '#ef4444', text: '#fca5a5' }, // red
+    WebApp:         { bg: '#d946ef20', border: '#d946ef99', dot: '#d946ef', text: '#e879f9' }, // fuchsia
+};
+
+const fallbackColor: LabelColor = { bg: '#52525220', border: '#52525299', dot: '#525252', text: '#a3a3a3' };
+
+function colorForLabel(label: string): LabelColor {
+    return labelColors[label] ?? fallbackColor;
+}
+
+// ─── Layout ─────────────────────────────────────────────────────────────
 const labelColumnOrder: string[] = [
-    'Host',
-    'Port',
-    'Service',
-    'Endpoint',
-    'WebApp',
-    'Vhost',
-    'Vulnerability',
-    'Misconfiguration',
-    'Capability',
-    'Attempt',
-    'PrivChange',
-    'ValidAccess',
-    'Account',
-    'Credential',
-    'Artifact',
-    'Evidence',
-    'Agent',
+    'Host', 'Port', 'Service', 'Endpoint', 'WebApp', 'Vhost',
+    'Vulnerability', 'Misconfiguration', 'Capability', 'Attempt', 'PrivChange',
+    'ValidAccess', 'Account', 'Credential', 'Artifact', 'Evidence', 'Agent',
     'Episodic',
 ];
 
-// labelStyles maps an entity label to a Tailwind background/border/text color
-// so the attack chain reads at a glance. Unknown labels fall back to muted.
-const labelStyles: Record<string, string> = {
-    Account: 'bg-cyan-50 border-cyan-300 text-cyan-900 dark:bg-cyan-950 dark:border-cyan-800 dark:text-cyan-100',
-    Agent: 'bg-slate-50 border-slate-300 text-slate-900 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-100',
-    Artifact: 'bg-stone-50 border-stone-300 text-stone-900 dark:bg-stone-900 dark:border-stone-700 dark:text-stone-100',
-    Attempt: 'bg-yellow-50 border-yellow-300 text-yellow-900 dark:bg-yellow-950 dark:border-yellow-800 dark:text-yellow-100',
-    Capability: 'bg-lime-50 border-lime-300 text-lime-900 dark:bg-lime-950 dark:border-lime-800 dark:text-lime-100',
-    Credential: 'bg-amber-50 border-amber-300 text-amber-900 dark:bg-amber-950 dark:border-amber-800 dark:text-amber-100',
-    Endpoint: 'bg-blue-50 border-blue-300 text-blue-900 dark:bg-blue-950 dark:border-blue-800 dark:text-blue-100',
-    Episodic: 'bg-muted border-border text-muted-foreground',
-    Evidence: 'bg-teal-50 border-teal-300 text-teal-900 dark:bg-teal-950 dark:border-teal-800 dark:text-teal-100',
-    Host: 'bg-sky-50 border-sky-300 text-sky-900 dark:bg-sky-950 dark:border-sky-800 dark:text-sky-100',
-    Misconfiguration: 'bg-orange-50 border-orange-300 text-orange-900 dark:bg-orange-950 dark:border-orange-800 dark:text-orange-100',
-    Port: 'bg-indigo-50 border-indigo-300 text-indigo-900 dark:bg-indigo-950 dark:border-indigo-800 dark:text-indigo-100',
-    PrivChange: 'bg-rose-50 border-rose-300 text-rose-900 dark:bg-rose-950 dark:border-rose-800 dark:text-rose-100',
-    Service: 'bg-violet-50 border-violet-300 text-violet-900 dark:bg-violet-950 dark:border-violet-800 dark:text-violet-100',
-    ValidAccess: 'bg-emerald-50 border-emerald-300 text-emerald-900 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-100',
-    Vhost: 'bg-pink-50 border-pink-300 text-pink-900 dark:bg-pink-950 dark:border-pink-800 dark:text-pink-100',
-    Vulnerability: 'bg-red-50 border-red-300 text-red-900 dark:bg-red-950 dark:border-red-800 dark:text-red-100',
-    WebApp: 'bg-fuchsia-50 border-fuchsia-300 text-fuchsia-900 dark:bg-fuchsia-950 dark:border-fuchsia-800 dark:text-fuchsia-100',
-};
+const COLUMN_WIDTH = 260;
+const ROW_HEIGHT = 80;
+const TOP_PADDING = 40;
+
+// ─── Custom node component ───────────────────────────────────────────────
+interface EntityNodeData {
+    [key: string]: unknown;
+    createdAt: null | string;
+    label: string;
+    labels: string[];
+    name: string;
+    summary: string;
+    type: string;
+    uuid: string;
+}
 
 function columnForLabel(label: string): number {
     const idx = labelColumnOrder.indexOf(label);
 
     if (idx >= 0) {return idx;}
 
-    // Unknown labels: append after the known columns, ordered alphabetically.
     return labelColumnOrder.length + label.charCodeAt(0) % 16;
+}
+
+function EntityNode({ data }: { data: EntityNodeData }) {
+    const c = colorForLabel(data.type);
+
+    return (
+        <div
+            className="rounded-xl border-2 px-3 py-2 shadow-lg backdrop-blur-sm"
+            style={{
+                background: c.bg,
+                borderColor: c.border,
+                color: c.text,
+                maxWidth: 220,
+                minWidth: 140,
+            }}
+        >
+            <div className="text-[10px] font-bold uppercase tracking-wider opacity-70">
+                {data.type}
+            </div>
+            <div className="text-sm font-semibold leading-tight">
+                {data.name || data.type}
+            </div>
+            {data.summary ? (
+                <div className="mt-1 text-xs opacity-60 line-clamp-2">
+                    {data.summary}
+                </div>
+            ) : null}
+        </div>
+    );
 }
 
 function primaryLabel(labels: string[]): string {
@@ -89,10 +141,9 @@ function primaryLabel(labels: string[]): string {
     return labels[0] ?? 'Entity';
 }
 
-const COLUMN_WIDTH = 240;
-const ROW_HEIGHT = 72;
-const TOP_PADDING = 40;
+const nodeTypes = { entityNode: EntityNode };
 
+// ─── Main component ──────────────────────────────────────────────────────
 interface FlowDashboardAttackGraphProps {
     flowId: string;
     pollInterval?: number;
@@ -101,6 +152,7 @@ interface FlowDashboardAttackGraphProps {
 export function FlowDashboardAttackGraph({ flowId, pollInterval = 10000 }: FlowDashboardAttackGraphProps) {
     const [view, setView] = useState<AttackGraphView>(AttackGraphView.Main);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [selectedNodeId, setSelectedNodeId] = useState<null | string>(null);
 
     const { data, error, loading } = useQuery(FlowAttackGraphDocument, {
         fetchPolicy: 'cache-and-network',
@@ -117,8 +169,27 @@ export function FlowDashboardAttackGraph({ flowId, pollInterval = 10000 }: FlowD
 
     const hasNodes = (graph?.nodes?.length ?? 0) > 0;
 
+    // Find the full entity data for the selected node (the ReactFlow node only
+    // carries display data; we look up the original entity by UUID).
+    const selectedNode = useMemo(() => {
+        if (!selectedNodeId || !graph) {return null;}
+
+        return graph.nodes.find((n) => n.uuid === selectedNodeId) ?? null;
+    }, [selectedNodeId, graph]);
+
+    const presentLabels = useMemo(() => {
+        if (!graph) {return [];}
+
+        return [...new Set(graph.nodes.map((n) => primaryLabel(n.labels)))];
+    }, [graph]);
+
+    const handleNodeClick: NodeMouseHandler = useCallback((_, node) => {
+        setSelectedNodeId(node.id);
+    }, []);
+
     const flowElement = (
         <ReactFlow
+            colorMode="dark"
             edges={rfEdges}
             fitView
             // key forces a fresh fitView when the view (MAIN/FULL) changes.
@@ -126,17 +197,50 @@ export function FlowDashboardAttackGraph({ flowId, pollInterval = 10000 }: FlowD
             minZoom={0.05}
             nodes={rfNodes}
             nodesConnectable={false}
+            nodeTypes={nodeTypes}
+            onNodeClick={handleNodeClick}
             proOptions={{ hideAttribution: true }}
         >
-            <Background color="hsl(var(--border))" gap={20} variant={BackgroundVariant.Dots} />
+            <Background color="#1a1a2e" gap={24} variant={BackgroundVariant.Dots} />
             <Controls position="bottom-right" showInteractive={false} />
             <MiniMap
-                className="bg-background/80"
-                nodeColor={(n) => (typeof n.className === 'string' && n.className.includes('red-') ? '#fca5a5' : '#cbd5e1')}
+                className="bg-gray-900/80"
+                maskColor="rgba(0,0,0,0.6)"
+                nodeColor={(n) => {
+                    if (n.data && typeof n.data === 'object' && 'type' in n.data) {
+                        return colorForLabel(String(n.data.type)).dot;
+                    }
+
+                    return '#525252';
+                }}
                 pannable
                 zoomable
             />
         </ReactFlow>
+    );
+
+    const graphContainer = (
+        <>
+            <GraphLegend labels={presentLabels} />
+            <div className="h-[420px] w-full overflow-hidden rounded-lg bg-black">
+                {flowElement}
+            </div>
+            <div className="mt-2">
+                <NodeDetailPanel node={selectedNode} />
+            </div>
+        </>
+    );
+
+    const fullscreenContainer = (
+        <>
+            <GraphLegend labels={presentLabels} />
+            <div className="relative h-[calc(95vh-7rem)] w-full rounded-lg bg-black">
+                {flowElement}
+            </div>
+            <div className="mt-2 px-4 pb-2">
+                <NodeDetailPanel node={selectedNode} />
+            </div>
+        </>
     );
 
     return (
@@ -217,7 +321,7 @@ export function FlowDashboardAttackGraph({ flowId, pollInterval = 10000 }: FlowD
                         </EmptyHeader>
                     </Empty>
                 ) : (
-                    <div className="h-[420px] w-full overflow-hidden rounded-md border">{flowElement}</div>
+                    graphContainer
                 )}
             </CardContent>
 
@@ -268,10 +372,38 @@ export function FlowDashboardAttackGraph({ flowId, pollInterval = 10000 }: FlowD
                             </Button>
                         </div>
                     </DialogHeader>
-                    <div className="relative h-[calc(95vh-3.5rem)] w-full">{flowElement}</div>
+                    {fullscreenContainer}
                 </DialogContent>
             </Dialog>
         </Card>
+    );
+}
+
+// ─── Legend ──────────────────────────────────────────────────────────────
+function GraphLegend({ labels }: { labels: string[] }) {
+    const present = labelColumnOrder.filter((l) => labels.includes(l));
+    // Add any labels not in the predefined order
+    const extra = labels.filter((l) => !labelColumnOrder.includes(l)).sort();
+    const all = [...present, ...extra];
+
+    if (all.length === 0) {return null;}
+
+    return (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-1 pb-2">
+            {all.map((label) => {
+                const c = colorForLabel(label);
+
+                return (
+                    <div className="flex items-center gap-1.5" key={label}>
+                        <span
+                            className="inline-block size-3 rounded-full border"
+                            style={{ background: c.dot, borderColor: c.border }}
+                        />
+                        <span className="text-xs font-medium text-gray-300">{label}</span>
+                    </div>
+                );
+            })}
+        </div>
     );
 }
 
@@ -289,12 +421,11 @@ function isAttackEdge(type: string): boolean {
     );
 }
 
-// layoutNodes assigns a deterministic column/row position per node so the
-// attack chain reads left → right without pulling in a layout engine. The
-// user can still drag nodes and zoom/pan freely.
-function layoutNodes(
-    nodes: AttackGraphNodeFragmentFragment[],
-): Array<{ className: string; data: { label: string }; id: string; position: { x: number; y: number }; }> {
+// ─── Helpers ─────────────────────────────────────────────────────────────
+
+// layoutNodes assigns a deterministic column/row position per node and wraps
+// each entity in a custom entityNode with full display data.
+function layoutNodes(nodes: AttackGraphNodeFragmentFragment[]): Node[] {
     const byColumn = new Map<number, AttackGraphNodeFragmentFragment[]>();
 
     for (const n of nodes) {
@@ -306,30 +437,29 @@ function layoutNodes(
 
     const cols = [...byColumn.keys()].sort((a, b) => a - b);
 
-    const out: Array<{
-        className: string;
-        data: { label: string };
-        id: string;
-        position: { x: number; y: number };
-    }> = [];
+    const out: Node[] = [];
     cols.forEach((col, colIdx) => {
         const items = byColumn.get(col)!;
         items.forEach((n, rowIdx) => {
-            const label = primaryLabel(n.labels);
-            const style = labelStyles[label] ?? 'bg-muted border-border text-muted-foreground';
-            const subtitle = n.summary ? truncate(n.summary, 60) : '';
-            const labelLine = n.name ? truncate(n.name, 28) : label;
+            const type = primaryLabel(n.labels);
+            const summary = n.summary ? truncate(n.summary, 80) : '';
+            const name = n.name ? truncate(n.name, 40) : type;
             out.push({
-                className: cn(
-                    'whitespace-pre-wrap rounded-md border px-3 py-2 text-xs font-medium shadow-sm',
-                    style,
-                ),
-                data: { label: `${labelLine}${subtitle ? `\n${subtitle}` : ''}` },
+                data: {
+                    createdAt: n.createdAt,
+                    label: name,
+                    labels: n.labels,
+                    name,
+                    summary,
+                    type,
+                    uuid: n.uuid,
+                } satisfies EntityNodeData,
                 id: n.uuid,
                 position: {
                     x: colIdx * COLUMN_WIDTH,
                     y: TOP_PADDING + rowIdx * ROW_HEIGHT,
                 },
+                type: 'entityNode',
             });
         });
     });
@@ -337,18 +467,71 @@ function layoutNodes(
     return out;
 }
 
-function toFlowEdges(
-    edges: AttackGraphEdgeFragmentFragment[],
-): Array<{ animated: boolean; id: string; label?: string; source: string; target: string; }> {
-    return edges.map((e) => ({
-        animated: isAttackEdge(e.type),
-        id: e.uuid,
-        // Show the relation type (shorter than the fact prose) so the graph
-        // stays readable at default zoom; hover tooltips are overkill here.
-        label: e.type,
-        source: e.sourceUUID,
-        target: e.targetUUID,
-    }));
+// ─── Detail panel ────────────────────────────────────────────────────────
+function NodeDetailPanel({ node }: { node: AttackGraphNodeFragmentFragment | null }) {
+    if (!node) {
+        return (
+            <div className="flex items-center justify-center rounded-lg border border-gray-700 bg-gray-900/60 px-4 py-3 text-sm text-gray-500">
+                Click a node to see its details
+            </div>
+        );
+    }
+
+    const type = primaryLabel(node.labels);
+    const c = colorForLabel(type);
+
+    return (
+        <div
+            className="rounded-lg border-2 px-4 py-3"
+            style={{ background: c.bg, borderColor: c.border, color: c.text }}
+        >
+            <div className="flex items-center gap-2">
+                <span
+                    className="inline-block size-2.5 rounded-full"
+                    style={{ background: c.dot }}
+                />
+                <span className="text-xs font-bold uppercase tracking-wider opacity-70">{type}</span>
+            </div>
+            <div className="mt-1 text-base font-semibold">{node.name || type}</div>
+            {node.summary ? (
+                <div className="mt-1.5 text-sm opacity-70">{node.summary}</div>
+            ) : null}
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-xs opacity-50">
+                <span>UUID: {node.uuid.slice(0, 12)}…</span>
+                {node.labels.length > 0 ? <span>Labels: {node.labels.join(', ')}</span> : null}
+                {node.createdAt ? <span>Created: {new Date(node.createdAt).toLocaleString()}</span> : null}
+            </div>
+        </div>
+    );
+}
+
+function toFlowEdges(edges: AttackGraphEdgeFragmentFragment[]): Edge[] {
+    return edges.map((e) => {
+        const isAttack = isAttackEdge(e.type);
+
+        return {
+            animated: isAttack,
+            id: e.uuid,
+            label: e.type,
+            labelBgBorderRadius: 4,
+            labelBgPadding: [4, 2] as [number, number],
+            labelBgStyle: { fill: '#1a1a2e' },
+            labelStyle: { fill: '#9ca3af', fontSize: 9, fontWeight: 500 },
+            // Arrow on every edge to show the direction of the relationship.
+            markerEnd: {
+                color: isAttack ? '#f97316' : '#4b5563',
+                height: 16,
+                type: MarkerType.ArrowClosed,
+                width: 16,
+            },
+            source: e.sourceUUID,
+            style: {
+                stroke: isAttack ? '#f97316' : '#4b5563',
+                strokeWidth: isAttack ? 2 : 1.2,
+            },
+            target: e.targetUUID,
+        };
+    });
 }
 
 function truncate(s: string, n: number): string {
