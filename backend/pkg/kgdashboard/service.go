@@ -162,10 +162,10 @@ func (s *service) GetAttackGraph(ctx context.Context, flowID int64, groupID stri
 			mainCap = 200
 		}
 		baseParams = map[string]any{
-			"group_id":  groupID,
-			"cap":       int64(mainCap),
-			"labels":    mainViewLabels,
-			"minDegree": int64(minHostDegree),
+			"group_id":     groupID,
+			"cap":          int64(mainCap),
+			"labels":       mainViewLabels,
+			"minEdgeTypes": int64(minHostEdgeTypes),
 		}
 		nodesCypher = attackGraphMainQuery
 		edgesCypher = attackGraphMainEdgesQuery
