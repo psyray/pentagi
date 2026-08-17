@@ -6,6 +6,7 @@ import (
 	"pentagi/pkg/database"
 	"pentagi/pkg/database/knowledge"
 	"pentagi/pkg/graph/subscriptions"
+	"pentagi/pkg/kgdashboard"
 	"pentagi/pkg/providers"
 	"pentagi/pkg/server/auth"
 	"pentagi/pkg/server/update"
@@ -33,4 +34,5 @@ type Resolver struct {
 	Replacer        anonymizer.Replacer
 	Updates         *update.Service
 	Timezones       *timezone.Catalog
+	KgDashboard     kgdashboard.Service
 }
