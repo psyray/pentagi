@@ -20,6 +20,7 @@ import (
 	"pentagi/pkg/database/knowledge"
 	"pentagi/pkg/docker"
 	"pentagi/pkg/graph/subscriptions"
+	"pentagi/pkg/kgdashboard"
 	"pentagi/pkg/providers"
 	"pentagi/pkg/server/auth"
 	"pentagi/pkg/server/logger"
@@ -150,6 +151,32 @@ func NewRouter(
 	var knowledgeStore knowledge.KnowledgeStore
 	knowledgeStore = knowledge.NewKnowledgeStore(db, pgStore, embedder, subscriptions.NewKnowledgePublisher, cfg.EmbeddingMaxTextBytes)
 
+	// ---- Knowledge-graph dashboard (read-only Neo4j) ------------------------
+	// Backs the in-flow Graphiti dashboard (attack chain, credentials, infra,
+	// vulnerabilities ...). Disabled unless GraphitiEnabled is true and a Neo4j
+	// URI is configured; the service itself also degrades on connectivity loss.
+	// Prefer a dedicated read-only user (NEO4J_DASHBOARD_USER/PASSWORD); fall
+	// back to the admin credentials when those are not set.
+	neo4jURI := cfg.Neo4jURI
+	neo4jUser := cfg.Neo4jUser
+	if cfg.Neo4jDashboardUser != "" {
+		neo4jUser = cfg.Neo4jDashboardUser
+	}
+	neo4jPassword := cfg.Neo4jPassword
+	if cfg.Neo4jDashboardPassword != "" {
+		neo4jPassword = cfg.Neo4jDashboardPassword
+	}
+	if !cfg.GraphitiEnabled {
+		neo4jURI = ""
+	}
+	kgDashboard := kgdashboard.NewService(
+		neo4jURI, neo4jUser, neo4jPassword, cfg.Neo4jDatabase,
+		cfg.Neo4jMaxConns, time.Duration(cfg.GraphitiTimeout)*time.Second,
+	)
+	if kgDashboard.IsEnabled() {
+		logrus.Info("kgdashboard service enabled (read-only Neo4j)")
+	}
+
 	// ---- Anonymizer replacer ------------------------------------------------
 	// Shared singleton used by the GraphQL anonymizeText mutation.
 	// Falls back to a no-op nil replacer on failure so the rest of the server still starts correctly.
@@ -202,7 +229,7 @@ func NewRouter(
 	knowledgeService := services.NewKnowledgeService(orm, knowledgeStore)
 	anonymizerService := services.NewAnonymizerService(textReplacer)
 	graphqlService := services.NewGraphqlService(
-		db, cfg, baseURL, cfg.CorsOrigins, tokenCache, providers, controller, subscriptions, knowledgeStore, textReplacer,
+		db, cfg, baseURL, cfg.CorsOrigins, tokenCache, providers, controller, subscriptions, knowledgeStore, textReplacer, kgDashboard,
 	)
 
 	router := gin.Default()

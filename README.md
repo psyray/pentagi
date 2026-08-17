@@ -2830,6 +2830,28 @@ The values below are PentAGI's recommended `.env.example`/compose defaults, not 
 
 `NEO4J_USER`, `NEO4J_PASSWORD`, `NEO4J_URI`, and `NEO4J_DATABASE` configure the bundled connection. Neo4j Community Edition supports only its default database; do not configure a separate database name that requires Enterprise multi-database support.
 
+##### Neo4j read-only dashboard user
+
+The in-flow Graphiti dashboard reads from Neo4j over Bolt. To honor least privilege, create a dedicated read-only user and point the backend at it via `NEO4J_DASHBOARD_USER` / `NEO4J_DASHBOARD_PASSWORD`; leave them empty to fall back to the admin `NEO4J_USER` / `NEO4J_PASSWORD`. Create the user once with `cypher-shell` (run from the host where the Neo4j Bolt port `7687` is published, or `docker compose exec neo4j cypher-shell -u neo4j -p "$NEO4J_PASSWORD"`):
+
+```cypher
+CREATE USER pentagi_reader SET PASSWORD 'change-me'
+    CHANGE NOT REQUIRED SET STATUS ACTIVE;
+GRANT MATCH {TRANSACTION} ON DATABASE neo4j TO pentagi_reader;
+GRANT TRAVERSE ON GRAPH neo4j TO pentagi_reader;
+GRANT READ ON GRAPH neo4j TO pentagi_reader;
+DENY WRITE ON GRAPH neo4j TO pentagi_reader;
+```
+
+Then set in `.env`:
+
+```bash
+NEO4J_DASHBOARD_USER=pentagi_reader
+NEO4J_DASHBOARD_PASSWORD=change-me
+```
+
+The dashboard subsystem only ever issues `MATCH` / `OPTIONAL MATCH` / `RETURN` Cypher (see `backend/pkg/kgdashboard/queries.go`); the read-only grant is a defense-in-depth control against bugs or a future regression, not the primary isolation boundary (the primary one is the `group_id = $group_id` filter on every query, scoped by `cfg.GroupID(flowID)` per tenant).
+
 The installer copies [`examples/neo4j`](examples/neo4j) beside the installation as `./neo4j`. It contains static, non-`.env`-tunable settings that don't have a `NEO4J_*` variable: `conf/neo4j.conf` and `conf/apoc.conf`, plus a version-pinned `plugins/apoc-*-core.jar`. The compose mount is controlled by:
 
 ```bash
