@@ -46,7 +46,10 @@ func (s *service) GetTagStats(ctx context.Context, flowID int64, groupID string)
 	}
 
 	out := make([]GraphitiTagStat, 0)
-	err := s.run(ctx, tagStatsQuery, map[string]any{"group_id": groupID}, func(rec *neo4j.Record) error {
+	err := s.run(ctx, tagStatsQuery, map[string]any{
+		"group_id":     groupID,
+		"minEdgeTypes": int64(minHostEdgeTypes),
+	}, func(rec *neo4j.Record) error {
 		out = append(out, GraphitiTagStat{
 			Tag:   recStr(rec, "tag"),
 			Count: int(recInt(rec, "count")),
