@@ -117,12 +117,18 @@ LIMIT $limit
 
 // credentialsByCompromisedQuery returns credential UUIDs that led to a
 // ValidAccess or Account (heuristic for the "Compromised" status).
+// Every node variable referenced in an EXISTS subquery WHERE clause must be
+// named — anonymous nodes like (:Service) cannot be referenced as Service.
 const credentialsByCompromisedQuery = `
 MATCH (c:Credential) WHERE c.group_id = $group_id
   AND (
-    EXISTS { MATCH (c)-[:AUTHENTICATES_TO]->(:Service) WHERE Service.group_id = $group_id }
-    OR EXISTS { MATCH (c)-[:BELONGS_TO_ACCOUNT]->(:Account) WHERE Account.group_id = $group_id }
-    OR EXISTS { MATCH (:Attempt)-[:YIELDED_ACCESS]->(:ValidAccess)<-[:AS_ACCOUNT]-(:Account)<-[:BELONGS_TO_ACCOUNT]-(c) }
+    EXISTS { MATCH (c)-[:AUTHENTICATES_TO]->(s:Service) WHERE s.group_id = $group_id }
+    OR EXISTS { MATCH (c)-[:BELONGS_TO_ACCOUNT]->(a:Account) WHERE a.group_id = $group_id }
+    OR EXISTS {
+      MATCH (at:Attempt)-[:YIELDED_ACCESS]->(va:ValidAccess)
+            <-[:AS_ACCOUNT]-(ac:Account)<-[:BELONGS_TO_ACCOUNT]-(c)
+      WHERE va.group_id = $group_id
+    }
   )
 RETURN c.uuid AS uuid, c.name AS name, c.summary AS summary
 `
@@ -179,7 +185,7 @@ ORDER BY v.created_at DESC
 // Graphiti names tool episodes that way (see performer.storeToolExecutionToGraphiti).
 const toolUsageQuery = `
 MATCH (e:Episodic) WHERE e.group_id = $group_id AND e.name STARTS WITH 'tool_execution_'
-RETURN substring(e.name, length('tool_execution_')) AS tool, count(*) AS executions
+RETURN substring(e.name, size('tool_execution_')) AS tool, count(*) AS executions
 ORDER BY executions DESC
 `
 
