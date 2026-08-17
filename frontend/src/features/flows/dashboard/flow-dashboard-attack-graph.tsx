@@ -194,6 +194,8 @@ export function FlowDashboardAttackGraph({ flowId, pollInterval = 10000 }: FlowD
         setSelectedNodeId(node.id);
     }, []);
 
+    const showMiniMap = rfNodes.length > 20;
+
     const flowElement = (
         <ReactFlow
             colorMode="dark"
@@ -204,25 +206,28 @@ export function FlowDashboardAttackGraph({ flowId, pollInterval = 10000 }: FlowD
             minZoom={0.05}
             nodes={rfNodes}
             nodesConnectable={false}
+            nodesDraggable={view === AttackGraphView.Full}
             nodeTypes={nodeTypes}
             onNodeClick={handleNodeClick}
             proOptions={{ hideAttribution: true }}
         >
-            <Background color="#1a1a2e" gap={24} variant={BackgroundVariant.Dots} />
+            <Background color="#0d0d17" gap={999} variant={BackgroundVariant.Dots} />
             <Controls position="bottom-right" showInteractive={false} />
-            <MiniMap
-                className="bg-gray-900/80"
-                maskColor="rgba(0,0,0,0.6)"
-                nodeColor={(n) => {
-                    if (n.data && typeof n.data === 'object' && 'type' in n.data) {
-                        return colorForLabel(String(n.data.type)).dot;
-                    }
+            {showMiniMap ? (
+                <MiniMap
+                    className="bg-gray-900/80"
+                    maskColor="rgba(0,0,0,0.6)"
+                    nodeColor={(n) => {
+                        if (n.data && typeof n.data === 'object' && 'type' in n.data) {
+                            return colorForLabel(String(n.data.type)).dot;
+                        }
 
-                    return '#525252';
-                }}
-                pannable
-                zoomable
-            />
+                        return '#525252';
+                    }}
+                    pannable
+                    zoomable
+                />
+            ) : null}
         </ReactFlow>
     );
 
