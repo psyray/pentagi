@@ -81,17 +81,19 @@ const labelColumnOrder: string[] = [
     'Episodic',
 ];
 
-const COLUMN_WIDTH = 260;
-const ROW_HEIGHT = 80;
-const TOP_PADDING = 40;
+const COLUMN_WIDTH = 340;
+const ROW_HEIGHT = 110;
+const TOP_PADDING = 60;
 
 // ─── Custom node component ───────────────────────────────────────────────
 interface EntityNodeData {
     [key: string]: unknown;
     createdAt: null | string;
+    dimmed: boolean;
     label: string;
     labels: string[];
     name: string;
+    selected: boolean;
     summary: string;
     type: string;
     uuid: string;
@@ -107,22 +109,28 @@ function columnForLabel(label: string): number {
 
 function EntityNode({ data }: { data: EntityNodeData }) {
     const c = colorForLabel(data.type);
+    const selected = data.selected;
 
     return (
         <div
-            className="rounded-xl border-2 px-3 py-2 shadow-lg backdrop-blur-sm"
+            className="rounded-xl border-2 px-3 py-2 backdrop-blur-sm"
             style={{
-                background: c.bg,
-                borderColor: c.border,
+                background: selected ? c.border : c.bg,
+                borderColor: selected ? c.text : c.border,
+                boxShadow: selected ? `0 0 14px 3px ${c.dot}` : '0 4px 6px rgba(0,0,0,0.4)',
                 color: c.text,
                 maxWidth: 220,
                 minWidth: 140,
+                opacity: data.dimmed ? 0.3 : 1,
+                transition: 'opacity 0.2s, box-shadow 0.2s',
             }}
         >
-            {/* Handles are required for edges to connect — without them ReactFlow
-                silently drops all edges. Made invisible since they are just
-                connection points, not interactive elements. */}
-            <Handle position={Position.Left} style={{ opacity: 0 }} type="target" />
+            {/* Handles: 3 per side so parallel edges (same source-target pair,
+                e.g. DETECTED_VULNERABILITY + HAS_VULNERABILITY) can be assigned
+                to different handle IDs and visually separated by ReactFlow. */}
+            <Handle id="t0" position={Position.Left} style={{ opacity: 0 }} type="target" />
+            <Handle id="t1" position={Position.Left} style={{ opacity: 0, top: '30%' }} type="target" />
+            <Handle id="t2" position={Position.Left} style={{ opacity: 0, top: '70%' }} type="target" />
             <div className="text-[10px] font-bold uppercase tracking-wider opacity-70">
                 {data.type}
             </div>
@@ -134,7 +142,9 @@ function EntityNode({ data }: { data: EntityNodeData }) {
                     {data.summary}
                 </div>
             ) : null}
-            <Handle position={Position.Right} style={{ opacity: 0 }} type="source" />
+            <Handle id="s0" position={Position.Right} style={{ opacity: 0 }} type="source" />
+            <Handle id="s1" position={Position.Right} style={{ opacity: 0, top: '30%' }} type="source" />
+            <Handle id="s2" position={Position.Right} style={{ opacity: 0, top: '70%' }} type="source" />
         </div>
     );
 }
@@ -170,8 +180,67 @@ export function FlowDashboardAttackGraph({ flowId, pollInterval = 10000 }: FlowD
 
     const graph = data?.flowAttackGraph;
 
-    const rfNodes = useMemo(() => (graph ? layoutNodes(graph.nodes) : []), [graph]);
-    const rfEdges = useMemo(() => (graph ? toFlowEdges(graph.edges) : []), [graph]);
+    const rfNodes = useMemo(() => {
+        if (!graph) {return [];}
+
+        // BFS to find nodes on the path from the selected node to the Host(s).
+        // The traversal stops when reaching a Host node (doesn't expand beyond
+        // it) so siblings of the Host (other Ports, VHosts, etc.) stay dimmed.
+        // This highlights the attack chain FROM the clicked node UP to the Host.
+        let connectedUUIDs: null | Set<string> = null;
+
+        if (selectedNodeId) {
+            // Build UUID -> isHost lookup from the graph nodes.
+            const hostUUIDs = new Set<string>();
+
+            for (const n of graph.nodes) {
+                if (n.labels.includes('Host')) {hostUUIDs.add(n.uuid);}
+            }
+
+            const isHost = (uuid: string) => hostUUIDs.has(uuid);
+
+            connectedUUIDs = new Set([selectedNodeId]);
+
+            // If the selected node is a Host, only highlight depth-1 neighbors
+            // (its direct attack surface: ports, services, vhosts, etc.).
+            if (isHost(selectedNodeId)) {
+                for (const e of graph.edges) {
+                    if (e.sourceUUID === selectedNodeId) {connectedUUIDs.add(e.targetUUID);}
+
+                    if (e.targetUUID === selectedNodeId) {connectedUUIDs.add(e.sourceUUID);}
+                }
+            } else {
+                // BFS from the selected node, stopping at Host nodes.
+                const queue = [selectedNodeId];
+
+                while (queue.length > 0) {
+                    const current = queue.shift()!;
+
+                    for (const e of graph.edges) {
+                        const neighbor = e.sourceUUID === current
+                            ? e.targetUUID
+                            : e.targetUUID === current
+                                ? e.sourceUUID
+                                : null;
+
+                        if (neighbor === null || connectedUUIDs.has(neighbor)) {continue;}
+
+                        connectedUUIDs.add(neighbor);
+
+                        // Don't expand from Host nodes — they are the root
+                        // of the chain. This prevents highlighting all the
+                        // Host's siblings (other ports, vhosts, etc.).
+                        if (!isHost(neighbor)) {
+                            queue.push(neighbor);
+                        }
+                    }
+                }
+            }
+        }
+
+        return layoutNodes(graph.nodes, selectedNodeId, connectedUUIDs);
+    }, [graph, selectedNodeId]);
+    const rfEdges = useMemo(() => (graph ? toFlowEdges(graph.edges, selectedNodeId) : []), [graph, selectedNodeId]);
 
     const hasNodes = (graph?.nodes?.length ?? 0) > 0;
 
@@ -226,15 +295,13 @@ export function FlowDashboardAttackGraph({ flowId, pollInterval = 10000 }: FlowD
     );
 
     const fullscreenContainer = (
-        <>
+        <div className="flex h-[calc(95vh-3.5rem)] flex-col gap-2 px-4 pb-3">
             <GraphLegend labels={presentLabels} />
-            <div className="relative h-[calc(95vh-7rem)] w-full rounded-lg bg-black">
+            <div className="min-h-0 flex-1 overflow-hidden rounded-lg bg-black">
                 {flowElement}
             </div>
-            <div className="mt-2 px-4 pb-2">
-                <NodeDetailPanel node={selectedNode} />
-            </div>
-        </>
+            <NodeDetailPanel node={selectedNode} />
+        </div>
     );
 
     return (
@@ -419,7 +486,7 @@ function isAttackEdge(type: string): boolean {
 
 // layoutNodes assigns a deterministic column/row position per node and wraps
 // each entity in a custom entityNode with full display data.
-function layoutNodes(nodes: AttackGraphNodeFragmentFragment[]): Node[] {
+function layoutNodes(nodes: AttackGraphNodeFragmentFragment[], selectedNodeId: null | string = null, connectedUUIDs: null | Set<string> = null): Node[] {
     const byColumn = new Map<number, AttackGraphNodeFragmentFragment[]>();
 
     for (const n of nodes) {
@@ -441,9 +508,11 @@ function layoutNodes(nodes: AttackGraphNodeFragmentFragment[]): Node[] {
             out.push({
                 data: {
                     createdAt: n.createdAt,
+                    dimmed: selectedNodeId !== null && (connectedUUIDs === null || !connectedUUIDs.has(n.uuid)),
                     label: name,
                     labels: n.labels,
                     name,
+                    selected: n.uuid === selectedNodeId,
                     summary,
                     type,
                     uuid: n.uuid,
@@ -499,32 +568,64 @@ function NodeDetailPanel({ node }: { node: AttackGraphNodeFragmentFragment | nul
     );
 }
 
-function toFlowEdges(edges: AttackGraphEdgeFragmentFragment[]): Edge[] {
+function toFlowEdges(edges: AttackGraphEdgeFragmentFragment[], selectedNodeId: null | string = null): Edge[] {
+    // Detect parallel edges (same source-target pair) and assign an index
+    // to each so they can be routed to different handles and visually
+    // separated instead of overlapping.
+    const pairIndex = new Map<string, number>();
+
+    for (const e of edges) {
+        const key = `${e.sourceUUID}->${e.targetUUID}`;
+        pairIndex.set(key, (pairIndex.get(key) ?? 0) + 1);
+    }
+
+    // Track the current index per pair as we iterate.
+    const pairCounter = new Map<string, number>();
+
     return edges.map((e) => {
         const isAttack = isAttackEdge(e.type);
+        const isConnected = selectedNodeId === null || e.sourceUUID === selectedNodeId || e.targetUUID === selectedNodeId;
+        const baseColor = isAttack ? '#f97316' : '#9ca3af';
+        const edgeColor = selectedNodeId !== null && !isConnected ? '#374151' : baseColor;
+
+        // Assign handle IDs based on the parallel edge index so ReactFlow
+        // routes parallel edges to different positions on the node.
+        const key = `${e.sourceUUID}->${e.targetUUID}`;
+        const parallelCount = pairIndex.get(key) ?? 1;
+        const idx = pairCounter.get(key) ?? 0;
+
+        pairCounter.set(key, idx + 1);
+
+        const handleIdx = parallelCount > 1 ? idx % 3 : -1;
 
         return {
-            animated: isAttack,
+            animated: isAttack && isConnected,
             id: e.uuid,
             label: e.type,
             labelBgBorderRadius: 4,
-            labelBgPadding: [4, 2] as [number, number],
-            labelBgStyle: { fill: '#1a1a2e' },
+            labelBgPadding: [6, 3] as [number, number],
+            labelBgStyle: { fill: '#151523', stroke: '#2a2a40', strokeWidth: 1 },
             labelShowBg: true,
-            labelStyle: { fill: '#9ca3af', fontSize: 9, fontWeight: 500 },
-            // Arrow on every edge to show the direction of the relationship.
+            labelStyle: {
+                fill: selectedNodeId !== null && !isConnected ? '#4b5563' : '#c4c4d4',
+                fontSize: 10,
+                fontWeight: 600,
+            },
             markerEnd: {
-                color: isAttack ? '#f97316' : '#9ca3af',
-                height: 16,
+                color: edgeColor,
+                height: 18,
                 type: MarkerType.ArrowClosed,
-                width: 16,
+                width: 18,
             },
             source: e.sourceUUID,
+            sourceHandle: handleIdx >= 0 ? `s${handleIdx}` : undefined,
             style: {
-                stroke: isAttack ? '#f97316' : '#9ca3af',
-                strokeWidth: isAttack ? 2 : 1.5,
+                opacity: selectedNodeId !== null && !isConnected ? 0.2 : 1,
+                stroke: edgeColor,
+                strokeWidth: isConnected && selectedNodeId !== null ? (isAttack ? 3 : 2.5) : (isAttack ? 2 : 1.5),
             },
             target: e.targetUUID,
+            targetHandle: handleIdx >= 0 ? `t${handleIdx}` : undefined,
         };
     });
 }
