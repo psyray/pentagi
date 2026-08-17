@@ -73,9 +73,10 @@ func (s *service) GetAttackSurface(ctx context.Context, flowID int64, groupID st
 
 	out := make([]AttackSurfaceItem, 0, s.rowLimit)
 	err := s.run(ctx, attackSurfaceQuery, map[string]any{
-		"group_id": groupID,
-		"labels":   attackSurfaceLabels,
-		"limit":    int64(s.rowLimit),
+		"group_id":     groupID,
+		"labels":       attackSurfaceLabels,
+		"limit":        int64(s.rowLimit),
+		"minEdgeTypes": int64(minHostEdgeTypes),
 	}, func(rec *neo4j.Record) error {
 		labels := recLabels(rec, "labels")
 		out = append(out, AttackSurfaceItem{
@@ -172,7 +173,10 @@ func (s *service) GetValidAccesses(ctx context.Context, flowID int64, groupID st
 	}
 
 	out := make([]ValidAccessRow, 0)
-	err := s.run(ctx, validAccessesQuery, map[string]any{"group_id": groupID}, func(rec *neo4j.Record) error {
+	err := s.run(ctx, validAccessesQuery, map[string]any{
+		"group_id":     groupID,
+		"minEdgeTypes": int64(minHostEdgeTypes),
+	}, func(rec *neo4j.Record) error {
 		out = append(out, ValidAccessRow{
 			Access:  recStr(rec, "access"),
 			Account: recStr(rec, "account"),
@@ -200,7 +204,10 @@ func (s *service) GetInfrastructureMap(ctx context.Context, flowID int64, groupI
 		return v.([]InfraMapRow), nil
 	}
 	out := make([]InfraMapRow, 0)
-	err := s.run(ctx, infraMapQuery, map[string]any{"group_id": groupID}, func(rec *neo4j.Record) error {
+	err := s.run(ctx, infraMapQuery, map[string]any{
+		"group_id":     groupID,
+		"minEdgeTypes": int64(minHostEdgeTypes),
+	}, func(rec *neo4j.Record) error {
 		out = append(out, InfraMapRow{
 			Host:    recStr(rec, "host"),
 			Port:    recStr(rec, "port"),
@@ -226,7 +233,10 @@ func (s *service) GetOpenPorts(ctx context.Context, flowID int64, groupID string
 		return v.([]OpenPortRow), nil
 	}
 	out := make([]OpenPortRow, 0)
-	err := s.run(ctx, openPortsQuery, map[string]any{"group_id": groupID}, func(rec *neo4j.Record) error {
+	err := s.run(ctx, openPortsQuery, map[string]any{
+		"group_id":     groupID,
+		"minEdgeTypes": int64(minHostEdgeTypes),
+	}, func(rec *neo4j.Record) error {
 		out = append(out, OpenPortRow{
 			Port:    recStr(rec, "port"),
 			Service: recStr(rec, "service"),
@@ -339,7 +349,10 @@ func (s *service) fetchVulnerabilities(ctx context.Context, flowID int64, groupI
 	}
 
 	out := make([]vulnRow, 0)
-	err := s.run(ctx, allVulnerabilitiesQuery, map[string]any{"group_id": groupID}, func(rec *neo4j.Record) error {
+	err := s.run(ctx, allVulnerabilitiesQuery, map[string]any{
+		"group_id":     groupID,
+		"minEdgeTypes": int64(minHostEdgeTypes),
+	}, func(rec *neo4j.Record) error {
 		out = append(out, vulnRow{
 			name:    recStr(rec, "name"),
 			summary: recStr(rec, "summary"),
