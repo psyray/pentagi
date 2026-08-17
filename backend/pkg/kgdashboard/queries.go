@@ -11,13 +11,16 @@ package kgdashboard
 // entity with both the generic `Entity` label and its specific label, so we
 // match on the specific label and project labels(n) as the node's type set.
 
-// mainViewLabels is the entity label set of the attack-chain backbone used by
-// the MAIN graph view. Edges are restricted to the structural / progress /
-// attempt classes that make the chain readable.
+// mainViewLabels is the entity label set of the MAIN view. It includes the
+// attack-chain backbone (Host, Port, Service, Vulnerability, ...) plus the
+// supporting evidence types (Artifact, Evidence, Endpoint, Capability,
+// Agent, AttackTechnique) so the graph is connected and useful even in early
+// flows where the full attack chain has not yet been extracted.
 var mainViewLabels = []string{
 	"Host", "Port", "Service", "Vulnerability", "Misconfiguration",
 	"ValidAccess", "Account", "Credential", "Attempt", "PrivChange",
-	"WebApp", "Vhost",
+	"WebApp", "Vhost", "Endpoint", "Artifact", "Evidence",
+	"Capability", "Agent", "AttackTechnique",
 }
 
 // mainViewEdgeTypes restricts the MAIN view to attack-chain relationships.
@@ -61,11 +64,14 @@ LIMIT $cap
 
 // attackGraphMainEdgesQuery returns the edges of the MAIN view, with the
 // source and target entity UUIDs so the frontend can wire them up without
-// guessing from internal Neo4j ids.
+// guessing from internal Neo4j ids. Unlike the original design, we do NOT
+// filter by edge type here: the MAIN vs FULL distinction is about which nodes
+// to show, not which edges. All edges between two MAIN-view nodes are kept
+// so the graph is connected even in early flows where attack-chain edges
+// (HAS_PORT, YIELDED_ACCESS ...) have not been extracted yet.
 const attackGraphMainEdgesQuery = `
 MATCH (src)-[r]->(tgt)
 WHERE src.group_id = $group_id AND tgt.group_id = $group_id AND r.group_id = $group_id
-  AND type(r) IN $edgeTypes
   AND ANY(l IN labels(src) WHERE l IN $labels)
   AND ANY(l IN labels(tgt) WHERE l IN $labels)
 RETURN coalesce(src.uuid, src.elementId) AS srcUUID,
