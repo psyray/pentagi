@@ -58,13 +58,24 @@ WITH collect(th.uuid) AS targetUUIDs
 
 // ─── Attack graph queries ───────────────────────────────────────────────
 
-// attackGraphMainQuery returns the MAIN subgraph: attack-chain entity nodes,
-// filtered to only include Hosts with enough connection diversity to be real
-// targets (≥ minHostEdgeTypes distinct edge types).
+// attackGraphMainQuery returns the MAIN subgraph: attack-chain entity nodes
+// that are connected to target hosts (identified by edge-type diversity).
+// Non-Host nodes must be connected to a target Host via an attack-chain
+// edge or ON_HOST — this filters out orphan nodes like "read_file command"
+// (a tool name misclassified as Port by Graphiti).
 const attackGraphMainQuery = targetHostsFragment + `
 MATCH (n) WHERE n.group_id = $group_id
   AND ANY(l IN labels(n) WHERE l IN $labels)
-  AND (NOT 'Host' IN labels(n) OR n.uuid IN targetUUIDs)
+  AND (
+    n.uuid IN targetUUIDs
+    OR EXISTS {
+      MATCH (th)-[:HAS_PORT|RUNS_SERVICE|HAS_VHOST|HAS_VULNERABILITY|HAS_MISCONFIGURATION|HOSTS_APP|HAS_ENDPOINT|ON_HOST|DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY]->(n)
+      WHERE th.uuid IN targetUUIDs
+    }
+    OR EXISTS {
+      MATCH (n)-[:ON_HOST]->(th) WHERE th.uuid IN targetUUIDs
+    }
+  )
 RETURN n AS n, coalesce(n.created_at, n.valid_at) AS ts
 ORDER BY ts DESC
 LIMIT $cap
@@ -87,7 +98,16 @@ RETURN coalesce(src.uuid, src.elementId) AS srcUUID,
 const attackGraphMainCountQuery = targetHostsFragment + `
 MATCH (n) WHERE n.group_id = $group_id
   AND ANY(l IN labels(n) WHERE l IN $labels)
-  AND (NOT 'Host' IN labels(n) OR n.uuid IN targetUUIDs)
+  AND (
+    n.uuid IN targetUUIDs
+    OR EXISTS {
+      MATCH (th)-[:HAS_PORT|RUNS_SERVICE|HAS_VHOST|HAS_VULNERABILITY|HAS_MISCONFIGURATION|HOSTS_APP|HAS_ENDPOINT|ON_HOST|DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY]->(n)
+      WHERE th.uuid IN targetUUIDs
+    }
+    OR EXISTS {
+      MATCH (n)-[:ON_HOST]->(th) WHERE th.uuid IN targetUUIDs
+    }
+  )
 RETURN count(n) AS total
 `
 
@@ -117,10 +137,21 @@ RETURN count(n) AS total
 // ─── Tag stats ───────────────────────────────────────────────────────────
 
 // tagStatsQuery counts entities per specific label, excluding the generic
-// `Entity` label and the high-volume noise labels `Episodic` (322 episode
-// nodes that dominate the count) and `Agent` (the "Pentester Agent" node).
-const tagStatsQuery = `
+// `Entity` and `Episodic` labels. Only entities connected to target hosts
+// are counted — this ensures the tag stats reflect the attack surface of the
+// pentest target(s), not infrastructure noise (localhost, VPN, wordlists).
+const tagStatsQuery = targetHostsFragment + `
 MATCH (n) WHERE n.group_id = $group_id
+  AND (
+    n.uuid IN targetUUIDs
+    OR EXISTS {
+      MATCH (th)-[:HAS_PORT|RUNS_SERVICE|HAS_VHOST|HAS_VULNERABILITY|HAS_MISCONFIGURATION|HOSTS_APP|HAS_ENDPOINT|ON_HOST|DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY]->(n)
+      WHERE th.uuid IN targetUUIDs
+    }
+    OR EXISTS {
+      MATCH (n)-[:ON_HOST]->(th) WHERE th.uuid IN targetUUIDs
+    }
+  )
 UNWIND [l IN labels(n) WHERE NOT l IN ['Entity', 'Episodic']] AS label
 RETURN label AS tag, count(*) AS count
 ORDER BY count DESC, label ASC
