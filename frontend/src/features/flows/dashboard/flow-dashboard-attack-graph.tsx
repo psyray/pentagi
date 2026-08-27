@@ -74,12 +74,33 @@ function colorForLabel(label: string): LabelColor {
 }
 
 // ─── Layout ─────────────────────────────────────────────────────────────
-const labelColumnOrder: string[] = [
-    'Host', 'Port', 'Service', 'Endpoint', 'WebApp', 'Vhost',
-    'Vulnerability', 'Misconfiguration', 'Capability', 'Attempt', 'PrivChange',
-    'ValidAccess', 'Account', 'Credential', 'Artifact', 'Evidence', 'Agent',
-    'Episodic',
-];
+// labelColumnMap controls the left-to-right column order of entity types
+// in the graph. Labels sharing the same column index appear in the same
+// vertical lane. Host and Account share column 2 (same attack-chain depth);
+// WebApp and Vhost share column 5. Labels not in the map land in a
+// trailing column, ordered alphabetically.
+const labelColumnMap: Record<string, number> = {
+    Account: 2,
+    Agent: 8,
+    Artifact: 8,
+    Attempt: 7,
+    Capability: 7,
+    Credential: 1,
+    Endpoint: 7,
+    Episodic: 9,
+    Evidence: 8,
+    Host: 2,
+    Misconfiguration: 7,
+    Port: 3,
+    PrivChange: 7,
+    Service: 4,
+    ValidAccess: 0,
+    Vhost: 5,
+    Vulnerability: 6,
+    WebApp: 5,
+};
+
+const maxMappedColumn = 9;
 
 const COLUMN_WIDTH = 340;
 const ROW_HEIGHT = 110;
@@ -100,11 +121,12 @@ interface EntityNodeData {
 }
 
 function columnForLabel(label: string): number {
-    const idx = labelColumnOrder.indexOf(label);
+    const col = labelColumnMap[label];
 
-    if (idx >= 0) {return idx;}
+    if (col !== undefined) {return col;}
 
-    return labelColumnOrder.length + label.charCodeAt(0) % 16;
+    // Unknown labels: append after the known columns, ordered alphabetically.
+    return maxMappedColumn + 1 + (label.charCodeAt(0) % 16);
 }
 
 function EntityNode({ data }: { data: EntityNodeData }) {
@@ -442,10 +464,15 @@ export function FlowDashboardAttackGraph({ flowId, pollInterval = 10000 }: FlowD
 
 // ─── Legend ──────────────────────────────────────────────────────────────
 function GraphLegend({ labels }: { labels: string[] }) {
-    const present = labelColumnOrder.filter((l) => labels.includes(l));
-    // Add any labels not in the predefined order
-    const extra = labels.filter((l) => !labelColumnOrder.includes(l)).sort();
-    const all = [...present, ...extra];
+    // Sort labels by their column index so the legend matches the graph layout.
+    const all = [...labels].sort((a, b) => {
+        const colA = labelColumnMap[a] ?? (maxMappedColumn + 1);
+        const colB = labelColumnMap[b] ?? (maxMappedColumn + 1);
+
+        if (colA !== colB) {return colA - colB;}
+
+        return a.localeCompare(b);
+    });
 
     if (all.length === 0) {return null;}
 
