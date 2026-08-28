@@ -401,15 +401,16 @@ func (fp *flowProvider) execToolCall(
 	// the same dead-end output (flow 24: terminal returning FILEERROR=1 for every
 	// PJL FSDOWNLOAD variant). Mirrors repeatingDetector soft->abort pattern.
 	if triggered, count := failureDet.detect(funcName, rawResponse); triggered {
-		if count >= FailureThreshold+maxSoftDetectionsBeforeAbort {
-			errMsg := fmt.Sprintf("primitive '%s' produced identical output %d times consecutively (no progress), aborting chain - pivot to a different approach", funcName, count)
-			logger.WithField("repeat_count", count).Error(errMsg)
+		if failureDet.directivesInjected >= maxDirectivesBeforeAbort {
+			errMsg := fmt.Sprintf("primitive '%s' still producing identical output after %d pivot directives (no progress), aborting chain - pivot to a different approach", funcName, failureDet.directivesInjected)
+			logger.WithFields(logrus.Fields{"repeat_count": count, "directives": failureDet.directivesInjected}).Error(errMsg)
 			return "", errors.New(errMsg)
 		}
 		directive := fmt.Sprintf("\n\n[!] PRIMITIVE '%s' has produced the same output %d times in a row (no progress / likely a dead-end). You are in a CONFIRMED rabbit hole on this primitive. ABANDON it and pivot to a fundamentally different approach. Do NOT call '%s' again with the same intent - try a different tool, a different technique, or step back and reconsider the plan.", funcName, count, funcName)
 		response = response + directive
-		failureDet.reset()
-		logger.WithField("repeat_count", count).Warn("no-progress detected, injected pivot directive")
+		failureDet.directivesInjected++
+		failureDet.softReset()
+		logger.WithFields(logrus.Fields{"repeat_count": count, "directive_num": failureDet.directivesInjected}).Warn("no-progress detected, injected pivot directive")
 	}
 
 	return response, nil

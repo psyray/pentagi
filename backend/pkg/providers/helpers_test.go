@@ -1058,9 +1058,11 @@ func TestFailureDetectorReset(t *testing.T) {
 	for i := 0; i < FailureThreshold; i++ {
 		detector.detect("terminal", "FILEERROR=1")
 	}
+	detector.directivesInjected = 2
 	assert.Equal(t, FailureThreshold, detector.count)
 	detector.reset()
 	assert.Equal(t, 0, detector.count)
+	assert.Equal(t, 0, detector.directivesInjected)
 	assert.Equal(t, "", detector.toolName)
 	assert.Equal(t, "", detector.fingerprint)
 	// after reset, the next identical call should start counting from 1 (no immediate re-trigger)
@@ -1069,15 +1071,64 @@ func TestFailureDetectorReset(t *testing.T) {
 	assert.Equal(t, 1, count)
 }
 
-func TestFailureDetectorEscalationThreshold(t *testing.T) {
-	// abort triggers when count >= FailureThreshold + maxSoftDetectionsBeforeAbort
+func TestFailureDetectorSoftResetKeepsDirectives(t *testing.T) {
 	detector := &failureDetector{}
-	for i := 0; i < FailureThreshold+maxSoftDetectionsBeforeAbort; i++ {
+	// reach threshold, inject a directive (simulated by the performer), then softReset
+	for i := 0; i < FailureThreshold; i++ {
 		detector.detect("terminal", "FILEERROR=1")
 	}
-	_, count := detector.detect("terminal", "FILEERROR=1")
-	assert.True(t, count >= FailureThreshold+maxSoftDetectionsBeforeAbort,
-		"count %d should reach escalation threshold %d+%d", count, FailureThreshold, maxSoftDetectionsBeforeAbort)
+	detector.directivesInjected = 1
+	detector.softReset()
+	// softReset clears count but keeps directivesInjected + fingerprint so the next identical output resumes counting
+	assert.Equal(t, 0, detector.count)
+	assert.Equal(t, 1, detector.directivesInjected)
+	assert.Equal(t, "terminal", detector.toolName)
+	// 4 more identical outputs should NOT trigger (count 1..4), the 5th triggers (count 5)
+	for i := 0; i < FailureThreshold-1; i++ {
+		triggered, _ := detector.detect("terminal", "FILEERROR=1")
+		assert.False(t, triggered, "step %d after softReset should not trigger", i)
+	}
+	triggered, count := detector.detect("terminal", "FILEERROR=1")
+	assert.True(t, triggered)
+	assert.Equal(t, FailureThreshold, count)
+	// directivesInjected preserved (progress did NOT happen)
+	assert.Equal(t, 1, detector.directivesInjected)
+}
+
+func TestFailureDetectorProgressForgivesDirectives(t *testing.T) {
+	detector := &failureDetector{}
+	for i := 0; i < FailureThreshold; i++ {
+		detector.detect("terminal", "FILEERROR=1")
+	}
+	detector.directivesInjected = 1
+	// agent produces a DIFFERENT output (progress)
+	triggered, count := detector.detect("terminal", "uid=7(lp) gid=7(lp)")
+	assert.False(t, triggered)
+	assert.Equal(t, 1, count)
+	// progress reset directivesInjected (past pivot directives forgiven)
+	assert.Equal(t, 0, detector.directivesInjected)
+}
+
+func TestFailureDetectorEscalationThreshold(t *testing.T) {
+	// Hard abort triggers when directivesInjected >= maxDirectivesBeforeAbort.
+	// Flow: FailureThreshold identical outputs → directive #1 (directivesInjected=1) + softReset,
+	// then FailureThreshold more identical outputs → triggered again with directivesInjected=1 >= maxDirectivesBeforeAbort(1) → abort.
+	detector := &failureDetector{}
+	// first loop: reach threshold
+	for i := 0; i < FailureThreshold; i++ {
+		detector.detect("terminal", "FILEERROR=1")
+	}
+	// performer injects directive #1 then softReset + directivesInjected++
+	detector.directivesInjected++
+	detector.softReset()
+	// second loop: reach threshold again
+	for i := 0; i < FailureThreshold-1; i++ {
+		detector.detect("terminal", "FILEERROR=1")
+	}
+	triggered, _ := detector.detect("terminal", "FILEERROR=1")
+	assert.True(t, triggered, "second loop should trigger")
+	assert.True(t, detector.directivesInjected >= maxDirectivesBeforeAbort,
+		"directivesInjected %d should reach abort threshold %d", detector.directivesInjected, maxDirectivesBeforeAbort)
 }
 
 func TestClearCallArguments(t *testing.T) {
