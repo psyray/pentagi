@@ -992,6 +992,94 @@ func TestRepeatingDetectorEscalationThreshold(t *testing.T) {
 		len(detector2.funcCalls), RepeatingToolCallThreshold, 4)
 }
 
+func TestFailureDetector(t *testing.T) {
+	tests := []struct {
+		name              string
+		toolName          string
+		responses         []string
+		expectedTriggered []bool
+		expectedCount     []int
+	}{
+		{
+			name:              "same output triggers at threshold",
+			toolName:          "terminal",
+			responses:         []string{"RESPONSE: b'OK\r\nFILEERROR=1'", "RESPONSE: b'OK\r\nFILEERROR=1'", "RESPONSE: b'OK\r\nFILEERROR=1'", "RESPONSE: b'OK\r\nFILEERROR=1'", "RESPONSE: b'OK\r\nFILEERROR=1'"},
+			expectedTriggered: []bool{false, false, false, false, true},
+			expectedCount:     []int{1, 2, 3, 4, 5},
+		},
+		{
+			name:              "digits normalized so volatile output still matches",
+			toolName:          "terminal",
+			responses:         []string{"pid 948 listening on 28049", "pid 951 listening on 28050", "pid 972 listening on 28051", "pid 983 listening on 28052", "pid 994 listening on 28053"},
+			expectedTriggered: []bool{false, false, false, false, true},
+			expectedCount:     []int{1, 2, 3, 4, 5},
+		},
+		{
+			name:              "different output resets counter",
+			toolName:          "terminal",
+			responses:         []string{"FILEERROR=1", "FILEERROR=1", "FILEERROR=1", "uid=7(lp) gid=7(lp)", "uid=7(lp) gid=7(lp)", "uid=7(lp) gid=7(lp)", "uid=7(lp) gid=7(lp)", "uid=7(lp) gid=7(lp)"},
+			expectedTriggered: []bool{false, false, false, false, false, false, false, true},
+			expectedCount:     []int{1, 2, 3, 1, 2, 3, 4, 5},
+		},
+		{
+			name:              "different tool resets counter",
+			toolName:          "",
+			responses:         []string{"x", "x", "x", "x", "x", "x"},
+			expectedTriggered: []bool{false, false, false, false, false, false},
+			expectedCount:     []int{1, 1, 1, 1, 1, 1},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			detector := &failureDetector{}
+			curTool := tt.toolName
+			for i, resp := range tt.responses {
+				if tt.name == "different tool resets counter" {
+					// alternate tool names to verify reset on tool change
+					if i%2 == 0 {
+						curTool = "terminal"
+					} else {
+						curTool = "file"
+					}
+				}
+				triggered, count := detector.detect(curTool, resp)
+				assert.Equal(t, tt.expectedTriggered[i], triggered,
+					"step %d: expected triggered=%v, got %v", i, tt.expectedTriggered[i], triggered)
+				assert.Equal(t, tt.expectedCount[i], count,
+					"step %d: expected count=%d, got %d", i, tt.expectedCount[i], count)
+			}
+		})
+	}
+}
+
+func TestFailureDetectorReset(t *testing.T) {
+	detector := &failureDetector{}
+	for i := 0; i < FailureThreshold; i++ {
+		detector.detect("terminal", "FILEERROR=1")
+	}
+	assert.Equal(t, FailureThreshold, detector.count)
+	detector.reset()
+	assert.Equal(t, 0, detector.count)
+	assert.Equal(t, "", detector.toolName)
+	assert.Equal(t, "", detector.fingerprint)
+	// after reset, the next identical call should start counting from 1 (no immediate re-trigger)
+	triggered, count := detector.detect("terminal", "FILEERROR=1")
+	assert.False(t, triggered)
+	assert.Equal(t, 1, count)
+}
+
+func TestFailureDetectorEscalationThreshold(t *testing.T) {
+	// abort triggers when count >= FailureThreshold + maxSoftDetectionsBeforeAbort
+	detector := &failureDetector{}
+	for i := 0; i < FailureThreshold+maxSoftDetectionsBeforeAbort; i++ {
+		detector.detect("terminal", "FILEERROR=1")
+	}
+	_, count := detector.detect("terminal", "FILEERROR=1")
+	assert.True(t, count >= FailureThreshold+maxSoftDetectionsBeforeAbort,
+		"count %d should reach escalation threshold %d+%d", count, FailureThreshold, maxSoftDetectionsBeforeAbort)
+}
+
 func TestClearCallArguments(t *testing.T) {
 	tests := []struct {
 		name         string

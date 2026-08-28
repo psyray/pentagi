@@ -61,6 +61,7 @@ func (fp *flowProvider) performAgentChain(
 		wantToStop        bool
 		monitor           = fp.buildMonitor()
 		detector          = &repeatingDetector{}
+		failureDet        = &failureDetector{} // no-progress / repeated-output detector (compteur d'échecs par primitive)
 		summarizerHandler = fp.GetSummarizeResultHandler(taskID, subtaskID)
 	)
 
@@ -190,7 +191,7 @@ func (fp *flowProvider) performAgentChain(
 
 			funcName := toolCall.FunctionCall.Name
 			response, err := fp.execToolCall(
-				ctx, optAgentType, chainID, idx, result, monitor, detector, executor, taskID, subtaskID, chain,
+				ctx, optAgentType, chainID, idx, result, monitor, detector, failureDet, executor, taskID, subtaskID, chain,
 			)
 
 			if toolTypeMapping[funcName] != tools.AgentToolType {
@@ -265,6 +266,7 @@ func (fp *flowProvider) execToolCall(
 	result *callResult,
 	monitor *executionMonitor,
 	detector *repeatingDetector,
+	failureDet *failureDetector,
 	executor tools.ContextToolsExecutor,
 	taskID, subtaskID *int64,
 	chain []llms.MessageContent,
@@ -371,6 +373,11 @@ func (fp *flowProvider) execToolCall(
 		}
 	}
 
+	// Capture the raw tool output before the mentor may augment it; the no-progress
+	// fingerprint must be computed on the primitive's own output (e.g. "FILEERROR=1"),
+	// not on the mentor commentary appended below.
+	rawResponse := response
+
 	if monitor.shouldInvokeMentor(toolCall) && executor.IsFunctionExists(tools.AdviceToolName) {
 		logger.WithFields(logrus.Fields{
 			"same_tool_count":  monitor.sameToolCount,
@@ -386,6 +393,23 @@ func (fp *flowProvider) execToolCall(
 			monitor.reset()
 			response = formatEnhancedToolResponse(response, mentorResponse)
 		}
+	}
+
+	// No-progress / repeated-failure detection (compteur d'echecs par primitive).
+	// Keys on the tool RESULT, not the call identity: catches the case where the
+	// agent keeps calling the same primitive with different args that all return
+	// the same dead-end output (flow 24: terminal returning FILEERROR=1 for every
+	// PJL FSDOWNLOAD variant). Mirrors repeatingDetector soft->abort pattern.
+	if triggered, count := failureDet.detect(funcName, rawResponse); triggered {
+		if count >= FailureThreshold+maxSoftDetectionsBeforeAbort {
+			errMsg := fmt.Sprintf("primitive '%s' produced identical output %d times consecutively (no progress), aborting chain - pivot to a different approach", funcName, count)
+			logger.WithField("repeat_count", count).Error(errMsg)
+			return "", errors.New(errMsg)
+		}
+		directive := fmt.Sprintf("\n\n[!] PRIMITIVE '%s' has produced the same output %d times in a row (no progress / likely a dead-end). You are in a CONFIRMED rabbit hole on this primitive. ABANDON it and pivot to a fundamentally different approach. Do NOT call '%s' again with the same intent - try a different tool, a different technique, or step back and reconsider the plan.", funcName, count, funcName)
+		response = response + directive
+		failureDet.reset()
+		logger.WithField("repeat_count", count).Warn("no-progress detected, injected pivot directive")
 	}
 
 	return response, nil

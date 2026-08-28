@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash/fnv"
+	"regexp"
 	"slices"
 	"sort"
 	"strconv"
@@ -26,7 +28,13 @@ import (
 )
 
 const (
-	RepeatingToolCallThreshold   = 3
+	RepeatingToolCallThreshold = 3
+	// FailureThreshold is the number of consecutive same-tool calls producing an
+	// identical normalized output fingerprint (no progress / repeated error such
+	// as "FILEERROR=1") before a hard pivot directive is injected into the tool
+	// response. At FailureThreshold + maxSoftDetectionsBeforeAbort the chain is
+	// aborted to force the reflector to restructure the approach.
+	FailureThreshold             = 5
 	maxQASectionsAfterRestore    = 3
 	keepQASectionsAfterRestore   = 1
 	lastSecBytesAfterRestore     = 16 * 1024 // 16 KB
@@ -135,6 +143,73 @@ func (rd *repeatingDetector) clearCallArguments(toolCall *llms.FunctionCall) llm
 		Name:      toolCall.Name,
 		Arguments: buffer.String(),
 	}
+}
+
+// failureDetector tracks consecutive same-tool calls producing an identical
+// normalized output fingerprint. Unlike repeatingDetector (which keys on the
+// tool CALL identity), this keys on the tool RESULT: it catches the case where
+// an agent keeps invoking the same primitive with different arguments that all
+// return the same dead-end output (e.g. terminal returning "FILEERROR=1" for
+// every PJL FSDOWNLOAD variant). When the tool name changes or the fingerprint
+// changes (real progress), the counter resets.
+type failureDetector struct {
+	toolName    string
+	fingerprint string
+	count       int
+}
+
+var (
+	// fpDigitsRe collapses digits to '#' so volatile values (pids, ports,
+	// timestamps, byte counts, exit codes) do not break fingerprint equality.
+	fpDigitsRe = regexp.MustCompile(`[0-9]+`)
+	// fpWhitespaceRe collapses runs of whitespace to a single space.
+	fpWhitespaceRe = regexp.MustCompile(`\s+`)
+)
+
+// detect records a tool execution result and reports whether the same tool has
+// produced the same fingerprint at least FailureThreshold times in a row.
+// Returns (triggered, count). A change of tool or fingerprint resets the count
+// to 1. Empty/whitespace-only responses fingerprint to "" and reset the counter
+// (they are not counted as no-progress).
+func (fd *failureDetector) detect(toolName, response string) (bool, int) {
+	fp := fingerprintResponse(response)
+	if fp == "" || toolName != fd.toolName || fp != fd.fingerprint {
+		fd.toolName = toolName
+		fd.fingerprint = fp
+		fd.count = 1
+		return false, 1
+	}
+	fd.count++
+	return fd.count >= FailureThreshold, fd.count
+}
+
+// reset clears the detector so the agent gets a fresh window after a pivot
+// directive has been injected (otherwise the very next same-tool call would
+// immediately re-trigger).
+func (fd *failureDetector) reset() {
+	fd.toolName = ""
+	fd.fingerprint = ""
+	fd.count = 0
+}
+
+// fingerprintResponse normalizes a tool response for no-progress detection:
+// lowercase, digits -> '#', whitespace collapsed, then FNV-64a hashed so we
+// compare fingerprints by equality without storing raw output. Returns "" for
+// empty/whitespace-only responses (treated as non-matching, resets the counter).
+func fingerprintResponse(response string) string {
+	if len(response) == 0 {
+		return ""
+	}
+	s := strings.ToLower(response)
+	s = fpDigitsRe.ReplaceAllString(s, "#")
+	s = fpWhitespaceRe.ReplaceAllString(s, " ")
+	s = strings.TrimSpace(s)
+	if len(s) == 0 {
+		return ""
+	}
+	h := fnv.New64a()
+	h.Write([]byte(s))
+	return fmt.Sprintf("%016x", h.Sum64())
 }
 
 type executionMonitorBuilder func() *executionMonitor
