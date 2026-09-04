@@ -164,11 +164,11 @@ type flowProvider struct {
 
 	summarizerCache *lru.Cache[[32]byte, string]
 
-	// maxTokensOverride holds per-agent-type max_tokens budgets clamped to the space
-	// the prompt leaves in the model context window (see performer_context_window.go);
-	// learned reactively on the first context-window rejection and reused for every
-	// subsequent call of this agent type within the flow
-	maxTokensOverride map[pconfig.ProviderOptionsType]int
+	// contextWindowKnowledge holds what context-window rejections taught about the
+	// backend, per agent type (see performer_context_window.go): the model's context
+	// window and the agent's configured generation budget. Every subsequent call of
+	// this agent type recomputes its max_tokens from the CURRENT chain size.
+	contextWindowKnowledge map[pconfig.ProviderOptionsType]contextWindowKnowledge
 
 	maxGACallsLimit int
 	maxLACallsLimit int

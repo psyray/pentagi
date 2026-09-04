@@ -421,9 +421,15 @@ func (fp *flowProvider) callWithRetries(
 	// pass per chain call; callAgent applies the learned max_tokens clamp, if any
 	chainTrimmed := false
 	callAgent := func(streamCb streaming.Callback) (*llms.ContentResponse, error) {
-		if maxTokens, ok := fp.getMaxTokensOverride(optAgentType); ok {
-			logger.WithField("max_tokens_override", maxTokens).Info("calling agent chain with context-window-clamped max tokens")
-			return fp.CallWithExtraOptions(ctx, optAgentType, chain, executor.Tools(), streamCb, llms.WithMaxTokens(maxTokens))
+		if knowledge, ok := fp.getContextWindowKnowledge(optAgentType); ok && knowledge.learned() {
+			// dynamic per-call budget from the CURRENT chain size — the fresh-rejection
+			// path re-learns exact numbers, this keeps every call inside the window
+			// in between while giving back room when the summarizer shrinks the history
+			maxTokens, usable := dynamicGenerationBudget(knowledge, estimateChainTokens(chain))
+			if usable {
+				logger.WithField("clamped_max_tokens", maxTokens).Info("calling agent chain with context-window-clamped max tokens")
+				return fp.CallWithExtraOptions(ctx, optAgentType, chain, executor.Tools(), streamCb, llms.WithMaxTokens(maxTokens))
+			}
 		}
 		return fp.CallWithTools(ctx, optAgentType, chain, executor.Tools(), streamCb)
 	}
