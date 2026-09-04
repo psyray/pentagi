@@ -417,6 +417,17 @@ func (fp *flowProvider) callWithRetries(
 	ticker := time.NewTicker(delayBetweenRetries)
 	defer ticker.Stop()
 
+	// chainTrimmed guards the last-resort history truncation (context window) to one
+	// pass per chain call; callAgent applies the learned max_tokens clamp, if any
+	chainTrimmed := false
+	callAgent := func(streamCb streaming.Callback) (*llms.ContentResponse, error) {
+		if maxTokens, ok := fp.getMaxTokensOverride(optAgentType); ok {
+			logger.WithField("max_tokens_override", maxTokens).Info("calling agent chain with context-window-clamped max tokens")
+			return fp.CallWithExtraOptions(ctx, optAgentType, chain, executor.Tools(), streamCb, llms.WithMaxTokens(maxTokens))
+		}
+		return fp.CallWithTools(ctx, optAgentType, chain, executor.Tools(), streamCb)
+	}
+
 	fillResult := func(resp *llms.ContentResponse) error {
 		var stopReason string
 		var parts []string
@@ -522,7 +533,7 @@ func (fp *flowProvider) callWithRetries(
 			}
 		}
 
-		resp, err = fp.CallWithTools(ctx, optAgentType, chain, executor.Tools(), streamCb)
+		resp, err = callAgent(streamCb)
 		if err == nil {
 			err = fillResult(resp)
 		}
@@ -534,6 +545,21 @@ func (fp *flowProvider) callWithRetries(
 				"retry_iteration": idx,
 				"error":           err.Error()[:min(200, len(err.Error()))],
 			}).Warn("agent chain call failed, will retry")
+		}
+
+		switch fp.handleContextWindowExceeded(optAgentType, err, logger) {
+		case contextWindowClamped:
+			// budget learned from the fresh error numbers — retry immediately
+			continue
+		case contextWindowNeedsTrim:
+			if !chainTrimmed {
+				if trimmed := trimChainForContextWindow(chain); len(trimmed) < len(chain) {
+					chain = trimmed
+					chainTrimmed = true
+					logger.Warn("context window exceeded with no usable generation budget — trimmed the oldest half of the chain and retrying")
+					continue
+				}
+			}
 		}
 
 		ticker.Reset(delayBetweenRetries)
