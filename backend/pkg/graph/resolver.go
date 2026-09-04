@@ -6,6 +6,7 @@ import (
 	"pentagi/pkg/database"
 	"pentagi/pkg/database/knowledge"
 	"pentagi/pkg/graph/subscriptions"
+	"pentagi/pkg/kgdashboard"
 	"pentagi/pkg/providers"
 	"pentagi/pkg/server/auth"
 	"pentagi/pkg/templates"
@@ -29,4 +30,5 @@ type Resolver struct {
 	Subscriptions   subscriptions.SubscriptionsController
 	Knowledge       knowledge.KnowledgeStore
 	Replacer        anonymizer.Replacer
+	KgDashboard     kgdashboard.Service
 }

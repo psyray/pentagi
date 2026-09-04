@@ -256,6 +256,24 @@ type Config struct {
 	GraphitiTimeout int    `env:"GRAPHITI_TIMEOUT" envDefault:"30"`
 	GraphitiURL     string `env:"GRAPHITI_URL"`
 
+	// Neo4j is the Graphiti backing store. The PentAGI backend connects to it
+	// read-only to power the flow dashboard (attack chain, credentials, infra,
+	// vulnerabilities, artifacts ...). Only effective when GraphitiEnabled is
+	// true and Neo4jURI is non-empty; otherwise the dashboard subsystem stays
+	// disabled and the GraphQL queries return empty results.
+	Neo4jURI      string `env:"NEO4J_URI"`
+	Neo4jUser     string `env:"NEO4J_USER" envDefault:"neo4j"`
+	Neo4jPassword string `env:"NEO4J_PASSWORD"`
+	Neo4jDatabase string `env:"NEO4J_DATABASE" envDefault:"neo4j"`
+	Neo4jMaxConns int    `env:"NEO4J_MAX_CONNS" envDefault:"10"`
+
+	// Neo4jDashboardUser/Password default to the admin credentials above when
+	// empty, but operators are encouraged to create a dedicated read-only user
+	// (see README "Neo4j read-only dashboard user") and set these instead, so
+	// the dashboard connection has no write capability even in case of a bug.
+	Neo4jDashboardUser     string `env:"NEO4J_DASHBOARD_USER"`
+	Neo4jDashboardPassword string `env:"NEO4J_DASHBOARD_PASSWORD"`
+
 	// === Agent Execution Monitoring ===
 	ExecutionMonitorEnabled        bool `env:"EXECUTION_MONITOR_ENABLED" envDefault:"false"`
 	ExecutionMonitorSameToolLimit  int  `env:"EXECUTION_MONITOR_SAME_TOOL_LIMIT" envDefault:"5"`
