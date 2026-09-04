@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -40,6 +41,19 @@ const (
 	contextWindowNeedsTrim                            // no usable budget — shorten the chain
 )
 
+// contextWindowKnowledge is what a context-window rejection teaches us about the
+// backend: the model's total context window and the generation budget the agent's
+// config actually requested (parsed from "requested N output tokens" — this is the
+// agent's configured max_tokens as seen by the backend).
+type contextWindowKnowledge struct {
+	contextTokens int
+	maxOutTokens  int
+}
+
+// contextWindowLearned reports whether a backend rejection has taught us the
+// model's context window for this agent type yet.
+func (k contextWindowKnowledge) learned() bool { return k.contextTokens > 0 }
+
 // Lowercase markers covering OpenAI / vLLM / LiteLLM / Anthropic wording.
 var contextWindowErrorMarkers = []string{
 	"context window exceeded",
@@ -55,6 +69,9 @@ var (
 	promptTokensRE = regexp.MustCompile(`(?i)prompt contains (?:at least )?(\d+) input tokens`)
 	// LiteLLM structured form: "(parameter=input_tokens, value=31617)"
 	promptTokensAltRE = regexp.MustCompile(`(?i)input_tokens[^0-9]*value[=:]\s*(\d+)`)
+	// OpenAI/LiteLLM: "you requested 16384 output tokens" — the agent's configured
+	// maxTokens as seen by the backend; used as the ceiling of the dynamic budget
+	requestedOutRE = regexp.MustCompile(`(?i)requested (\d+) output tokens`)
 	// Anthropic: "prompt is too long: 200010 tokens > 197463 maximum tokens"
 	anthropicPromptTooLongRE = regexp.MustCompile(`(?i)prompt is too long: (\d+) tokens > (\d+)`)
 )
@@ -108,9 +125,9 @@ func clampGenerationBudget(contextTokens, promptTokens int) (int, bool) {
 }
 
 // handleContextWindowExceeded classifies a failed agent chain call and, when the
-// error is a context-window overflow, either stores a clamped max_tokens override
-// for this agent type (re-parsed from fresh numbers on every failure, so repeated
-// overflows converge downward) or reports that the chain itself must be shortened.
+// error is a context-window overflow, records what the rejection teaches (context
+// window size, configured generation budget) and stores a clamped max_tokens
+// override for an immediate retry. Fresh rejections re-learn with exact numbers.
 func (fp *flowProvider) handleContextWindowExceeded(
 	optAgentType pconfig.ProviderOptionsType,
 	err error,
@@ -127,7 +144,11 @@ func (fp *flowProvider) handleContextWindowExceeded(
 	if !ok {
 		return contextWindowNeedsTrim
 	}
-	fp.setMaxTokensOverride(optAgentType, budget)
+	knowledge := contextWindowKnowledge{contextTokens: contextTokens}
+	if m := requestedOutRE.FindStringSubmatch(err.Error()); m != nil {
+		knowledge.maxOutTokens, _ = strconv.Atoi(m[1])
+	}
+	fp.setContextWindowKnowledge(optAgentType, knowledge)
 	logger.WithFields(logrus.Fields{
 		"context_tokens":     contextTokens,
 		"prompt_tokens":      promptTokens,
@@ -186,23 +207,66 @@ func trimChainForContextWindow(chain []llms.MessageContent) []llms.MessageConten
 	return trimmed
 }
 
-func (fp *flowProvider) getMaxTokensOverride(opt pconfig.ProviderOptionsType) (int, bool) {
+func (fp *flowProvider) getContextWindowKnowledge(opt pconfig.ProviderOptionsType) (contextWindowKnowledge, bool) {
 	fp.mx.RLock()
 	defer fp.mx.RUnlock()
-	if fp.maxTokensOverride == nil {
-		return 0, false
-	}
-	value, ok := fp.maxTokensOverride[opt]
-	return value, ok
+	knowledge, ok := fp.contextWindowKnowledge[opt]
+	return knowledge, ok
 }
 
-func (fp *flowProvider) setMaxTokensOverride(opt pconfig.ProviderOptionsType, maxTokens int) {
+func (fp *flowProvider) setContextWindowKnowledge(opt pconfig.ProviderOptionsType, knowledge contextWindowKnowledge) {
 	fp.mx.Lock()
 	defer fp.mx.Unlock()
-	if fp.maxTokensOverride == nil {
-		fp.maxTokensOverride = make(map[pconfig.ProviderOptionsType]int)
+	if fp.contextWindowKnowledge == nil {
+		fp.contextWindowKnowledge = make(map[pconfig.ProviderOptionsType]contextWindowKnowledge)
 	}
-	// always take the fresh numbers: they may raise the budget back up after the
-	// summarizer compressed the history, or clamp further down as the prompt grows
-	fp.maxTokensOverride[opt] = maxTokens
+	// always take the fresh numbers: the context window is a backend fact, the
+	// configured budget reflects the agent config at rejection time
+	fp.contextWindowKnowledge[opt] = knowledge
+}
+
+// dynamicGenerationBudget computes the max_tokens for ONE call from the learned
+// context window and the CURRENT chain estimate. The history grows and shrinks
+// between calls (summarizer, new subtasks): a stale static budget wastes space
+// when the prompt shrank (truncated thinking loops) or misses the window when it
+// grew. The agent's configured budget (parsed from "requested N output tokens")
+// stays the ceiling — anti-explosion caps like gemma4's 4096 are preserved.
+func dynamicGenerationBudget(knowledge contextWindowKnowledge, estimatedPromptTokens int) (int, bool) {
+	if !knowledge.learned() {
+		return 0, false
+	}
+	budget, ok := clampGenerationBudget(knowledge.contextTokens, estimatedPromptTokens)
+	if !ok {
+		return 0, false
+	}
+	if knowledge.maxOutTokens > 0 && budget > knowledge.maxOutTokens {
+		budget = knowledge.maxOutTokens
+	}
+	return budget, true
+}
+
+// estimateChainTokens approximates the token count of a prompt chain. Byte-based
+// (~4 bytes/token for typical English + tool JSON): a slightly optimistic estimate
+// is the cheap side — a too-big budget is one fast 400 that the rejection path
+// re-learns from with exact numbers, while a too-small budget causes truncated
+// generation loops that burn minutes per attempt.
+func estimateChainTokens(chain []llms.MessageContent) int {
+	bytes := 0
+	for _, msg := range chain {
+		for _, part := range msg.Parts {
+			switch p := part.(type) {
+			case llms.TextContent:
+				bytes += len(p.Text)
+			case llms.ToolCall:
+				if p.FunctionCall != nil {
+					bytes += len(p.FunctionCall.Name) + len(p.FunctionCall.Arguments)
+				}
+			case llms.ToolCallResponse:
+				bytes += len(p.Name) + len(p.Content)
+			default:
+				bytes += len(fmt.Sprintf("%v", part))
+			}
+		}
+	}
+	return bytes / 4
 }

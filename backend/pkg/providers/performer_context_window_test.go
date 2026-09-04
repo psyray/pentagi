@@ -139,28 +139,74 @@ func TestTrimChainForContextWindow(t *testing.T) {
 	assert.Equal(t, noBoundary, trimmed)
 }
 
-func TestMaxTokensOverride(t *testing.T) {
+func TestContextWindowKnowledge(t *testing.T) {
 	fp := &flowProvider{mx: new(sync.RWMutex)}
 
-	_, ok := fp.getMaxTokensOverride(pconfig.OptionsTypePentester)
+	_, ok := fp.getContextWindowKnowledge(pconfig.OptionsTypePentester)
 	assert.False(t, ok)
 
-	fp.setMaxTokensOverride(pconfig.OptionsTypePentester, 15359)
-	value, ok := fp.getMaxTokensOverride(pconfig.OptionsTypePentester)
+	fp.setContextWindowKnowledge(pconfig.OptionsTypePentester, contextWindowKnowledge{contextTokens: 48000, maxOutTokens: 16384})
+	k, ok := fp.getContextWindowKnowledge(pconfig.OptionsTypePentester)
 	assert.True(t, ok)
-	assert.Equal(t, 15359, value)
+	assert.Equal(t, 48000, k.contextTokens)
+	assert.Equal(t, 16384, k.maxOutTokens)
 
-	// fresh numbers re-learned on a later failure may clamp further down or back up
-	fp.setMaxTokensOverride(pconfig.OptionsTypePentester, 23551)
-	value, _ = fp.getMaxTokensOverride(pconfig.OptionsTypePentester)
-	assert.Equal(t, 23551, value)
-	fp.setMaxTokensOverride(pconfig.OptionsTypePentester, 15871)
-	value, _ = fp.getMaxTokensOverride(pconfig.OptionsTypePentester)
-	assert.Equal(t, 15871, value)
+	// fresh numbers re-learned on a later rejection replace the old knowledge
+	fp.setContextWindowKnowledge(pconfig.OptionsTypePentester, contextWindowKnowledge{contextTokens: 48000, maxOutTokens: 12288})
+	k, _ = fp.getContextWindowKnowledge(pconfig.OptionsTypePentester)
+	assert.Equal(t, 12288, k.maxOutTokens)
 
 	// other agent types are unaffected
-	_, ok = fp.getMaxTokensOverride(pconfig.OptionsTypeReflector)
+	_, ok = fp.getContextWindowKnowledge(pconfig.OptionsTypeReflector)
 	assert.False(t, ok)
+}
+
+func TestDynamicGenerationBudget(t *testing.T) {
+	k := contextWindowKnowledge{contextTokens: 48000, maxOutTokens: 12288}
+
+	// prompt fell back to ~5.5k tokens after summarizer compression (flow 101 state):
+	// the budget goes back UP to the configured 12288 instead of staying stale-low
+	budget, ok := dynamicGenerationBudget(k, 5500)
+	assert.True(t, ok)
+	assert.Equal(t, 12288, budget)
+
+	// prompt ~30k: the window binds, not the config
+	budget, ok = dynamicGenerationBudget(k, 30000)
+	assert.True(t, ok)
+	assert.Equal(t, 12288, budget) // 48000 - 30000 - 1024 = 16976 > 12288
+
+	// prompt 37k: estimate leaves only 10264 -> below the configured ceiling
+	budget, ok = dynamicGenerationBudget(k, 36712)
+	assert.True(t, ok)
+	assert.Equal(t, 10264, budget)
+
+	// no usable budget (prompt alone nearly fills the window) — no override, the
+	// rejection/trim path takes over
+	_, ok = dynamicGenerationBudget(k, 47200)
+	assert.False(t, ok)
+
+	// unlearned knowledge — no dynamic budget
+	_, ok = dynamicGenerationBudget(contextWindowKnowledge{}, 1000)
+	assert.False(t, ok)
+
+	// anti-explosion ceiling: gemma4-style 4096 cap is respected even with a tiny prompt
+	g := contextWindowKnowledge{contextTokens: 131072, maxOutTokens: 4096}
+	budget, ok = dynamicGenerationBudget(g, 3000)
+	assert.True(t, ok)
+	assert.Equal(t, 4096, budget)
+}
+
+func TestEstimateChainTokens(t *testing.T) {
+	chain := []llms.MessageContent{
+		llms.TextParts(llms.ChatMessageTypeSystem, strings.Repeat("a", 4000)),
+		llms.TextParts(llms.ChatMessageTypeHuman, strings.Repeat("b", 4000)),
+		llms.MessageContent{Role: llms.ChatMessageTypeTool, Parts: []llms.ContentPart{
+			llms.ToolCallResponse{Name: "terminal", Content: strings.Repeat("c", 8000)},
+		}},
+	}
+	// 16008 bytes (8000+8000 text + "terminal" name) / 4 = 4002 estimated tokens
+	assert.Equal(t, 4002, estimateChainTokens(chain))
+	assert.Equal(t, 0, estimateChainTokens(nil))
 }
 
 func TestHandleContextWindowExceeded(t *testing.T) {
@@ -169,14 +215,16 @@ func TestHandleContextWindowExceeded(t *testing.T) {
 
 	// unrelated error -> no action
 	assert.Equal(t, contextWindowNone, fp.handleContextWindowExceeded(pconfig.OptionsTypePentester, errors.New("timeout"), logger))
-	_, ok := fp.getMaxTokensOverride(pconfig.OptionsTypePentester)
+	_, ok := fp.getContextWindowKnowledge(pconfig.OptionsTypePentester)
 	assert.False(t, ok)
 
-	// flow 100 error -> clamp learned
-	assert.Equal(t, contextWindowClamped, fp.handleContextWindowExceeded(pconfig.OptionsTypePentester, errors.New(flow100ContextWindowError), logger))
-	budget, ok := fp.getMaxTokensOverride(pconfig.OptionsTypePentester)
+	// flow 100 error -> knowledge learned (ctx + configured budget) and clamp returned
+	action := fp.handleContextWindowExceeded(pconfig.OptionsTypePentester, errors.New(flow100ContextWindowError), logger)
+	assert.Equal(t, contextWindowClamped, action)
+	k, ok := fp.getContextWindowKnowledge(pconfig.OptionsTypePentester)
 	assert.True(t, ok)
-	assert.Equal(t, 15359, budget)
+	assert.Equal(t, 48000, k.contextTokens)
+	assert.Equal(t, 16384, k.maxOutTokens) // parsed from "requested 16384 output tokens"
 
 	// prompt alone fills the window -> trim requested
 	assert.Equal(t, contextWindowNeedsTrim, fp.handleContextWindowExceeded(pconfig.OptionsTypePentester,
