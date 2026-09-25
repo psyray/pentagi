@@ -187,7 +187,7 @@ func (fp *flowProvider) performAgentChain(
 				),
 			}
 		} else {
-			result, err = fp.callWithRetries(ctx, optAgentType, chainID, taskID, subtaskID, chain, executor, executionContext)
+			result, err = fp.callWithRetries(ctx, optAgentType, chainID, taskID, subtaskID, chain, executor, executionContext, iteration)
 			if err != nil {
 				obs.LogErrorOrCancel(logger, err, "failed to call agent chain")
 				return err
@@ -461,6 +461,7 @@ func (fp *flowProvider) callWithRetries(
 	chain []llms.MessageContent,
 	executor tools.ContextToolsExecutor,
 	executionContext string,
+	iteration int,
 ) (*callResult, error) {
 	var (
 		err     error
@@ -483,10 +484,11 @@ func (fp *flowProvider) callWithRetries(
 		return fp.fillCallResult(&result, resp, logger)
 	}
 
-	// CLM best-of-N: when enabled for this agent type, the first attempt of
-	// this chain call requests N completions in a single request and lets the
-	// CLM verifier pick the one to execute (the rest are only logged).
-	clmActive := fp.clm.appliesTo(optAgentType)
+	// CLM best-of-N: when enabled for this agent type and this chain iteration
+	// (see clmVerifier.shouldRun), the first attempt of this chain call requests
+	// N completions in a single request and lets the CLM verifier pick the one
+	// to execute (the rest are only logged).
+	clmActive := fp.clm.appliesTo(optAgentType) && fp.clm.shouldRun(iteration)
 	clmFailed := false
 
 	for idx := 0; idx <= maxRetriesToCallAgentChain; idx++ {
@@ -718,7 +720,9 @@ func (fp *flowProvider) performReflector(
 	}()
 
 	chain = append(chain, llms.TextParts(llms.ChatMessageTypeHuman, advice))
-	result, err := fp.callWithRetries(ctx, optOriginType, chainID, taskID, subtaskID, chain, executor, executionContext)
+	// iteration -1 = not an iteration-driven call: the CLM verifier never gates
+	// caller-reflector invocations (clmVerifier.shouldRun)
+	result, err := fp.callWithRetries(ctx, optOriginType, chainID, taskID, subtaskID, chain, executor, executionContext, -1)
 	if err != nil {
 		obs.LogErrorOrCancel(logger, err, "failed to call agent chain by reflector")
 		level := langfuse.ObservationLevelError

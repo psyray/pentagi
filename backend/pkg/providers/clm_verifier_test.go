@@ -82,9 +82,60 @@ func TestNewCLMVerifierGating(t *testing.T) {
 			CLMAgents:          " , ,",
 		})
 		if v != nil {
-			t.Error("expected nil verifier when no agent type remains after parsing")
+			t.Error("expected nil verifier when no provider type remains after parsing")
 		}
 	})
+
+	t.Run("interval negative clamped to first-call-only", func(t *testing.T) {
+		v := newCLMVerifier(&config.Config{
+			CLMVerifierEnabled: true,
+			CLMServerURL:       "http://clm.local:8700",
+			CLMBestOfN:         3,
+			CLMAgents:          "pentester",
+			CLMBestOfNInterval: -5,
+		})
+		if v == nil || v.interval != 0 {
+			t.Errorf("interval = %v, want clamped to 0", v)
+		}
+	})
+}
+
+func TestShouldRun(t *testing.T) {
+	newV := func(interval int) *clmVerifier {
+		return &clmVerifier{
+			agents:   map[pconfig.ProviderOptionsType]bool{pconfig.OptionsTypePentester: true},
+			bestOfN:  3,
+			interval: interval,
+		}
+	}
+
+	cases := []struct {
+		name      string
+		interval  int
+		iteration int
+		want      bool
+	}{
+		{"interval 0 gates first call", 0, 0, true},
+		{"interval 0 skips later calls", 0, 3, false},
+		{"interval 1 runs every call", 1, 7, true},
+		{"interval 4 keeps iteration 0", 4, 0, true},
+		{"interval 4 runs on multiples", 4, 8, true},
+		{"interval 4 skips between", 4, 6, false},
+		{"negative iteration never runs", 0, -1, false},
+		{"negative iteration with interval", 5, -1, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := newV(tc.interval).shouldRun(tc.iteration); got != tc.want {
+				t.Errorf("shouldRun(interval=%d, iteration=%d) = %v, want %v", tc.interval, tc.iteration, got, tc.want)
+			}
+		})
+	}
+
+	var nilVerifier *clmVerifier
+	if nilVerifier.shouldRun(0) {
+		t.Error("nil verifier must never gate anything in")
+	}
 }
 
 func TestClipRunes(t *testing.T) {

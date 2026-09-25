@@ -279,6 +279,10 @@ type Config struct {
 	CLMAPIKey          string `env:"CLM_API_KEY" envDefault:""`
 	CLMModel           string `env:"CLM_MODEL" envDefault:"clm-latest"`
 	CLMBestOfN         int    `env:"CLM_BEST_OF_N" envDefault:"3"`
+	// CLMBestOfNInterval gates when the verifier samples inside one agent chain:
+	// 0 = only the first call of each chain (delegation planning, the most
+	// separated candidate menu), 1 = every call, k = every k-th call of a chain.
+	CLMBestOfNInterval int    `env:"CLM_BEST_OF_N_INTERVAL" envDefault:"0"`
 	CLMTimeoutSec      int    `env:"CLM_TIMEOUT_SEC" envDefault:"5"`
 	CLMAgents          string `env:"CLM_BEST_OF_N_AGENTS" envDefault:"pentester"`
 
