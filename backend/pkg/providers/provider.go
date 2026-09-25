@@ -174,6 +174,8 @@ type flowProvider struct {
 	maxLACallsLimit int
 	buildMonitor    executionMonitorBuilder
 
+	clm *clmVerifier // nil unless CLM_VERIFIER_ENABLED; see clm_verifier.go
+
 	provider.Provider
 }
 

@@ -286,6 +286,24 @@ type Config struct {
 	// === Agent Planning Phase Configuration ===
 	AgentPlanningStepEnabled bool `env:"AGENT_PLANNING_STEP_ENABLED" envDefault:"false"`
 
+	// === CLM Best-of-N Verifier (Contrastive-LM "System One" sidecar) ===
+	// When enabled, the listed agents request N parallel completions per step and
+	// a CLM server (clm-serve /v1/rank) picks the action to execute; the rest are
+	// discarded and only logged. Fail-open: any CLM or sampling error restores the
+	// plain single-completion behavior for the remainder of that chain call. Best
+	// suited to OpenAI-compatible backends that support the `n` request field.
+	CLMVerifierEnabled bool   `env:"CLM_VERIFIER_ENABLED" envDefault:"false"`
+	CLMServerURL       string `env:"CLM_SERVER_URL" envDefault:""`
+	CLMAPIKey          string `env:"CLM_API_KEY" envDefault:""`
+	CLMModel           string `env:"CLM_MODEL" envDefault:"clm-latest"`
+	CLMBestOfN         int    `env:"CLM_BEST_OF_N" envDefault:"3"`
+	// CLMBestOfNInterval gates when the verifier samples inside one agent chain:
+	// 0 = only the first call of each chain (delegation planning, the most
+	// separated candidate menu), 1 = every call, k = every k-th call of a chain.
+	CLMBestOfNInterval int    `env:"CLM_BEST_OF_N_INTERVAL" envDefault:"0"`
+	CLMTimeoutSec      int    `env:"CLM_TIMEOUT_SEC" envDefault:"5"`
+	CLMAgents          string `env:"CLM_BEST_OF_N_AGENTS" envDefault:"pentester"`
+
 	// === Database Configuration ===
 	DatabaseURL string `env:"DATABASE_URL" envDefault:"postgres://pentagiuser:pentagipass@pgvector:5432/pentagidb?sslmode=disable"`
 

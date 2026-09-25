@@ -1900,6 +1900,22 @@ These settings control the agent supervision system, including execution monitor
 | MaxGeneralAgentToolCalls       | `MAX_GENERAL_AGENT_TOOL_CALLS`      | `100`         | Maximum tool calls for general agents (Assistant, Primary, Pentester, Coder, Installer) |
 | MaxLimitedAgentToolCalls       | `MAX_LIMITED_AGENT_TOOL_CALLS`      | `20`          | Maximum tool calls for limited agents (Searcher, Enricher, etc.)       |
 | AgentPlanningStepEnabled       | `AGENT_PLANNING_STEP_ENABLED`       | `false`       | Enable automatic task planning for specialist agents                   |
+| CLMVerifierEnabled             | `CLM_VERIFIER_ENABLED`              | `false`       | Enable the CLM (Contrastive-LM) best-of-N verifier for selected agents |
+| CLMServerURL                   | `CLM_SERVER_URL`                    | `""`          | Base URL of the clm-serve sidecar, e.g. `http://clm.local:8700`        |
+| CLMAPIKey                      | `CLM_API_KEY`                       | `""`          | Bearer token when the CLM server has auth enabled                      |
+| CLMModel                       | `CLM_MODEL`                         | `clm-latest`  | CLM head to query, e.g. `clm-latest` or a fine-tuned one               |
+| CLMBestOfN                     | `CLM_BEST_OF_N`                     | `3`           | Parallel completions sampled per gated call (clamped to 2..5)          |
+| CLMBestOfNInterval             | `CLM_BEST_OF_N_INTERVAL`            | `0`           | When to sample: `0` = first call of each agent chain only (delegation planning), `1` = every call, `k` = every k-th call |
+| CLMTimeoutSec                  | `CLM_TIMEOUT_SEC`                   | `5`           | Per-decision timeout; the verifier can never stall the agent chain     |
+| CLMAgents                      | `CLM_BEST_OF_N_AGENTS`              | `pentester`   | Comma-separated agent types gated in, e.g. `pentester,primary_agent`   |
+
+### CLM Best-of-N Verifier
+
+When enabled, gated agents (pentester by default) request N parallel completions in one call at the gated chain iterations (by default only the **first call of each agent chain**, i.e. the delegation planning step, where the candidate menu is the most separated) and a CLM (Contrastive-LM) System One server (`POST /v1/rank`) ranks the distinct candidate next actions against a compact rendering of the current state. The winner is executed; losers are only logged. This uses the OpenAI `n` request field, so it best suits OpenAI-compatible backends (vLLM, LiteLLM); providers that ignore `n` simply yield a single candidate and behave as usual.
+
+The interval gating exists because per-call ranking proved worthless on long exploit-debugging grinds: when the model samples N near-identical retry variants, the zero-shot CLM head cannot tell productive actions from blind repetition (measured on a live flow: mean top probability 0.64 on loop-poll winners vs 0.68 otherwise, with a pure poll promoted at 0.94 confidence). Rank carries signal at *separated* decision points (chain start, tool choice), hence the `first`-call default; set `CLM_BEST_OF_N_INTERVAL` to `1` or `k` to experiment with denser gating.
+
+The verifier is fail-open by design: misconfiguration, server errors, timeouts, or a provider rejecting `n` all restore the plain single-completion behavior for the remainder of that chain call, without consuming its retry budget. Live streaming to the UI is skipped for sampled calls (N choices would interleave into one unreadable stream); the winning completion is pushed once, immediately after the decision. Every decision (candidate probabilities, winner index, latency) is logged through logrus and emitted as the Langfuse event `clm verifier best-of-n decision` for offline analysis.
 
 ### Usage Details
 
