@@ -41,9 +41,10 @@ const clmNoContentPlaceholder = "(no content)"
 // listed in CLM_BEST_OF_N_AGENTS. Construction is side-effect free; a nil
 // verifier means the feature is disabled and all callers must be fail-open.
 type clmVerifier struct {
-	client  *clmrank.Client
-	agents  map[pconfig.ProviderOptionsType]bool
-	bestOfN int
+	client   *clmrank.Client
+	agents   map[pconfig.ProviderOptionsType]bool
+	bestOfN  int
+	interval int
 }
 
 // newCLMVerifier builds the verifier from env config; it returns nil (feature
@@ -80,24 +81,46 @@ func newCLMVerifier(cfg *config.Config) *clmVerifier {
 		n = clmMaxBestOfN
 	}
 
+	interval := cfg.CLMBestOfNInterval
+	if interval < 0 {
+		interval = 0
+	}
+
 	logrus.WithFields(logrus.Fields{
 		"server_url":  cfg.CLMServerURL,
 		"model":       cfg.CLMModel,
 		"best_of_n":   n,
 		"agents":      cfg.CLMAgents,
 		"timeout_sec": cfg.CLMTimeoutSec,
+		"interval":    interval,
 	}).Info("CLM best-of-N verifier enabled")
 
 	return &clmVerifier{
-		client:  clmrank.New(cfg.CLMServerURL, cfg.CLMAPIKey, cfg.CLMModel, time.Duration(cfg.CLMTimeoutSec)*time.Second),
-		agents:  agents,
-		bestOfN: n,
+		client:   clmrank.New(cfg.CLMServerURL, cfg.CLMAPIKey, cfg.CLMModel, time.Duration(cfg.CLMTimeoutSec)*time.Second),
+		agents:   agents,
+		bestOfN:  n,
+		interval: interval,
 	}
 }
 
 // appliesTo reports whether the best-of-N path should trigger for this agent.
 func (v *clmVerifier) appliesTo(optAgentType pconfig.ProviderOptionsType) bool {
 	return v != nil && v.agents[optAgentType]
+}
+
+// shouldRun gates the verifier by chain iteration: interval 0 runs only the
+// first call of a chain (the delegation planning call, where the candidate
+// menu is the most separated); interval 1 runs every call; interval k runs
+// every k-th call (iteration 0 always included). A negative iteration marks
+// non-iteration-driven call paths (caller reflector) and never triggers.
+func (v *clmVerifier) shouldRun(iteration int) bool {
+	if v == nil || iteration < 0 {
+		return false
+	}
+	if v.interval <= 0 {
+		return iteration == 0
+	}
+	return iteration%v.interval == 0
 }
 
 // clipRunes truncates s to at most n runes, appending an ellipsis marker so a
