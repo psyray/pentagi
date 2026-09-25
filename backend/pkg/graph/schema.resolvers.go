@@ -15,6 +15,7 @@ import (
 	"pentagi/pkg/database/converter"
 	"pentagi/pkg/flowfiles"
 	"pentagi/pkg/graph/model"
+	"pentagi/pkg/kgdashboard"
 	"pentagi/pkg/providers/anthropic"
 	"pentagi/pkg/providers/bedrock"
 	"pentagi/pkg/providers/deepseek"
@@ -2566,6 +2567,226 @@ func (r *queryResolver) SearchKnowledge(ctx context.Context, query string, filte
 		return r.Knowledge.SearchDocuments(ctx, query, filter, lim)
 	}
 	return r.Knowledge.SearchUserDocuments(ctx, uid, query, filter, lim)
+}
+
+// KgDashboardEnabled is the resolver for the kgDashboardEnabled field.
+func (r *queryResolver) KgDashboardEnabled(ctx context.Context) (bool, error) {
+	uid, _, err := validatePermission(ctx, "flows.view")
+	if err != nil {
+		return false, err
+	}
+	_ = uid
+	return r.KgDashboard.IsEnabled(), nil
+}
+
+// FlowAttackGraph is the resolver for the flowAttackGraph field.
+func (r *queryResolver) FlowAttackGraph(ctx context.Context, flowID int64, view model.AttackGraphView) (*model.AttackGraph, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "flows.view", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+	r.Logger.WithFields(logrus.Fields{
+		"uid":  uid,
+		"flow": flowID,
+		"view": view,
+	}).Debug("get flow attack graph")
+
+	groupID := r.Config.GroupID(flowID)
+	g, err := r.KgDashboard.GetAttackGraph(ctx, flowID, groupID, kgdashboard.AttackGraphView(view))
+	if err != nil {
+		return nil, err
+	}
+	return convertAttackGraph(g), nil
+}
+
+// FlowGraphitiTagStats is the resolver for the flowGraphitiTagStats field.
+func (r *queryResolver) FlowGraphitiTagStats(ctx context.Context, flowID int64) ([]*model.GraphitiTagStat, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "flows.view", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+	r.Logger.WithFields(logrus.Fields{
+		"uid":  uid,
+		"flow": flowID,
+	}).Debug("get flow graphiti tag stats")
+
+	groupID := r.Config.GroupID(flowID)
+	stats, err := r.KgDashboard.GetTagStats(ctx, flowID, groupID)
+	if err != nil {
+		return nil, err
+	}
+	return convertTagStats(stats), nil
+}
+
+// FlowAttackSurface is the resolver for the flowAttackSurface field.
+func (r *queryResolver) FlowAttackSurface(ctx context.Context, flowID int64) ([]*model.AttackSurfaceItem, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "flows.view", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+	r.Logger.WithFields(logrus.Fields{
+		"uid":  uid,
+		"flow": flowID,
+	}).Debug("get flow attack surface")
+
+	groupID := r.Config.GroupID(flowID)
+	items, err := r.KgDashboard.GetAttackSurface(ctx, flowID, groupID)
+	if err != nil {
+		return nil, err
+	}
+	return convertAttackSurface(items), nil
+}
+
+// FlowCredentialsStatus is the resolver for the flowCredentialsStatus field.
+func (r *queryResolver) FlowCredentialsStatus(ctx context.Context, flowID int64) ([]*model.CredentialStatusRow, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "flows.view", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+	r.Logger.WithFields(logrus.Fields{
+		"uid":  uid,
+		"flow": flowID,
+	}).Debug("get flow credentials status")
+
+	groupID := r.Config.GroupID(flowID)
+	rows, err := r.KgDashboard.GetCredentialsStatus(ctx, flowID, groupID)
+	if err != nil {
+		return nil, err
+	}
+	return convertCredentialStatus(rows), nil
+}
+
+// FlowValidAccesses is the resolver for the flowValidAccesses field.
+func (r *queryResolver) FlowValidAccesses(ctx context.Context, flowID int64) ([]*model.ValidAccessRow, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "flows.view", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+	r.Logger.WithFields(logrus.Fields{
+		"uid":  uid,
+		"flow": flowID,
+	}).Debug("get flow valid accesses")
+
+	groupID := r.Config.GroupID(flowID)
+	rows, err := r.KgDashboard.GetValidAccesses(ctx, flowID, groupID)
+	if err != nil {
+		return nil, err
+	}
+	return convertValidAccesses(rows), nil
+}
+
+// FlowInfrastructureMap is the resolver for the flowInfrastructureMap field.
+func (r *queryResolver) FlowInfrastructureMap(ctx context.Context, flowID int64) ([]*model.InfraMapRow, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "flows.view", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+	r.Logger.WithFields(logrus.Fields{
+		"uid":  uid,
+		"flow": flowID,
+	}).Debug("get flow infrastructure map")
+
+	groupID := r.Config.GroupID(flowID)
+	rows, err := r.KgDashboard.GetInfrastructureMap(ctx, flowID, groupID)
+	if err != nil {
+		return nil, err
+	}
+	return convertInfraMap(rows), nil
+}
+
+// FlowOpenPorts is the resolver for the flowOpenPorts field.
+func (r *queryResolver) FlowOpenPorts(ctx context.Context, flowID int64) ([]*model.OpenPortRow, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "flows.view", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+	r.Logger.WithFields(logrus.Fields{
+		"uid":  uid,
+		"flow": flowID,
+	}).Debug("get flow open ports")
+
+	groupID := r.Config.GroupID(flowID)
+	rows, err := r.KgDashboard.GetOpenPorts(ctx, flowID, groupID)
+	if err != nil {
+		return nil, err
+	}
+	return convertOpenPorts(rows), nil
+}
+
+// FlowVulnerabilityBreakdown is the resolver for the flowVulnerabilityBreakdown field.
+func (r *queryResolver) FlowVulnerabilityBreakdown(ctx context.Context, flowID int64) ([]*model.VulnBreakdownRow, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "flows.view", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+	r.Logger.WithFields(logrus.Fields{
+		"uid":  uid,
+		"flow": flowID,
+	}).Debug("get flow vulnerability breakdown")
+
+	groupID := r.Config.GroupID(flowID)
+	rows, err := r.KgDashboard.GetVulnerabilityBreakdown(ctx, flowID, groupID)
+	if err != nil {
+		return nil, err
+	}
+	return convertVulnBreakdown(rows), nil
+}
+
+// FlowDetectedCVEs is the resolver for the flowDetectedCVEs field.
+func (r *queryResolver) FlowDetectedCVEs(ctx context.Context, flowID int64) ([]*model.DetectedCVERow, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "flows.view", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+	r.Logger.WithFields(logrus.Fields{
+		"uid":  uid,
+		"flow": flowID,
+	}).Debug("get flow detected CVEs")
+
+	groupID := r.Config.GroupID(flowID)
+	rows, err := r.KgDashboard.GetDetectedCVEs(ctx, flowID, groupID)
+	if err != nil {
+		return nil, err
+	}
+	return convertDetectedCVEs(rows), nil
+}
+
+// FlowGraphitiToolUsage is the resolver for the flowGraphitiToolUsage field.
+func (r *queryResolver) FlowGraphitiToolUsage(ctx context.Context, flowID int64) ([]*model.GraphitiToolUsageRow, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "flows.view", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+	r.Logger.WithFields(logrus.Fields{
+		"uid":  uid,
+		"flow": flowID,
+	}).Debug("get flow graphiti tool usage")
+
+	groupID := r.Config.GroupID(flowID)
+	rows, err := r.KgDashboard.GetToolUsage(ctx, flowID, groupID)
+	if err != nil {
+		return nil, err
+	}
+	return convertToolUsage(rows), nil
+}
+
+// FlowArtifacts is the resolver for the flowArtifacts field.
+func (r *queryResolver) FlowArtifacts(ctx context.Context, flowID int64) ([]*model.ArtifactRow, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "flows.view", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+	r.Logger.WithFields(logrus.Fields{
+		"uid":  uid,
+		"flow": flowID,
+	}).Debug("get flow artifacts")
+
+	groupID := r.Config.GroupID(flowID)
+	rows, err := r.KgDashboard.GetArtifacts(ctx, flowID, groupID)
+	if err != nil {
+		return nil, err
+	}
+	return convertArtifacts(rows), nil
 }
 
 // FlowCreated is the resolver for the flowCreated field.

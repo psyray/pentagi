@@ -984,6 +984,135 @@ input UpdateKnowledgeDocumentInput {
   codeLang: String
 }
 
+# ==================== Knowledge-graph dashboard (Graphiti / Neo4j) =========
+# Read-only views powering the in-flow Graphiti dashboard. All scoped by
+# the caller's flow id; the backend derives the Neo4j group_id from it so the
+# client can never read another tenant's graph. Every query returns empty
+# results (not an error) when Graphiti is disabled or Neo4j is unreachable.
+
+# Slice of the knowledge graph to materialize for the attack-chain view.
+enum AttackGraphView {
+  MAIN
+  FULL
+}
+
+# A projected Neo4j entity (Host, Service, Vulnerability, ...).
+type AttackGraphNode {
+  uuid: String!
+  labels: [String!]!
+  name: String!
+  summary: String!
+  createdAt: Time
+}
+
+# A projected Neo4j relationship (HAS_PORT, AUTHENTICATES_TO, ...).
+type AttackGraphEdge {
+  uuid: String!
+  type: String!
+  fact: String!
+  sourceUUID: String!
+  targetUUID: String!
+  createdAt: Time
+}
+
+# The materialized subgraph for a flow dashboard view.
+type AttackGraph {
+  nodes: [AttackGraphNode!]!
+  edges: [AttackGraphEdge!]!
+  totalNodes: Int!
+  totalEdges: Int!
+  truncated: Boolean!
+}
+
+# Count of entities of a given taxonomy tag.
+type GraphitiTagStat {
+  tag: String!
+  count: Int!
+}
+
+# One row of the attack surface overview (one entity of a watched tag).
+type AttackSurfaceItem {
+  type: String!
+  name: String!
+  summary: String!
+  createdAt: Time
+}
+
+# Inferred status of a discovered credential.
+enum CredentialStatus {
+  Compromised
+  Discovered
+  Unknown
+}
+
+# Aggregated credentials by inferred status.
+type CredentialStatusRow {
+  status: CredentialStatus!
+  count: Int!
+  examples: [String!]!
+}
+
+# One validated access path discovered in the flow.
+type ValidAccessRow {
+  access: String!
+  account: String!
+  host: String!
+  service: String!
+  summary: String!
+}
+
+# One Host → Port → Service row of the infrastructure map.
+type InfraMapRow {
+  host: String!
+  port: String!
+  service: String!
+}
+
+# One port row of the open ports view.
+type OpenPortRow {
+  port: String!
+  service: String!
+  host: String!
+}
+
+# Vulnerability bucket for the breakdown view.
+enum VulnCategory {
+  CVE
+  Critical
+  High
+  Medium
+  Low
+  Info
+}
+
+# Aggregated vulnerabilities by category.
+type VulnBreakdownRow {
+  category: VulnCategory!
+  count: Int!
+  examples: [String!]!
+}
+
+# One CVE detected during the flow.
+type DetectedCVERow {
+  cve: String!
+  foundOn: String!
+  source: String!
+}
+
+# Count of tool executions per tool name, as observed by Graphiti.
+type GraphitiToolUsageRow {
+  tool: String!
+  executions: Int!
+}
+
+# One artifact produced during the flow.
+type ArtifactRow {
+  artifact: String!
+  producedBy: String!
+  summary: String!
+}
+
+
 # ==================== GraphQL Operations ====================
 
 type Query {
@@ -1053,6 +1182,21 @@ type Query {
   knowledgeDocuments(filter: KnowledgeFilter, withContent: Boolean!): [KnowledgeDocument!]!
   knowledgeDocument(id: String!): KnowledgeDocument!
   searchKnowledge(query: String!, filter: KnowledgeFilter, limit: Int): [KnowledgeDocumentWithScore!]!
+
+  # Knowledge-graph (Graphiti / Neo4j) in-flow dashboard. Returns empty / null
+  # when Graphiti is disabled or Neo4j is unreachable.
+  kgDashboardEnabled: Boolean!
+  flowAttackGraph(flowId: ID!, view: AttackGraphView!): AttackGraph!
+  flowGraphitiTagStats(flowId: ID!): [GraphitiTagStat!]!
+  flowAttackSurface(flowId: ID!): [AttackSurfaceItem!]!
+  flowCredentialsStatus(flowId: ID!): [CredentialStatusRow!]!
+  flowValidAccesses(flowId: ID!): [ValidAccessRow!]!
+  flowInfrastructureMap(flowId: ID!): [InfraMapRow!]!
+  flowOpenPorts(flowId: ID!): [OpenPortRow!]!
+  flowVulnerabilityBreakdown(flowId: ID!): [VulnBreakdownRow!]!
+  flowDetectedCVEs(flowId: ID!): [DetectedCVERow!]!
+  flowGraphitiToolUsage(flowId: ID!): [GraphitiToolUsageRow!]!
+  flowArtifacts(flowId: ID!): [ArtifactRow!]!
 }
 
 type Mutation {

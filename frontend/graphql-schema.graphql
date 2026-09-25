@@ -1428,3 +1428,165 @@ subscription knowledgeDocumentDeleted {
         ...knowledgeDocumentFragment
     }
 }
+
+# ==================== Knowledge-graph dashboard (Graphiti / Neo4j) =========
+
+fragment attackGraphNodeFragment on AttackGraphNode {
+    uuid
+    labels
+    name
+    summary
+    createdAt
+}
+
+fragment attackGraphEdgeFragment on AttackGraphEdge {
+    uuid
+    type
+    fact
+    sourceUUID
+    targetUUID
+    createdAt
+}
+
+fragment attackGraphFragment on AttackGraph {
+    nodes {
+        ...attackGraphNodeFragment
+    }
+    edges {
+        ...attackGraphEdgeFragment
+    }
+    totalNodes
+    totalEdges
+    truncated
+}
+
+fragment graphitiTagStatFragment on GraphitiTagStat {
+    tag
+    count
+}
+
+fragment attackSurfaceItemFragment on AttackSurfaceItem {
+    type
+    name
+    summary
+    createdAt
+}
+
+fragment credentialStatusRowFragment on CredentialStatusRow {
+    status
+    count
+    examples
+}
+
+fragment validAccessRowFragment on ValidAccessRow {
+    access
+    account
+    host
+    service
+    summary
+}
+
+fragment infraMapRowFragment on InfraMapRow {
+    host
+    port
+    service
+}
+
+fragment openPortRowFragment on OpenPortRow {
+    port
+    service
+    host
+}
+
+fragment vulnBreakdownRowFragment on VulnBreakdownRow {
+    category
+    count
+    examples
+}
+
+fragment detectedCVERowFragment on DetectedCVERow {
+    cve
+    foundOn
+    source
+}
+
+fragment graphitiToolUsageRowFragment on GraphitiToolUsageRow {
+    tool
+    executions
+}
+
+fragment artifactRowFragment on ArtifactRow {
+    artifact
+    producedBy
+    summary
+}
+
+query kgDashboardEnabled {
+    kgDashboardEnabled
+}
+
+query flowAttackGraph($flowId: ID!, $view: AttackGraphView!) {
+    flowAttackGraph(flowId: $flowId, view: $view) {
+        ...attackGraphFragment
+    }
+}
+
+query flowGraphitiTagStats($flowId: ID!) {
+    flowGraphitiTagStats(flowId: $flowId) {
+        ...graphitiTagStatFragment
+    }
+}
+
+query flowAttackSurface($flowId: ID!) {
+    flowAttackSurface(flowId: $flowId) {
+        ...attackSurfaceItemFragment
+    }
+}
+
+query flowCredentialsStatus($flowId: ID!) {
+    flowCredentialsStatus(flowId: $flowId) {
+        ...credentialStatusRowFragment
+    }
+}
+
+query flowValidAccesses($flowId: ID!) {
+    flowValidAccesses(flowId: $flowId) {
+        ...validAccessRowFragment
+    }
+}
+
+query flowInfrastructureMap($flowId: ID!) {
+    flowInfrastructureMap(flowId: $flowId) {
+        ...infraMapRowFragment
+    }
+}
+
+query flowOpenPorts($flowId: ID!) {
+    flowOpenPorts(flowId: $flowId) {
+        ...openPortRowFragment
+    }
+}
+
+query flowVulnerabilityBreakdown($flowId: ID!) {
+    flowVulnerabilityBreakdown(flowId: $flowId) {
+        ...vulnBreakdownRowFragment
+    }
+}
+
+query flowDetectedCVEs($flowId: ID!) {
+    flowDetectedCVEs(flowId: $flowId) {
+        ...detectedCVERowFragment
+    }
+}
+
+query flowGraphitiToolUsage($flowId: ID!) {
+    flowGraphitiToolUsage(flowId: $flowId) {
+        ...graphitiToolUsageRowFragment
+    }
+}
+
+query flowArtifacts($flowId: ID!) {
+    flowArtifacts(flowId: $flowId) {
+        ...artifactRowFragment
+    }
+}

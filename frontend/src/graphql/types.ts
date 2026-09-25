@@ -73,6 +73,11 @@ export type AgentsConfigInput = {
     simpleJson: AgentConfigInput;
 };
 
+export enum AttackGraphView {
+    Full = 'FULL',
+    Main = 'MAIN',
+}
+
 export type CreateApiTokenInput = {
     name?: string | null | undefined;
     ttl: number;
@@ -92,6 +97,12 @@ export type CreateKnowledgeDocumentInput = {
     guideType?: KnowledgeGuideType | null | undefined;
     question: string;
 };
+
+export enum CredentialStatus {
+    Compromised = 'Compromised',
+    Discovered = 'Discovered',
+    Unknown = 'Unknown',
+}
 
 export enum KnowledgeAnswerType {
     Code = 'code',
@@ -302,6 +313,15 @@ export enum UsageStatsPeriod {
 export enum VectorStoreAction {
     Retrieve = 'retrieve',
     Store = 'store',
+}
+
+export enum VulnCategory {
+    Cve = 'CVE',
+    Critical = 'Critical',
+    High = 'High',
+    Info = 'Info',
+    Low = 'Low',
+    Medium = 'Medium',
 }
 
 export type SettingsFragmentFragment = {
@@ -1412,6 +1432,133 @@ export type KnowledgeDocumentUpdatedSubscription = { knowledgeDocumentUpdated: K
 export type KnowledgeDocumentDeletedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
 export type KnowledgeDocumentDeletedSubscription = { knowledgeDocumentDeleted: KnowledgeDocumentFragmentFragment };
+
+export type AttackGraphNodeFragmentFragment = {
+    uuid: string;
+    labels: Array<string>;
+    name: string;
+    summary: string;
+    createdAt: string | null;
+};
+
+export type AttackGraphEdgeFragmentFragment = {
+    uuid: string;
+    type: string;
+    fact: string;
+    sourceUUID: string;
+    targetUUID: string;
+    createdAt: string | null;
+};
+
+export type AttackGraphFragmentFragment = {
+    totalNodes: number;
+    totalEdges: number;
+    truncated: boolean;
+    nodes: Array<AttackGraphNodeFragmentFragment>;
+    edges: Array<AttackGraphEdgeFragmentFragment>;
+};
+
+export type GraphitiTagStatFragmentFragment = { tag: string; count: number };
+
+export type AttackSurfaceItemFragmentFragment = {
+    type: string;
+    name: string;
+    summary: string;
+    createdAt: string | null;
+};
+
+export type CredentialStatusRowFragmentFragment = { status: CredentialStatus; count: number; examples: Array<string> };
+
+export type ValidAccessRowFragmentFragment = {
+    access: string;
+    account: string;
+    host: string;
+    service: string;
+    summary: string;
+};
+
+export type InfraMapRowFragmentFragment = { host: string; port: string; service: string };
+
+export type OpenPortRowFragmentFragment = { port: string; service: string; host: string };
+
+export type VulnBreakdownRowFragmentFragment = { category: VulnCategory; count: number; examples: Array<string> };
+
+export type DetectedCveRowFragmentFragment = { cve: string; foundOn: string; source: string };
+
+export type GraphitiToolUsageRowFragmentFragment = { tool: string; executions: number };
+
+export type ArtifactRowFragmentFragment = { artifact: string; producedBy: string; summary: string };
+
+export type KgDashboardEnabledQueryVariables = Exact<{ [key: string]: never }>;
+
+export type KgDashboardEnabledQuery = { kgDashboardEnabled: boolean };
+
+export type FlowAttackGraphQueryVariables = Exact<{
+    flowId: string | number;
+    view: AttackGraphView;
+}>;
+
+export type FlowAttackGraphQuery = { flowAttackGraph: AttackGraphFragmentFragment };
+
+export type FlowGraphitiTagStatsQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowGraphitiTagStatsQuery = { flowGraphitiTagStats: Array<GraphitiTagStatFragmentFragment> };
+
+export type FlowAttackSurfaceQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowAttackSurfaceQuery = { flowAttackSurface: Array<AttackSurfaceItemFragmentFragment> };
+
+export type FlowCredentialsStatusQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowCredentialsStatusQuery = { flowCredentialsStatus: Array<CredentialStatusRowFragmentFragment> };
+
+export type FlowValidAccessesQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowValidAccessesQuery = { flowValidAccesses: Array<ValidAccessRowFragmentFragment> };
+
+export type FlowInfrastructureMapQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowInfrastructureMapQuery = { flowInfrastructureMap: Array<InfraMapRowFragmentFragment> };
+
+export type FlowOpenPortsQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowOpenPortsQuery = { flowOpenPorts: Array<OpenPortRowFragmentFragment> };
+
+export type FlowVulnerabilityBreakdownQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowVulnerabilityBreakdownQuery = { flowVulnerabilityBreakdown: Array<VulnBreakdownRowFragmentFragment> };
+
+export type FlowDetectedCvEsQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowDetectedCvEsQuery = { flowDetectedCVEs: Array<DetectedCveRowFragmentFragment> };
+
+export type FlowGraphitiToolUsageQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowGraphitiToolUsageQuery = { flowGraphitiToolUsage: Array<GraphitiToolUsageRowFragmentFragment> };
+
+export type FlowArtifactsQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowArtifactsQuery = { flowArtifacts: Array<ArtifactRowFragmentFragment> };
 
 export const SettingsFragmentFragmentDoc = {
     kind: 'Document',
@@ -3372,6 +3519,297 @@ export const UserPreferencesFragmentFragmentDoc = {
         },
     ],
 } as unknown as DocumentNode<UserPreferencesFragmentFragment, unknown>;
+export const AttackGraphNodeFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'attackGraphNodeFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'AttackGraphNode' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'uuid' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'labels' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'summary' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<AttackGraphNodeFragmentFragment, unknown>;
+export const AttackGraphEdgeFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'attackGraphEdgeFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'AttackGraphEdge' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'uuid' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'type' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'fact' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sourceUUID' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'targetUUID' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<AttackGraphEdgeFragmentFragment, unknown>;
+export const AttackGraphFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'attackGraphFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'AttackGraph' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'nodes' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'attackGraphNodeFragment' } },
+                            ],
+                        },
+                    },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'edges' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'attackGraphEdgeFragment' } },
+                            ],
+                        },
+                    },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalNodes' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalEdges' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'truncated' } },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'attackGraphNodeFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'AttackGraphNode' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'uuid' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'labels' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'summary' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'attackGraphEdgeFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'AttackGraphEdge' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'uuid' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'type' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'fact' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sourceUUID' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'targetUUID' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<AttackGraphFragmentFragment, unknown>;
+export const GraphitiTagStatFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'graphitiTagStatFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'GraphitiTagStat' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'tag' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'count' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<GraphitiTagStatFragmentFragment, unknown>;
+export const AttackSurfaceItemFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'attackSurfaceItemFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'AttackSurfaceItem' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'type' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'summary' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<AttackSurfaceItemFragmentFragment, unknown>;
+export const CredentialStatusRowFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'credentialStatusRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'CredentialStatusRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'count' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'examples' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<CredentialStatusRowFragmentFragment, unknown>;
+export const ValidAccessRowFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'validAccessRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'ValidAccessRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'access' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'account' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'host' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'service' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'summary' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<ValidAccessRowFragmentFragment, unknown>;
+export const InfraMapRowFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'infraMapRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'InfraMapRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'host' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'port' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'service' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<InfraMapRowFragmentFragment, unknown>;
+export const OpenPortRowFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'openPortRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'OpenPortRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'port' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'service' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'host' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<OpenPortRowFragmentFragment, unknown>;
+export const VulnBreakdownRowFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'vulnBreakdownRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'VulnBreakdownRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'category' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'count' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'examples' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<VulnBreakdownRowFragmentFragment, unknown>;
+export const DetectedCveRowFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'detectedCVERowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'DetectedCVERow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'cve' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'foundOn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'source' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<DetectedCveRowFragmentFragment, unknown>;
+export const GraphitiToolUsageRowFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'graphitiToolUsageRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'GraphitiToolUsageRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'tool' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'executions' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<GraphitiToolUsageRowFragmentFragment, unknown>;
+export const ArtifactRowFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'artifactRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'ArtifactRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'artifact' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'producedBy' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'summary' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<ArtifactRowFragmentFragment, unknown>;
 export const FlowsDocument = {
     kind: 'Document',
     definitions: [
@@ -12568,3 +13006,660 @@ export const KnowledgeDocumentDeletedDocument = {
         },
     ],
 } as unknown as DocumentNode<KnowledgeDocumentDeletedSubscription, KnowledgeDocumentDeletedSubscriptionVariables>;
+export const KgDashboardEnabledDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'kgDashboardEnabled' },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [{ kind: 'Field', name: { kind: 'Name', value: 'kgDashboardEnabled' } }],
+            },
+        },
+    ],
+} as unknown as DocumentNode<KgDashboardEnabledQuery, KgDashboardEnabledQueryVariables>;
+export const FlowAttackGraphDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowAttackGraph' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'view' } },
+                    type: {
+                        kind: 'NonNullType',
+                        type: { kind: 'NamedType', name: { kind: 'Name', value: 'AttackGraphView' } },
+                    },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowAttackGraph' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'view' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'view' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'attackGraphFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'attackGraphNodeFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'AttackGraphNode' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'uuid' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'labels' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'summary' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'attackGraphEdgeFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'AttackGraphEdge' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'uuid' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'type' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'fact' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sourceUUID' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'targetUUID' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'attackGraphFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'AttackGraph' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'nodes' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'attackGraphNodeFragment' } },
+                            ],
+                        },
+                    },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'edges' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'attackGraphEdgeFragment' } },
+                            ],
+                        },
+                    },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalNodes' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalEdges' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'truncated' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowAttackGraphQuery, FlowAttackGraphQueryVariables>;
+export const FlowGraphitiTagStatsDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowGraphitiTagStats' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowGraphitiTagStats' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'graphitiTagStatFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'graphitiTagStatFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'GraphitiTagStat' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'tag' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'count' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowGraphitiTagStatsQuery, FlowGraphitiTagStatsQueryVariables>;
+export const FlowAttackSurfaceDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowAttackSurface' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowAttackSurface' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'attackSurfaceItemFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'attackSurfaceItemFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'AttackSurfaceItem' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'type' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'summary' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowAttackSurfaceQuery, FlowAttackSurfaceQueryVariables>;
+export const FlowCredentialsStatusDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowCredentialsStatus' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowCredentialsStatus' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                {
+                                    kind: 'FragmentSpread',
+                                    name: { kind: 'Name', value: 'credentialStatusRowFragment' },
+                                },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'credentialStatusRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'CredentialStatusRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'count' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'examples' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowCredentialsStatusQuery, FlowCredentialsStatusQueryVariables>;
+export const FlowValidAccessesDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowValidAccesses' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowValidAccesses' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'validAccessRowFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'validAccessRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'ValidAccessRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'access' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'account' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'host' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'service' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'summary' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowValidAccessesQuery, FlowValidAccessesQueryVariables>;
+export const FlowInfrastructureMapDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowInfrastructureMap' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowInfrastructureMap' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'infraMapRowFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'infraMapRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'InfraMapRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'host' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'port' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'service' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowInfrastructureMapQuery, FlowInfrastructureMapQueryVariables>;
+export const FlowOpenPortsDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowOpenPorts' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowOpenPorts' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'openPortRowFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'openPortRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'OpenPortRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'port' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'service' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'host' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowOpenPortsQuery, FlowOpenPortsQueryVariables>;
+export const FlowVulnerabilityBreakdownDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowVulnerabilityBreakdown' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowVulnerabilityBreakdown' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'vulnBreakdownRowFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'vulnBreakdownRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'VulnBreakdownRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'category' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'count' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'examples' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowVulnerabilityBreakdownQuery, FlowVulnerabilityBreakdownQueryVariables>;
+export const FlowDetectedCvEsDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowDetectedCVEs' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowDetectedCVEs' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'detectedCVERowFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'detectedCVERowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'DetectedCVERow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'cve' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'foundOn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'source' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowDetectedCvEsQuery, FlowDetectedCvEsQueryVariables>;
+export const FlowGraphitiToolUsageDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowGraphitiToolUsage' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowGraphitiToolUsage' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                {
+                                    kind: 'FragmentSpread',
+                                    name: { kind: 'Name', value: 'graphitiToolUsageRowFragment' },
+                                },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'graphitiToolUsageRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'GraphitiToolUsageRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'tool' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'executions' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowGraphitiToolUsageQuery, FlowGraphitiToolUsageQueryVariables>;
+export const FlowArtifactsDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowArtifacts' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowArtifacts' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'artifactRowFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'artifactRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'ArtifactRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'artifact' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'producedBy' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'summary' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowArtifactsQuery, FlowArtifactsQueryVariables>;

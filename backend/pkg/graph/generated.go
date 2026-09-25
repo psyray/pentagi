@@ -159,6 +159,12 @@ type ComplexityRoot struct {
 		ToolCallFixer func(childComplexity int) int
 	}
 
+	ArtifactRow struct {
+		Artifact   func(childComplexity int) int
+		ProducedBy func(childComplexity int) int
+		Summary    func(childComplexity int) int
+	}
+
 	Assistant struct {
 		CreatedAt func(childComplexity int) int
 		FlowID    func(childComplexity int) int
@@ -181,6 +187,44 @@ type ComplexityRoot struct {
 		ResultFormat func(childComplexity int) int
 		Thinking     func(childComplexity int) int
 		Type         func(childComplexity int) int
+	}
+
+	AttackGraph struct {
+		Edges      func(childComplexity int) int
+		Nodes      func(childComplexity int) int
+		TotalEdges func(childComplexity int) int
+		TotalNodes func(childComplexity int) int
+		Truncated  func(childComplexity int) int
+	}
+
+	AttackGraphEdge struct {
+		CreatedAt  func(childComplexity int) int
+		Fact       func(childComplexity int) int
+		SourceUUID func(childComplexity int) int
+		TargetUUID func(childComplexity int) int
+		Type       func(childComplexity int) int
+		UUID       func(childComplexity int) int
+	}
+
+	AttackGraphNode struct {
+		CreatedAt func(childComplexity int) int
+		Labels    func(childComplexity int) int
+		Name      func(childComplexity int) int
+		Summary   func(childComplexity int) int
+		UUID      func(childComplexity int) int
+	}
+
+	AttackSurfaceItem struct {
+		CreatedAt func(childComplexity int) int
+		Name      func(childComplexity int) int
+		Summary   func(childComplexity int) int
+		Type      func(childComplexity int) int
+	}
+
+	CredentialStatusRow struct {
+		Count    func(childComplexity int) int
+		Examples func(childComplexity int) int
+		Status   func(childComplexity int) int
 	}
 
 	DailyFlowsStats struct {
@@ -221,6 +265,12 @@ type ComplexityRoot struct {
 		Ollama    func(childComplexity int) int
 		Openai    func(childComplexity int) int
 		Qwen      func(childComplexity int) int
+	}
+
+	DetectedCVERow struct {
+		Cve     func(childComplexity int) int
+		FoundOn func(childComplexity int) int
+		Source  func(childComplexity int) int
 	}
 
 	Flow struct {
@@ -284,6 +334,22 @@ type ComplexityRoot struct {
 		IsAgent              func(childComplexity int) int
 		TotalCount           func(childComplexity int) int
 		TotalDurationSeconds func(childComplexity int) int
+	}
+
+	GraphitiTagStat struct {
+		Count func(childComplexity int) int
+		Tag   func(childComplexity int) int
+	}
+
+	GraphitiToolUsageRow struct {
+		Executions func(childComplexity int) int
+		Tool       func(childComplexity int) int
+	}
+
+	InfraMapRow struct {
+		Host    func(childComplexity int) int
+		Port    func(childComplexity int) int
+		Service func(childComplexity int) int
 	}
 
 	KnowledgeDocument struct {
@@ -394,6 +460,12 @@ type ComplexityRoot struct {
 		ValidatePrompt          func(childComplexity int, typeArg model.PromptType, template string) int
 	}
 
+	OpenPortRow struct {
+		Host    func(childComplexity int) int
+		Port    func(childComplexity int) int
+		Service func(childComplexity int) int
+	}
+
 	PromptValidationResult struct {
 		Details   func(childComplexity int) int
 		ErrorType func(childComplexity int) int
@@ -484,14 +556,26 @@ type ComplexityRoot struct {
 		AssistantLogs                   func(childComplexity int, flowID int64, assistantID int64) int
 		Assistants                      func(childComplexity int, flowID int64) int
 		Flow                            func(childComplexity int, flowID int64) int
+		FlowArtifacts                   func(childComplexity int, flowID int64) int
+		FlowAttackGraph                 func(childComplexity int, flowID int64, view model.AttackGraphView) int
+		FlowAttackSurface               func(childComplexity int, flowID int64) int
+		FlowCredentialsStatus           func(childComplexity int, flowID int64) int
+		FlowDetectedCVEs                func(childComplexity int, flowID int64) int
 		FlowFiles                       func(childComplexity int, flowID int64) int
+		FlowGraphitiTagStats            func(childComplexity int, flowID int64) int
+		FlowGraphitiToolUsage           func(childComplexity int, flowID int64) int
+		FlowInfrastructureMap           func(childComplexity int, flowID int64) int
+		FlowOpenPorts                   func(childComplexity int, flowID int64) int
 		FlowStatsByFlow                 func(childComplexity int, flowID int64) int
 		FlowTemplate                    func(childComplexity int, templateID int64) int
 		FlowTemplates                   func(childComplexity int) int
+		FlowValidAccesses               func(childComplexity int, flowID int64) int
+		FlowVulnerabilityBreakdown      func(childComplexity int, flowID int64) int
 		Flows                           func(childComplexity int) int
 		FlowsExecutionStatsByPeriod     func(childComplexity int, period model.UsageStatsPeriod) int
 		FlowsStatsByPeriod              func(childComplexity int, period model.UsageStatsPeriod) int
 		FlowsStatsTotal                 func(childComplexity int) int
+		KgDashboardEnabled              func(childComplexity int) int
 		KnowledgeDocument               func(childComplexity int, id string) int
 		KnowledgeDocuments              func(childComplexity int, filter *model.KnowledgeFilter, withContent bool) int
 		MessageLogs                     func(childComplexity int, flowID int64) int
@@ -738,6 +822,14 @@ type ComplexityRoot struct {
 		UserID    func(childComplexity int) int
 	}
 
+	ValidAccessRow struct {
+		Access  func(childComplexity int) int
+		Account func(childComplexity int) int
+		Host    func(childComplexity int) int
+		Service func(childComplexity int) int
+		Summary func(childComplexity int) int
+	}
+
 	VectorStoreLog struct {
 		Action    func(childComplexity int) int
 		CreatedAt func(childComplexity int) int
@@ -750,6 +842,12 @@ type ComplexityRoot struct {
 		Result    func(childComplexity int) int
 		SubtaskID func(childComplexity int) int
 		TaskID    func(childComplexity int) int
+	}
+
+	VulnBreakdownRow struct {
+		Category func(childComplexity int) int
+		Count    func(childComplexity int) int
+		Examples func(childComplexity int) int
 	}
 }
 
@@ -831,6 +929,18 @@ type QueryResolver interface {
 	KnowledgeDocuments(ctx context.Context, filter *model.KnowledgeFilter, withContent bool) ([]*model.KnowledgeDocument, error)
 	KnowledgeDocument(ctx context.Context, id string) (*model.KnowledgeDocument, error)
 	SearchKnowledge(ctx context.Context, query string, filter *model.KnowledgeFilter, limit *int) ([]*model.KnowledgeDocumentWithScore, error)
+	KgDashboardEnabled(ctx context.Context) (bool, error)
+	FlowAttackGraph(ctx context.Context, flowID int64, view model.AttackGraphView) (*model.AttackGraph, error)
+	FlowGraphitiTagStats(ctx context.Context, flowID int64) ([]*model.GraphitiTagStat, error)
+	FlowAttackSurface(ctx context.Context, flowID int64) ([]*model.AttackSurfaceItem, error)
+	FlowCredentialsStatus(ctx context.Context, flowID int64) ([]*model.CredentialStatusRow, error)
+	FlowValidAccesses(ctx context.Context, flowID int64) ([]*model.ValidAccessRow, error)
+	FlowInfrastructureMap(ctx context.Context, flowID int64) ([]*model.InfraMapRow, error)
+	FlowOpenPorts(ctx context.Context, flowID int64) ([]*model.OpenPortRow, error)
+	FlowVulnerabilityBreakdown(ctx context.Context, flowID int64) ([]*model.VulnBreakdownRow, error)
+	FlowDetectedCVEs(ctx context.Context, flowID int64) ([]*model.DetectedCVERow, error)
+	FlowGraphitiToolUsage(ctx context.Context, flowID int64) ([]*model.GraphitiToolUsageRow, error)
+	FlowArtifacts(ctx context.Context, flowID int64) ([]*model.ArtifactRow, error)
 }
 type SubscriptionResolver interface {
 	FlowCreated(ctx context.Context) (<-chan *model.Flow, error)
@@ -1445,6 +1555,27 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.AgentsPrompts.ToolCallFixer(childComplexity), true
 
+	case "ArtifactRow.artifact":
+		if e.complexity.ArtifactRow.Artifact == nil {
+			break
+		}
+
+		return e.complexity.ArtifactRow.Artifact(childComplexity), true
+
+	case "ArtifactRow.producedBy":
+		if e.complexity.ArtifactRow.ProducedBy == nil {
+			break
+		}
+
+		return e.complexity.ArtifactRow.ProducedBy(childComplexity), true
+
+	case "ArtifactRow.summary":
+		if e.complexity.ArtifactRow.Summary == nil {
+			break
+		}
+
+		return e.complexity.ArtifactRow.Summary(childComplexity), true
+
 	case "Assistant.createdAt":
 		if e.complexity.Assistant.CreatedAt == nil {
 			break
@@ -1570,6 +1701,167 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.AssistantLog.Type(childComplexity), true
+
+	case "AttackGraph.edges":
+		if e.complexity.AttackGraph.Edges == nil {
+			break
+		}
+
+		return e.complexity.AttackGraph.Edges(childComplexity), true
+
+	case "AttackGraph.nodes":
+		if e.complexity.AttackGraph.Nodes == nil {
+			break
+		}
+
+		return e.complexity.AttackGraph.Nodes(childComplexity), true
+
+	case "AttackGraph.totalEdges":
+		if e.complexity.AttackGraph.TotalEdges == nil {
+			break
+		}
+
+		return e.complexity.AttackGraph.TotalEdges(childComplexity), true
+
+	case "AttackGraph.totalNodes":
+		if e.complexity.AttackGraph.TotalNodes == nil {
+			break
+		}
+
+		return e.complexity.AttackGraph.TotalNodes(childComplexity), true
+
+	case "AttackGraph.truncated":
+		if e.complexity.AttackGraph.Truncated == nil {
+			break
+		}
+
+		return e.complexity.AttackGraph.Truncated(childComplexity), true
+
+	case "AttackGraphEdge.createdAt":
+		if e.complexity.AttackGraphEdge.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.AttackGraphEdge.CreatedAt(childComplexity), true
+
+	case "AttackGraphEdge.fact":
+		if e.complexity.AttackGraphEdge.Fact == nil {
+			break
+		}
+
+		return e.complexity.AttackGraphEdge.Fact(childComplexity), true
+
+	case "AttackGraphEdge.sourceUUID":
+		if e.complexity.AttackGraphEdge.SourceUUID == nil {
+			break
+		}
+
+		return e.complexity.AttackGraphEdge.SourceUUID(childComplexity), true
+
+	case "AttackGraphEdge.targetUUID":
+		if e.complexity.AttackGraphEdge.TargetUUID == nil {
+			break
+		}
+
+		return e.complexity.AttackGraphEdge.TargetUUID(childComplexity), true
+
+	case "AttackGraphEdge.type":
+		if e.complexity.AttackGraphEdge.Type == nil {
+			break
+		}
+
+		return e.complexity.AttackGraphEdge.Type(childComplexity), true
+
+	case "AttackGraphEdge.uuid":
+		if e.complexity.AttackGraphEdge.UUID == nil {
+			break
+		}
+
+		return e.complexity.AttackGraphEdge.UUID(childComplexity), true
+
+	case "AttackGraphNode.createdAt":
+		if e.complexity.AttackGraphNode.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.AttackGraphNode.CreatedAt(childComplexity), true
+
+	case "AttackGraphNode.labels":
+		if e.complexity.AttackGraphNode.Labels == nil {
+			break
+		}
+
+		return e.complexity.AttackGraphNode.Labels(childComplexity), true
+
+	case "AttackGraphNode.name":
+		if e.complexity.AttackGraphNode.Name == nil {
+			break
+		}
+
+		return e.complexity.AttackGraphNode.Name(childComplexity), true
+
+	case "AttackGraphNode.summary":
+		if e.complexity.AttackGraphNode.Summary == nil {
+			break
+		}
+
+		return e.complexity.AttackGraphNode.Summary(childComplexity), true
+
+	case "AttackGraphNode.uuid":
+		if e.complexity.AttackGraphNode.UUID == nil {
+			break
+		}
+
+		return e.complexity.AttackGraphNode.UUID(childComplexity), true
+
+	case "AttackSurfaceItem.createdAt":
+		if e.complexity.AttackSurfaceItem.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.AttackSurfaceItem.CreatedAt(childComplexity), true
+
+	case "AttackSurfaceItem.name":
+		if e.complexity.AttackSurfaceItem.Name == nil {
+			break
+		}
+
+		return e.complexity.AttackSurfaceItem.Name(childComplexity), true
+
+	case "AttackSurfaceItem.summary":
+		if e.complexity.AttackSurfaceItem.Summary == nil {
+			break
+		}
+
+		return e.complexity.AttackSurfaceItem.Summary(childComplexity), true
+
+	case "AttackSurfaceItem.type":
+		if e.complexity.AttackSurfaceItem.Type == nil {
+			break
+		}
+
+		return e.complexity.AttackSurfaceItem.Type(childComplexity), true
+
+	case "CredentialStatusRow.count":
+		if e.complexity.CredentialStatusRow.Count == nil {
+			break
+		}
+
+		return e.complexity.CredentialStatusRow.Count(childComplexity), true
+
+	case "CredentialStatusRow.examples":
+		if e.complexity.CredentialStatusRow.Examples == nil {
+			break
+		}
+
+		return e.complexity.CredentialStatusRow.Examples(childComplexity), true
+
+	case "CredentialStatusRow.status":
+		if e.complexity.CredentialStatusRow.Status == nil {
+			break
+		}
+
+		return e.complexity.CredentialStatusRow.Status(childComplexity), true
 
 	case "DailyFlowsStats.date":
 		if e.complexity.DailyFlowsStats.Date == nil {
@@ -1724,6 +2016,27 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.DefaultProvidersConfig.Qwen(childComplexity), true
+
+	case "DetectedCVERow.cve":
+		if e.complexity.DetectedCVERow.Cve == nil {
+			break
+		}
+
+		return e.complexity.DetectedCVERow.Cve(childComplexity), true
+
+	case "DetectedCVERow.foundOn":
+		if e.complexity.DetectedCVERow.FoundOn == nil {
+			break
+		}
+
+		return e.complexity.DetectedCVERow.FoundOn(childComplexity), true
+
+	case "DetectedCVERow.source":
+		if e.complexity.DetectedCVERow.Source == nil {
+			break
+		}
+
+		return e.complexity.DetectedCVERow.Source(childComplexity), true
 
 	case "Flow.createdAt":
 		if e.complexity.Flow.CreatedAt == nil {
@@ -1997,6 +2310,55 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.FunctionToolcallsStats.TotalDurationSeconds(childComplexity), true
+
+	case "GraphitiTagStat.count":
+		if e.complexity.GraphitiTagStat.Count == nil {
+			break
+		}
+
+		return e.complexity.GraphitiTagStat.Count(childComplexity), true
+
+	case "GraphitiTagStat.tag":
+		if e.complexity.GraphitiTagStat.Tag == nil {
+			break
+		}
+
+		return e.complexity.GraphitiTagStat.Tag(childComplexity), true
+
+	case "GraphitiToolUsageRow.executions":
+		if e.complexity.GraphitiToolUsageRow.Executions == nil {
+			break
+		}
+
+		return e.complexity.GraphitiToolUsageRow.Executions(childComplexity), true
+
+	case "GraphitiToolUsageRow.tool":
+		if e.complexity.GraphitiToolUsageRow.Tool == nil {
+			break
+		}
+
+		return e.complexity.GraphitiToolUsageRow.Tool(childComplexity), true
+
+	case "InfraMapRow.host":
+		if e.complexity.InfraMapRow.Host == nil {
+			break
+		}
+
+		return e.complexity.InfraMapRow.Host(childComplexity), true
+
+	case "InfraMapRow.port":
+		if e.complexity.InfraMapRow.Port == nil {
+			break
+		}
+
+		return e.complexity.InfraMapRow.Port(childComplexity), true
+
+	case "InfraMapRow.service":
+		if e.complexity.InfraMapRow.Service == nil {
+			break
+		}
+
+		return e.complexity.InfraMapRow.Service(childComplexity), true
 
 	case "KnowledgeDocument.answerType":
 		if e.complexity.KnowledgeDocument.AnswerType == nil {
@@ -2725,6 +3087,27 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.ValidatePrompt(childComplexity, args["type"].(model.PromptType), args["template"].(string)), true
 
+	case "OpenPortRow.host":
+		if e.complexity.OpenPortRow.Host == nil {
+			break
+		}
+
+		return e.complexity.OpenPortRow.Host(childComplexity), true
+
+	case "OpenPortRow.port":
+		if e.complexity.OpenPortRow.Port == nil {
+			break
+		}
+
+		return e.complexity.OpenPortRow.Port(childComplexity), true
+
+	case "OpenPortRow.service":
+		if e.complexity.OpenPortRow.Service == nil {
+			break
+		}
+
+		return e.complexity.OpenPortRow.Service(childComplexity), true
+
 	case "PromptValidationResult.details":
 		if e.complexity.PromptValidationResult.Details == nil {
 			break
@@ -3184,6 +3567,66 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.Flow(childComplexity, args["flowId"].(int64)), true
 
+	case "Query.flowArtifacts":
+		if e.complexity.Query.FlowArtifacts == nil {
+			break
+		}
+
+		args, err := ec.field_Query_flowArtifacts_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.FlowArtifacts(childComplexity, args["flowId"].(int64)), true
+
+	case "Query.flowAttackGraph":
+		if e.complexity.Query.FlowAttackGraph == nil {
+			break
+		}
+
+		args, err := ec.field_Query_flowAttackGraph_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.FlowAttackGraph(childComplexity, args["flowId"].(int64), args["view"].(model.AttackGraphView)), true
+
+	case "Query.flowAttackSurface":
+		if e.complexity.Query.FlowAttackSurface == nil {
+			break
+		}
+
+		args, err := ec.field_Query_flowAttackSurface_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.FlowAttackSurface(childComplexity, args["flowId"].(int64)), true
+
+	case "Query.flowCredentialsStatus":
+		if e.complexity.Query.FlowCredentialsStatus == nil {
+			break
+		}
+
+		args, err := ec.field_Query_flowCredentialsStatus_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.FlowCredentialsStatus(childComplexity, args["flowId"].(int64)), true
+
+	case "Query.flowDetectedCVEs":
+		if e.complexity.Query.FlowDetectedCVEs == nil {
+			break
+		}
+
+		args, err := ec.field_Query_flowDetectedCVEs_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.FlowDetectedCVEs(childComplexity, args["flowId"].(int64)), true
+
 	case "Query.flowFiles":
 		if e.complexity.Query.FlowFiles == nil {
 			break
@@ -3195,6 +3638,54 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.FlowFiles(childComplexity, args["flowId"].(int64)), true
+
+	case "Query.flowGraphitiTagStats":
+		if e.complexity.Query.FlowGraphitiTagStats == nil {
+			break
+		}
+
+		args, err := ec.field_Query_flowGraphitiTagStats_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.FlowGraphitiTagStats(childComplexity, args["flowId"].(int64)), true
+
+	case "Query.flowGraphitiToolUsage":
+		if e.complexity.Query.FlowGraphitiToolUsage == nil {
+			break
+		}
+
+		args, err := ec.field_Query_flowGraphitiToolUsage_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.FlowGraphitiToolUsage(childComplexity, args["flowId"].(int64)), true
+
+	case "Query.flowInfrastructureMap":
+		if e.complexity.Query.FlowInfrastructureMap == nil {
+			break
+		}
+
+		args, err := ec.field_Query_flowInfrastructureMap_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.FlowInfrastructureMap(childComplexity, args["flowId"].(int64)), true
+
+	case "Query.flowOpenPorts":
+		if e.complexity.Query.FlowOpenPorts == nil {
+			break
+		}
+
+		args, err := ec.field_Query_flowOpenPorts_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.FlowOpenPorts(childComplexity, args["flowId"].(int64)), true
 
 	case "Query.flowStatsByFlow":
 		if e.complexity.Query.FlowStatsByFlow == nil {
@@ -3226,6 +3717,30 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.FlowTemplates(childComplexity), true
+
+	case "Query.flowValidAccesses":
+		if e.complexity.Query.FlowValidAccesses == nil {
+			break
+		}
+
+		args, err := ec.field_Query_flowValidAccesses_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.FlowValidAccesses(childComplexity, args["flowId"].(int64)), true
+
+	case "Query.flowVulnerabilityBreakdown":
+		if e.complexity.Query.FlowVulnerabilityBreakdown == nil {
+			break
+		}
+
+		args, err := ec.field_Query_flowVulnerabilityBreakdown_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.FlowVulnerabilityBreakdown(childComplexity, args["flowId"].(int64)), true
 
 	case "Query.flows":
 		if e.complexity.Query.Flows == nil {
@@ -3264,6 +3779,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.FlowsStatsTotal(childComplexity), true
+
+	case "Query.kgDashboardEnabled":
+		if e.complexity.Query.KgDashboardEnabled == nil {
+			break
+		}
+
+		return e.complexity.Query.KgDashboardEnabled(childComplexity), true
 
 	case "Query.knowledgeDocument":
 		if e.complexity.Query.KnowledgeDocument == nil {
@@ -4759,6 +5281,41 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.UserResource.UserID(childComplexity), true
 
+	case "ValidAccessRow.access":
+		if e.complexity.ValidAccessRow.Access == nil {
+			break
+		}
+
+		return e.complexity.ValidAccessRow.Access(childComplexity), true
+
+	case "ValidAccessRow.account":
+		if e.complexity.ValidAccessRow.Account == nil {
+			break
+		}
+
+		return e.complexity.ValidAccessRow.Account(childComplexity), true
+
+	case "ValidAccessRow.host":
+		if e.complexity.ValidAccessRow.Host == nil {
+			break
+		}
+
+		return e.complexity.ValidAccessRow.Host(childComplexity), true
+
+	case "ValidAccessRow.service":
+		if e.complexity.ValidAccessRow.Service == nil {
+			break
+		}
+
+		return e.complexity.ValidAccessRow.Service(childComplexity), true
+
+	case "ValidAccessRow.summary":
+		if e.complexity.ValidAccessRow.Summary == nil {
+			break
+		}
+
+		return e.complexity.ValidAccessRow.Summary(childComplexity), true
+
 	case "VectorStoreLog.action":
 		if e.complexity.VectorStoreLog.Action == nil {
 			break
@@ -4835,6 +5392,27 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.VectorStoreLog.TaskID(childComplexity), true
+
+	case "VulnBreakdownRow.category":
+		if e.complexity.VulnBreakdownRow.Category == nil {
+			break
+		}
+
+		return e.complexity.VulnBreakdownRow.Category(childComplexity), true
+
+	case "VulnBreakdownRow.count":
+		if e.complexity.VulnBreakdownRow.Count == nil {
+			break
+		}
+
+		return e.complexity.VulnBreakdownRow.Count(childComplexity), true
+
+	case "VulnBreakdownRow.examples":
+		if e.complexity.VulnBreakdownRow.Examples == nil {
+			break
+		}
+
+		return e.complexity.VulnBreakdownRow.Examples(childComplexity), true
 
 	}
 	return 0, false
@@ -7009,6 +7587,193 @@ func (ec *executionContext) field_Query_assistants_argsFlowID(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Query_flowArtifacts_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Query_flowArtifacts_argsFlowID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["flowId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_flowArtifacts_argsFlowID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["flowId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("flowId"))
+	if tmp, ok := rawArgs["flowId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_flowAttackGraph_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Query_flowAttackGraph_argsFlowID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["flowId"] = arg0
+	arg1, err := ec.field_Query_flowAttackGraph_argsView(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["view"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Query_flowAttackGraph_argsFlowID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["flowId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("flowId"))
+	if tmp, ok := rawArgs["flowId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_flowAttackGraph_argsView(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (model.AttackGraphView, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["view"]
+	if !ok {
+		var zeroVal model.AttackGraphView
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("view"))
+	if tmp, ok := rawArgs["view"]; ok {
+		return ec.unmarshalNAttackGraphView2pentagiᚋpkgᚋgraphᚋmodelᚐAttackGraphView(ctx, tmp)
+	}
+
+	var zeroVal model.AttackGraphView
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_flowAttackSurface_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Query_flowAttackSurface_argsFlowID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["flowId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_flowAttackSurface_argsFlowID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["flowId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("flowId"))
+	if tmp, ok := rawArgs["flowId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_flowCredentialsStatus_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Query_flowCredentialsStatus_argsFlowID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["flowId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_flowCredentialsStatus_argsFlowID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["flowId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("flowId"))
+	if tmp, ok := rawArgs["flowId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_flowDetectedCVEs_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Query_flowDetectedCVEs_argsFlowID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["flowId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_flowDetectedCVEs_argsFlowID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["flowId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("flowId"))
+	if tmp, ok := rawArgs["flowId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Query_flowFiles_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -7020,6 +7785,134 @@ func (ec *executionContext) field_Query_flowFiles_args(ctx context.Context, rawA
 	return args, nil
 }
 func (ec *executionContext) field_Query_flowFiles_argsFlowID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["flowId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("flowId"))
+	if tmp, ok := rawArgs["flowId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_flowGraphitiTagStats_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Query_flowGraphitiTagStats_argsFlowID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["flowId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_flowGraphitiTagStats_argsFlowID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["flowId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("flowId"))
+	if tmp, ok := rawArgs["flowId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_flowGraphitiToolUsage_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Query_flowGraphitiToolUsage_argsFlowID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["flowId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_flowGraphitiToolUsage_argsFlowID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["flowId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("flowId"))
+	if tmp, ok := rawArgs["flowId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_flowInfrastructureMap_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Query_flowInfrastructureMap_argsFlowID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["flowId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_flowInfrastructureMap_argsFlowID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["flowId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("flowId"))
+	if tmp, ok := rawArgs["flowId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_flowOpenPorts_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Query_flowOpenPorts_argsFlowID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["flowId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_flowOpenPorts_argsFlowID(
 	ctx context.Context,
 	rawArgs map[string]interface{},
 ) (int64, error) {
@@ -7098,6 +7991,70 @@ func (ec *executionContext) field_Query_flowTemplate_argsTemplateID(
 
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("templateId"))
 	if tmp, ok := rawArgs["templateId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_flowValidAccesses_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Query_flowValidAccesses_argsFlowID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["flowId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_flowValidAccesses_argsFlowID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["flowId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("flowId"))
+	if tmp, ok := rawArgs["flowId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_flowVulnerabilityBreakdown_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Query_flowVulnerabilityBreakdown_argsFlowID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["flowId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_flowVulnerabilityBreakdown_argsFlowID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["flowId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("flowId"))
+	if tmp, ok := rawArgs["flowId"]; ok {
 		return ec.unmarshalNID2int64(ctx, tmp)
 	}
 
@@ -12605,6 +13562,138 @@ func (ec *executionContext) fieldContext_AgentsPrompts_summarizer(_ context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _ArtifactRow_artifact(ctx context.Context, field graphql.CollectedField, obj *model.ArtifactRow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ArtifactRow_artifact(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Artifact, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ArtifactRow_artifact(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ArtifactRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ArtifactRow_producedBy(ctx context.Context, field graphql.CollectedField, obj *model.ArtifactRow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ArtifactRow_producedBy(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ProducedBy, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ArtifactRow_producedBy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ArtifactRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ArtifactRow_summary(ctx context.Context, field graphql.CollectedField, obj *model.ArtifactRow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ArtifactRow_summary(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Summary, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ArtifactRow_summary(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ArtifactRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Assistant_id(ctx context.Context, field graphql.CollectedField, obj *model.Assistant) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Assistant_id(ctx, field)
 	if err != nil {
@@ -13395,6 +14484,1035 @@ func (ec *executionContext) fieldContext_AssistantLog_createdAt(_ context.Contex
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AttackGraph_nodes(ctx context.Context, field graphql.CollectedField, obj *model.AttackGraph) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_AttackGraph_nodes(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Nodes, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.AttackGraphNode)
+	fc.Result = res
+	return ec.marshalNAttackGraphNode2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐAttackGraphNodeᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_AttackGraph_nodes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AttackGraph",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "uuid":
+				return ec.fieldContext_AttackGraphNode_uuid(ctx, field)
+			case "labels":
+				return ec.fieldContext_AttackGraphNode_labels(ctx, field)
+			case "name":
+				return ec.fieldContext_AttackGraphNode_name(ctx, field)
+			case "summary":
+				return ec.fieldContext_AttackGraphNode_summary(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_AttackGraphNode_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AttackGraphNode", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AttackGraph_edges(ctx context.Context, field graphql.CollectedField, obj *model.AttackGraph) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_AttackGraph_edges(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Edges, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.AttackGraphEdge)
+	fc.Result = res
+	return ec.marshalNAttackGraphEdge2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐAttackGraphEdgeᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_AttackGraph_edges(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AttackGraph",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "uuid":
+				return ec.fieldContext_AttackGraphEdge_uuid(ctx, field)
+			case "type":
+				return ec.fieldContext_AttackGraphEdge_type(ctx, field)
+			case "fact":
+				return ec.fieldContext_AttackGraphEdge_fact(ctx, field)
+			case "sourceUUID":
+				return ec.fieldContext_AttackGraphEdge_sourceUUID(ctx, field)
+			case "targetUUID":
+				return ec.fieldContext_AttackGraphEdge_targetUUID(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_AttackGraphEdge_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AttackGraphEdge", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AttackGraph_totalNodes(ctx context.Context, field graphql.CollectedField, obj *model.AttackGraph) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_AttackGraph_totalNodes(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalNodes, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_AttackGraph_totalNodes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AttackGraph",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AttackGraph_totalEdges(ctx context.Context, field graphql.CollectedField, obj *model.AttackGraph) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_AttackGraph_totalEdges(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalEdges, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_AttackGraph_totalEdges(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AttackGraph",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AttackGraph_truncated(ctx context.Context, field graphql.CollectedField, obj *model.AttackGraph) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_AttackGraph_truncated(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Truncated, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_AttackGraph_truncated(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AttackGraph",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AttackGraphEdge_uuid(ctx context.Context, field graphql.CollectedField, obj *model.AttackGraphEdge) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_AttackGraphEdge_uuid(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UUID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_AttackGraphEdge_uuid(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AttackGraphEdge",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AttackGraphEdge_type(ctx context.Context, field graphql.CollectedField, obj *model.AttackGraphEdge) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_AttackGraphEdge_type(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Type, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_AttackGraphEdge_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AttackGraphEdge",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AttackGraphEdge_fact(ctx context.Context, field graphql.CollectedField, obj *model.AttackGraphEdge) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_AttackGraphEdge_fact(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Fact, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_AttackGraphEdge_fact(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AttackGraphEdge",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AttackGraphEdge_sourceUUID(ctx context.Context, field graphql.CollectedField, obj *model.AttackGraphEdge) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_AttackGraphEdge_sourceUUID(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.SourceUUID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_AttackGraphEdge_sourceUUID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AttackGraphEdge",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AttackGraphEdge_targetUUID(ctx context.Context, field graphql.CollectedField, obj *model.AttackGraphEdge) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_AttackGraphEdge_targetUUID(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TargetUUID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_AttackGraphEdge_targetUUID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AttackGraphEdge",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AttackGraphEdge_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.AttackGraphEdge) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_AttackGraphEdge_createdAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CreatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*time.Time)
+	fc.Result = res
+	return ec.marshalOTime2ᚖtimeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_AttackGraphEdge_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AttackGraphEdge",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AttackGraphNode_uuid(ctx context.Context, field graphql.CollectedField, obj *model.AttackGraphNode) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_AttackGraphNode_uuid(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UUID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_AttackGraphNode_uuid(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AttackGraphNode",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AttackGraphNode_labels(ctx context.Context, field graphql.CollectedField, obj *model.AttackGraphNode) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_AttackGraphNode_labels(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Labels, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]string)
+	fc.Result = res
+	return ec.marshalNString2ᚕstringᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_AttackGraphNode_labels(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AttackGraphNode",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AttackGraphNode_name(ctx context.Context, field graphql.CollectedField, obj *model.AttackGraphNode) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_AttackGraphNode_name(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Name, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_AttackGraphNode_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AttackGraphNode",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AttackGraphNode_summary(ctx context.Context, field graphql.CollectedField, obj *model.AttackGraphNode) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_AttackGraphNode_summary(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Summary, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_AttackGraphNode_summary(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AttackGraphNode",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AttackGraphNode_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.AttackGraphNode) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_AttackGraphNode_createdAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CreatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*time.Time)
+	fc.Result = res
+	return ec.marshalOTime2ᚖtimeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_AttackGraphNode_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AttackGraphNode",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AttackSurfaceItem_type(ctx context.Context, field graphql.CollectedField, obj *model.AttackSurfaceItem) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_AttackSurfaceItem_type(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Type, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_AttackSurfaceItem_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AttackSurfaceItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AttackSurfaceItem_name(ctx context.Context, field graphql.CollectedField, obj *model.AttackSurfaceItem) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_AttackSurfaceItem_name(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Name, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_AttackSurfaceItem_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AttackSurfaceItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AttackSurfaceItem_summary(ctx context.Context, field graphql.CollectedField, obj *model.AttackSurfaceItem) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_AttackSurfaceItem_summary(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Summary, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_AttackSurfaceItem_summary(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AttackSurfaceItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AttackSurfaceItem_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.AttackSurfaceItem) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_AttackSurfaceItem_createdAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CreatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*time.Time)
+	fc.Result = res
+	return ec.marshalOTime2ᚖtimeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_AttackSurfaceItem_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AttackSurfaceItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CredentialStatusRow_status(ctx context.Context, field graphql.CollectedField, obj *model.CredentialStatusRow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CredentialStatusRow_status(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Status, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(model.CredentialStatus)
+	fc.Result = res
+	return ec.marshalNCredentialStatus2pentagiᚋpkgᚋgraphᚋmodelᚐCredentialStatus(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CredentialStatusRow_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CredentialStatusRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type CredentialStatus does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CredentialStatusRow_count(ctx context.Context, field graphql.CollectedField, obj *model.CredentialStatusRow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CredentialStatusRow_count(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Count, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CredentialStatusRow_count(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CredentialStatusRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CredentialStatusRow_examples(ctx context.Context, field graphql.CollectedField, obj *model.CredentialStatusRow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CredentialStatusRow_examples(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Examples, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]string)
+	fc.Result = res
+	return ec.marshalNString2ᚕstringᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CredentialStatusRow_examples(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CredentialStatusRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -14578,6 +16696,138 @@ func (ec *executionContext) fieldContext_DefaultProvidersConfig_minimax(_ contex
 				return ec.fieldContext_ProviderConfig_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type ProviderConfig", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DetectedCVERow_cve(ctx context.Context, field graphql.CollectedField, obj *model.DetectedCVERow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DetectedCVERow_cve(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Cve, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DetectedCVERow_cve(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DetectedCVERow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DetectedCVERow_foundOn(ctx context.Context, field graphql.CollectedField, obj *model.DetectedCVERow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DetectedCVERow_foundOn(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FoundOn, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DetectedCVERow_foundOn(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DetectedCVERow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DetectedCVERow_source(ctx context.Context, field graphql.CollectedField, obj *model.DetectedCVERow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DetectedCVERow_source(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Source, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DetectedCVERow_source(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DetectedCVERow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -16357,6 +18607,314 @@ func (ec *executionContext) fieldContext_FunctionToolcallsStats_avgDurationSecon
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GraphitiTagStat_tag(ctx context.Context, field graphql.CollectedField, obj *model.GraphitiTagStat) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GraphitiTagStat_tag(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Tag, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GraphitiTagStat_tag(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GraphitiTagStat",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GraphitiTagStat_count(ctx context.Context, field graphql.CollectedField, obj *model.GraphitiTagStat) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GraphitiTagStat_count(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Count, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GraphitiTagStat_count(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GraphitiTagStat",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GraphitiToolUsageRow_tool(ctx context.Context, field graphql.CollectedField, obj *model.GraphitiToolUsageRow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GraphitiToolUsageRow_tool(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Tool, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GraphitiToolUsageRow_tool(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GraphitiToolUsageRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GraphitiToolUsageRow_executions(ctx context.Context, field graphql.CollectedField, obj *model.GraphitiToolUsageRow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GraphitiToolUsageRow_executions(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Executions, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GraphitiToolUsageRow_executions(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GraphitiToolUsageRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _InfraMapRow_host(ctx context.Context, field graphql.CollectedField, obj *model.InfraMapRow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_InfraMapRow_host(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Host, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_InfraMapRow_host(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "InfraMapRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _InfraMapRow_port(ctx context.Context, field graphql.CollectedField, obj *model.InfraMapRow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_InfraMapRow_port(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Port, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_InfraMapRow_port(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "InfraMapRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _InfraMapRow_service(ctx context.Context, field graphql.CollectedField, obj *model.InfraMapRow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_InfraMapRow_service(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Service, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_InfraMapRow_service(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "InfraMapRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -20598,6 +23156,138 @@ func (ec *executionContext) fieldContext_Mutation_anonymizeText(ctx context.Cont
 	if fc.Args, err = ec.field_Mutation_anonymizeText_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _OpenPortRow_port(ctx context.Context, field graphql.CollectedField, obj *model.OpenPortRow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_OpenPortRow_port(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Port, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_OpenPortRow_port(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "OpenPortRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _OpenPortRow_service(ctx context.Context, field graphql.CollectedField, obj *model.OpenPortRow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_OpenPortRow_service(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Service, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_OpenPortRow_service(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "OpenPortRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _OpenPortRow_host(ctx context.Context, field graphql.CollectedField, obj *model.OpenPortRow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_OpenPortRow_host(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Host, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_OpenPortRow_host(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "OpenPortRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
 	}
 	return fc, nil
 }
@@ -26133,6 +28823,749 @@ func (ec *executionContext) fieldContext_Query_searchKnowledge(ctx context.Conte
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_searchKnowledge_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_kgDashboardEnabled(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_kgDashboardEnabled(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().KgDashboardEnabled(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_kgDashboardEnabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_flowAttackGraph(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_flowAttackGraph(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().FlowAttackGraph(rctx, fc.Args["flowId"].(int64), fc.Args["view"].(model.AttackGraphView))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.AttackGraph)
+	fc.Result = res
+	return ec.marshalNAttackGraph2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐAttackGraph(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_flowAttackGraph(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "nodes":
+				return ec.fieldContext_AttackGraph_nodes(ctx, field)
+			case "edges":
+				return ec.fieldContext_AttackGraph_edges(ctx, field)
+			case "totalNodes":
+				return ec.fieldContext_AttackGraph_totalNodes(ctx, field)
+			case "totalEdges":
+				return ec.fieldContext_AttackGraph_totalEdges(ctx, field)
+			case "truncated":
+				return ec.fieldContext_AttackGraph_truncated(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AttackGraph", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_flowAttackGraph_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_flowGraphitiTagStats(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_flowGraphitiTagStats(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().FlowGraphitiTagStats(rctx, fc.Args["flowId"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.GraphitiTagStat)
+	fc.Result = res
+	return ec.marshalNGraphitiTagStat2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐGraphitiTagStatᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_flowGraphitiTagStats(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "tag":
+				return ec.fieldContext_GraphitiTagStat_tag(ctx, field)
+			case "count":
+				return ec.fieldContext_GraphitiTagStat_count(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GraphitiTagStat", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_flowGraphitiTagStats_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_flowAttackSurface(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_flowAttackSurface(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().FlowAttackSurface(rctx, fc.Args["flowId"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.AttackSurfaceItem)
+	fc.Result = res
+	return ec.marshalNAttackSurfaceItem2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐAttackSurfaceItemᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_flowAttackSurface(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "type":
+				return ec.fieldContext_AttackSurfaceItem_type(ctx, field)
+			case "name":
+				return ec.fieldContext_AttackSurfaceItem_name(ctx, field)
+			case "summary":
+				return ec.fieldContext_AttackSurfaceItem_summary(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_AttackSurfaceItem_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AttackSurfaceItem", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_flowAttackSurface_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_flowCredentialsStatus(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_flowCredentialsStatus(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().FlowCredentialsStatus(rctx, fc.Args["flowId"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.CredentialStatusRow)
+	fc.Result = res
+	return ec.marshalNCredentialStatusRow2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐCredentialStatusRowᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_flowCredentialsStatus(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "status":
+				return ec.fieldContext_CredentialStatusRow_status(ctx, field)
+			case "count":
+				return ec.fieldContext_CredentialStatusRow_count(ctx, field)
+			case "examples":
+				return ec.fieldContext_CredentialStatusRow_examples(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CredentialStatusRow", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_flowCredentialsStatus_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_flowValidAccesses(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_flowValidAccesses(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().FlowValidAccesses(rctx, fc.Args["flowId"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.ValidAccessRow)
+	fc.Result = res
+	return ec.marshalNValidAccessRow2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐValidAccessRowᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_flowValidAccesses(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "access":
+				return ec.fieldContext_ValidAccessRow_access(ctx, field)
+			case "account":
+				return ec.fieldContext_ValidAccessRow_account(ctx, field)
+			case "host":
+				return ec.fieldContext_ValidAccessRow_host(ctx, field)
+			case "service":
+				return ec.fieldContext_ValidAccessRow_service(ctx, field)
+			case "summary":
+				return ec.fieldContext_ValidAccessRow_summary(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ValidAccessRow", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_flowValidAccesses_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_flowInfrastructureMap(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_flowInfrastructureMap(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().FlowInfrastructureMap(rctx, fc.Args["flowId"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.InfraMapRow)
+	fc.Result = res
+	return ec.marshalNInfraMapRow2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐInfraMapRowᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_flowInfrastructureMap(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "host":
+				return ec.fieldContext_InfraMapRow_host(ctx, field)
+			case "port":
+				return ec.fieldContext_InfraMapRow_port(ctx, field)
+			case "service":
+				return ec.fieldContext_InfraMapRow_service(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type InfraMapRow", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_flowInfrastructureMap_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_flowOpenPorts(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_flowOpenPorts(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().FlowOpenPorts(rctx, fc.Args["flowId"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.OpenPortRow)
+	fc.Result = res
+	return ec.marshalNOpenPortRow2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐOpenPortRowᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_flowOpenPorts(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "port":
+				return ec.fieldContext_OpenPortRow_port(ctx, field)
+			case "service":
+				return ec.fieldContext_OpenPortRow_service(ctx, field)
+			case "host":
+				return ec.fieldContext_OpenPortRow_host(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type OpenPortRow", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_flowOpenPorts_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_flowVulnerabilityBreakdown(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_flowVulnerabilityBreakdown(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().FlowVulnerabilityBreakdown(rctx, fc.Args["flowId"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.VulnBreakdownRow)
+	fc.Result = res
+	return ec.marshalNVulnBreakdownRow2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐVulnBreakdownRowᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_flowVulnerabilityBreakdown(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "category":
+				return ec.fieldContext_VulnBreakdownRow_category(ctx, field)
+			case "count":
+				return ec.fieldContext_VulnBreakdownRow_count(ctx, field)
+			case "examples":
+				return ec.fieldContext_VulnBreakdownRow_examples(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type VulnBreakdownRow", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_flowVulnerabilityBreakdown_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_flowDetectedCVEs(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_flowDetectedCVEs(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().FlowDetectedCVEs(rctx, fc.Args["flowId"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.DetectedCVERow)
+	fc.Result = res
+	return ec.marshalNDetectedCVERow2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐDetectedCVERowᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_flowDetectedCVEs(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "cve":
+				return ec.fieldContext_DetectedCVERow_cve(ctx, field)
+			case "foundOn":
+				return ec.fieldContext_DetectedCVERow_foundOn(ctx, field)
+			case "source":
+				return ec.fieldContext_DetectedCVERow_source(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DetectedCVERow", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_flowDetectedCVEs_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_flowGraphitiToolUsage(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_flowGraphitiToolUsage(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().FlowGraphitiToolUsage(rctx, fc.Args["flowId"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.GraphitiToolUsageRow)
+	fc.Result = res
+	return ec.marshalNGraphitiToolUsageRow2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐGraphitiToolUsageRowᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_flowGraphitiToolUsage(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "tool":
+				return ec.fieldContext_GraphitiToolUsageRow_tool(ctx, field)
+			case "executions":
+				return ec.fieldContext_GraphitiToolUsageRow_executions(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GraphitiToolUsageRow", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_flowGraphitiToolUsage_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_flowArtifacts(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_flowArtifacts(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().FlowArtifacts(rctx, fc.Args["flowId"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.ArtifactRow)
+	fc.Result = res
+	return ec.marshalNArtifactRow2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐArtifactRowᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_flowArtifacts(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "artifact":
+				return ec.fieldContext_ArtifactRow_artifact(ctx, field)
+			case "producedBy":
+				return ec.fieldContext_ArtifactRow_producedBy(ctx, field)
+			case "summary":
+				return ec.fieldContext_ArtifactRow_summary(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ArtifactRow", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_flowArtifacts_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -34767,6 +38200,226 @@ func (ec *executionContext) fieldContext_UserResource_updatedAt(_ context.Contex
 	return fc, nil
 }
 
+func (ec *executionContext) _ValidAccessRow_access(ctx context.Context, field graphql.CollectedField, obj *model.ValidAccessRow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ValidAccessRow_access(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Access, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ValidAccessRow_access(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ValidAccessRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ValidAccessRow_account(ctx context.Context, field graphql.CollectedField, obj *model.ValidAccessRow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ValidAccessRow_account(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Account, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ValidAccessRow_account(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ValidAccessRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ValidAccessRow_host(ctx context.Context, field graphql.CollectedField, obj *model.ValidAccessRow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ValidAccessRow_host(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Host, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ValidAccessRow_host(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ValidAccessRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ValidAccessRow_service(ctx context.Context, field graphql.CollectedField, obj *model.ValidAccessRow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ValidAccessRow_service(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Service, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ValidAccessRow_service(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ValidAccessRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ValidAccessRow_summary(ctx context.Context, field graphql.CollectedField, obj *model.ValidAccessRow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ValidAccessRow_summary(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Summary, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ValidAccessRow_summary(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ValidAccessRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _VectorStoreLog_id(ctx context.Context, field graphql.CollectedField, obj *model.VectorStoreLog) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_VectorStoreLog_id(ctx, field)
 	if err != nil {
@@ -35240,6 +38893,138 @@ func (ec *executionContext) fieldContext_VectorStoreLog_createdAt(_ context.Cont
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VulnBreakdownRow_category(ctx context.Context, field graphql.CollectedField, obj *model.VulnBreakdownRow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_VulnBreakdownRow_category(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Category, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(model.VulnCategory)
+	fc.Result = res
+	return ec.marshalNVulnCategory2pentagiᚋpkgᚋgraphᚋmodelᚐVulnCategory(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_VulnBreakdownRow_category(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VulnBreakdownRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type VulnCategory does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VulnBreakdownRow_count(ctx context.Context, field graphql.CollectedField, obj *model.VulnBreakdownRow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_VulnBreakdownRow_count(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Count, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_VulnBreakdownRow_count(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VulnBreakdownRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _VulnBreakdownRow_examples(ctx context.Context, field graphql.CollectedField, obj *model.VulnBreakdownRow) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_VulnBreakdownRow_examples(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Examples, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]string)
+	fc.Result = res
+	return ec.marshalNString2ᚕstringᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_VulnBreakdownRow_examples(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "VulnBreakdownRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -38376,6 +42161,55 @@ func (ec *executionContext) _AgentsPrompts(ctx context.Context, sel ast.Selectio
 	return out
 }
 
+var artifactRowImplementors = []string{"ArtifactRow"}
+
+func (ec *executionContext) _ArtifactRow(ctx context.Context, sel ast.SelectionSet, obj *model.ArtifactRow) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, artifactRowImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ArtifactRow")
+		case "artifact":
+			out.Values[i] = ec._ArtifactRow_artifact(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "producedBy":
+			out.Values[i] = ec._ArtifactRow_producedBy(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "summary":
+			out.Values[i] = ec._ArtifactRow_summary(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var assistantImplementors = []string{"Assistant"}
 
 func (ec *executionContext) _Assistant(ctx context.Context, sel ast.SelectionSet, obj *model.Assistant) graphql.Marshaler {
@@ -38505,6 +42339,282 @@ func (ec *executionContext) _AssistantLog(ctx context.Context, sel ast.Selection
 			}
 		case "createdAt":
 			out.Values[i] = ec._AssistantLog_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var attackGraphImplementors = []string{"AttackGraph"}
+
+func (ec *executionContext) _AttackGraph(ctx context.Context, sel ast.SelectionSet, obj *model.AttackGraph) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, attackGraphImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AttackGraph")
+		case "nodes":
+			out.Values[i] = ec._AttackGraph_nodes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "edges":
+			out.Values[i] = ec._AttackGraph_edges(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalNodes":
+			out.Values[i] = ec._AttackGraph_totalNodes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalEdges":
+			out.Values[i] = ec._AttackGraph_totalEdges(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "truncated":
+			out.Values[i] = ec._AttackGraph_truncated(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var attackGraphEdgeImplementors = []string{"AttackGraphEdge"}
+
+func (ec *executionContext) _AttackGraphEdge(ctx context.Context, sel ast.SelectionSet, obj *model.AttackGraphEdge) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, attackGraphEdgeImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AttackGraphEdge")
+		case "uuid":
+			out.Values[i] = ec._AttackGraphEdge_uuid(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "type":
+			out.Values[i] = ec._AttackGraphEdge_type(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "fact":
+			out.Values[i] = ec._AttackGraphEdge_fact(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "sourceUUID":
+			out.Values[i] = ec._AttackGraphEdge_sourceUUID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "targetUUID":
+			out.Values[i] = ec._AttackGraphEdge_targetUUID(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._AttackGraphEdge_createdAt(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var attackGraphNodeImplementors = []string{"AttackGraphNode"}
+
+func (ec *executionContext) _AttackGraphNode(ctx context.Context, sel ast.SelectionSet, obj *model.AttackGraphNode) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, attackGraphNodeImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AttackGraphNode")
+		case "uuid":
+			out.Values[i] = ec._AttackGraphNode_uuid(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "labels":
+			out.Values[i] = ec._AttackGraphNode_labels(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._AttackGraphNode_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "summary":
+			out.Values[i] = ec._AttackGraphNode_summary(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._AttackGraphNode_createdAt(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var attackSurfaceItemImplementors = []string{"AttackSurfaceItem"}
+
+func (ec *executionContext) _AttackSurfaceItem(ctx context.Context, sel ast.SelectionSet, obj *model.AttackSurfaceItem) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, attackSurfaceItemImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AttackSurfaceItem")
+		case "type":
+			out.Values[i] = ec._AttackSurfaceItem_type(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._AttackSurfaceItem_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "summary":
+			out.Values[i] = ec._AttackSurfaceItem_summary(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._AttackSurfaceItem_createdAt(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var credentialStatusRowImplementors = []string{"CredentialStatusRow"}
+
+func (ec *executionContext) _CredentialStatusRow(ctx context.Context, sel ast.SelectionSet, obj *model.CredentialStatusRow) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, credentialStatusRowImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CredentialStatusRow")
+		case "status":
+			out.Values[i] = ec._CredentialStatusRow_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "count":
+			out.Values[i] = ec._CredentialStatusRow_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "examples":
+			out.Values[i] = ec._CredentialStatusRow_examples(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -38795,6 +42905,55 @@ func (ec *executionContext) _DefaultProvidersConfig(ctx context.Context, sel ast
 			out.Values[i] = ec._DefaultProvidersConfig_qwen(ctx, field, obj)
 		case "minimax":
 			out.Values[i] = ec._DefaultProvidersConfig_minimax(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var detectedCVERowImplementors = []string{"DetectedCVERow"}
+
+func (ec *executionContext) _DetectedCVERow(ctx context.Context, sel ast.SelectionSet, obj *model.DetectedCVERow) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, detectedCVERowImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DetectedCVERow")
+		case "cve":
+			out.Values[i] = ec._DetectedCVERow_cve(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "foundOn":
+			out.Values[i] = ec._DetectedCVERow_foundOn(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "source":
+			out.Values[i] = ec._DetectedCVERow_source(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -39256,6 +43415,143 @@ func (ec *executionContext) _FunctionToolcallsStats(ctx context.Context, sel ast
 			}
 		case "avgDurationSeconds":
 			out.Values[i] = ec._FunctionToolcallsStats_avgDurationSeconds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var graphitiTagStatImplementors = []string{"GraphitiTagStat"}
+
+func (ec *executionContext) _GraphitiTagStat(ctx context.Context, sel ast.SelectionSet, obj *model.GraphitiTagStat) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, graphitiTagStatImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("GraphitiTagStat")
+		case "tag":
+			out.Values[i] = ec._GraphitiTagStat_tag(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "count":
+			out.Values[i] = ec._GraphitiTagStat_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var graphitiToolUsageRowImplementors = []string{"GraphitiToolUsageRow"}
+
+func (ec *executionContext) _GraphitiToolUsageRow(ctx context.Context, sel ast.SelectionSet, obj *model.GraphitiToolUsageRow) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, graphitiToolUsageRowImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("GraphitiToolUsageRow")
+		case "tool":
+			out.Values[i] = ec._GraphitiToolUsageRow_tool(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "executions":
+			out.Values[i] = ec._GraphitiToolUsageRow_executions(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var infraMapRowImplementors = []string{"InfraMapRow"}
+
+func (ec *executionContext) _InfraMapRow(ctx context.Context, sel ast.SelectionSet, obj *model.InfraMapRow) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, infraMapRowImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("InfraMapRow")
+		case "host":
+			out.Values[i] = ec._InfraMapRow_host(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "port":
+			out.Values[i] = ec._InfraMapRow_port(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "service":
+			out.Values[i] = ec._InfraMapRow_service(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -39979,6 +44275,55 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_anonymizeText(ctx, field)
 			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var openPortRowImplementors = []string{"OpenPortRow"}
+
+func (ec *executionContext) _OpenPortRow(ctx context.Context, sel ast.SelectionSet, obj *model.OpenPortRow) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, openPortRowImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("OpenPortRow")
+		case "port":
+			out.Values[i] = ec._OpenPortRow_port(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "service":
+			out.Values[i] = ec._OpenPortRow_service(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "host":
+			out.Values[i] = ec._OpenPortRow_host(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -41475,6 +45820,270 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "kgDashboardEnabled":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_kgDashboardEnabled(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "flowAttackGraph":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_flowAttackGraph(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "flowGraphitiTagStats":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_flowGraphitiTagStats(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "flowAttackSurface":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_flowAttackSurface(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "flowCredentialsStatus":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_flowCredentialsStatus(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "flowValidAccesses":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_flowValidAccesses(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "flowInfrastructureMap":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_flowInfrastructureMap(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "flowOpenPorts":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_flowOpenPorts(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "flowVulnerabilityBreakdown":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_flowVulnerabilityBreakdown(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "flowDetectedCVEs":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_flowDetectedCVEs(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "flowGraphitiToolUsage":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_flowGraphitiToolUsage(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "flowArtifacts":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_flowArtifacts(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "__type":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___type(ctx, field)
@@ -42770,6 +47379,65 @@ func (ec *executionContext) _UserResource(ctx context.Context, sel ast.Selection
 	return out
 }
 
+var validAccessRowImplementors = []string{"ValidAccessRow"}
+
+func (ec *executionContext) _ValidAccessRow(ctx context.Context, sel ast.SelectionSet, obj *model.ValidAccessRow) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, validAccessRowImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ValidAccessRow")
+		case "access":
+			out.Values[i] = ec._ValidAccessRow_access(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "account":
+			out.Values[i] = ec._ValidAccessRow_account(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "host":
+			out.Values[i] = ec._ValidAccessRow_host(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "service":
+			out.Values[i] = ec._ValidAccessRow_service(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "summary":
+			out.Values[i] = ec._ValidAccessRow_summary(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var vectorStoreLogImplementors = []string{"VectorStoreLog"}
 
 func (ec *executionContext) _VectorStoreLog(ctx context.Context, sel ast.SelectionSet, obj *model.VectorStoreLog) graphql.Marshaler {
@@ -42827,6 +47495,55 @@ func (ec *executionContext) _VectorStoreLog(ctx context.Context, sel ast.Selecti
 			out.Values[i] = ec._VectorStoreLog_subtaskId(ctx, field, obj)
 		case "createdAt":
 			out.Values[i] = ec._VectorStoreLog_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var vulnBreakdownRowImplementors = []string{"VulnBreakdownRow"}
+
+func (ec *executionContext) _VulnBreakdownRow(ctx context.Context, sel ast.SelectionSet, obj *model.VulnBreakdownRow) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, vulnBreakdownRowImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("VulnBreakdownRow")
+		case "category":
+			out.Values[i] = ec._VulnBreakdownRow_category(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "count":
+			out.Values[i] = ec._VulnBreakdownRow_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "examples":
+			out.Values[i] = ec._VulnBreakdownRow_examples(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -43479,6 +48196,60 @@ func (ec *executionContext) marshalNAgentsPrompts2ᚖpentagiᚋpkgᚋgraphᚋmod
 	return ec._AgentsPrompts(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNArtifactRow2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐArtifactRowᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ArtifactRow) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNArtifactRow2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐArtifactRow(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNArtifactRow2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐArtifactRow(ctx context.Context, sel ast.SelectionSet, v *model.ArtifactRow) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ArtifactRow(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNAssistant2pentagiᚋpkgᚋgraphᚋmodelᚐAssistant(ctx context.Context, sel ast.SelectionSet, v model.Assistant) graphql.Marshaler {
 	return ec._Assistant(ctx, sel, &v)
 }
@@ -43505,6 +48276,192 @@ func (ec *executionContext) marshalNAssistantLog2ᚖpentagiᚋpkgᚋgraphᚋmode
 		return graphql.Null
 	}
 	return ec._AssistantLog(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNAttackGraph2pentagiᚋpkgᚋgraphᚋmodelᚐAttackGraph(ctx context.Context, sel ast.SelectionSet, v model.AttackGraph) graphql.Marshaler {
+	return ec._AttackGraph(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNAttackGraph2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐAttackGraph(ctx context.Context, sel ast.SelectionSet, v *model.AttackGraph) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AttackGraph(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNAttackGraphEdge2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐAttackGraphEdgeᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AttackGraphEdge) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNAttackGraphEdge2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐAttackGraphEdge(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAttackGraphEdge2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐAttackGraphEdge(ctx context.Context, sel ast.SelectionSet, v *model.AttackGraphEdge) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AttackGraphEdge(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNAttackGraphNode2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐAttackGraphNodeᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AttackGraphNode) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNAttackGraphNode2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐAttackGraphNode(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAttackGraphNode2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐAttackGraphNode(ctx context.Context, sel ast.SelectionSet, v *model.AttackGraphNode) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AttackGraphNode(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNAttackGraphView2pentagiᚋpkgᚋgraphᚋmodelᚐAttackGraphView(ctx context.Context, v interface{}) (model.AttackGraphView, error) {
+	var res model.AttackGraphView
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAttackGraphView2pentagiᚋpkgᚋgraphᚋmodelᚐAttackGraphView(ctx context.Context, sel ast.SelectionSet, v model.AttackGraphView) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNAttackSurfaceItem2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐAttackSurfaceItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AttackSurfaceItem) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNAttackSurfaceItem2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐAttackSurfaceItem(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAttackSurfaceItem2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐAttackSurfaceItem(ctx context.Context, sel ast.SelectionSet, v *model.AttackSurfaceItem) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AttackSurfaceItem(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNBoolean2bool(ctx context.Context, v interface{}) (bool, error) {
@@ -43535,6 +48492,70 @@ func (ec *executionContext) unmarshalNCreateFlowTemplateInput2pentagiᚋpkgᚋgr
 func (ec *executionContext) unmarshalNCreateKnowledgeDocumentInput2pentagiᚋpkgᚋgraphᚋmodelᚐCreateKnowledgeDocumentInput(ctx context.Context, v interface{}) (model.CreateKnowledgeDocumentInput, error) {
 	res, err := ec.unmarshalInputCreateKnowledgeDocumentInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNCredentialStatus2pentagiᚋpkgᚋgraphᚋmodelᚐCredentialStatus(ctx context.Context, v interface{}) (model.CredentialStatus, error) {
+	var res model.CredentialStatus
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNCredentialStatus2pentagiᚋpkgᚋgraphᚋmodelᚐCredentialStatus(ctx context.Context, sel ast.SelectionSet, v model.CredentialStatus) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNCredentialStatusRow2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐCredentialStatusRowᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CredentialStatusRow) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNCredentialStatusRow2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐCredentialStatusRow(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCredentialStatusRow2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐCredentialStatusRow(ctx context.Context, sel ast.SelectionSet, v *model.CredentialStatusRow) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CredentialStatusRow(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNDailyFlowsStats2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐDailyFlowsStatsᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.DailyFlowsStats) graphql.Marshaler {
@@ -43727,6 +48748,60 @@ func (ec *executionContext) marshalNDefaultProvidersConfig2ᚖpentagiᚋpkgᚋgr
 		return graphql.Null
 	}
 	return ec._DefaultProvidersConfig(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNDetectedCVERow2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐDetectedCVERowᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.DetectedCVERow) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNDetectedCVERow2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐDetectedCVERow(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNDetectedCVERow2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐDetectedCVERow(ctx context.Context, sel ast.SelectionSet, v *model.DetectedCVERow) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DetectedCVERow(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNFloat2float64(ctx context.Context, v interface{}) (float64, error) {
@@ -44024,6 +49099,114 @@ func (ec *executionContext) marshalNFunctionToolcallsStats2ᚖpentagiᚋpkgᚋgr
 	return ec._FunctionToolcallsStats(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNGraphitiTagStat2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐGraphitiTagStatᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.GraphitiTagStat) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNGraphitiTagStat2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐGraphitiTagStat(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNGraphitiTagStat2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐGraphitiTagStat(ctx context.Context, sel ast.SelectionSet, v *model.GraphitiTagStat) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._GraphitiTagStat(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNGraphitiToolUsageRow2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐGraphitiToolUsageRowᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.GraphitiToolUsageRow) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNGraphitiToolUsageRow2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐGraphitiToolUsageRow(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNGraphitiToolUsageRow2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐGraphitiToolUsageRow(ctx context.Context, sel ast.SelectionSet, v *model.GraphitiToolUsageRow) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._GraphitiToolUsageRow(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNID2int64(ctx context.Context, v interface{}) (int64, error) {
 	res, err := graphql.UnmarshalInt64(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -44069,6 +49252,60 @@ func (ec *executionContext) marshalNID2ᚕint64ᚄ(ctx context.Context, sel ast.
 	}
 
 	return ret
+}
+
+func (ec *executionContext) marshalNInfraMapRow2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐInfraMapRowᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.InfraMapRow) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNInfraMapRow2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐInfraMapRow(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNInfraMapRow2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐInfraMapRow(ctx context.Context, sel ast.SelectionSet, v *model.InfraMapRow) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._InfraMapRow(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v interface{}) (int, error) {
@@ -44412,6 +49649,60 @@ func (ec *executionContext) marshalNModelUsageStats2ᚖpentagiᚋpkgᚋgraphᚋm
 		return graphql.Null
 	}
 	return ec._ModelUsageStats(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNOpenPortRow2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐOpenPortRowᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.OpenPortRow) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNOpenPortRow2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐOpenPortRow(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNOpenPortRow2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐOpenPortRow(ctx context.Context, sel ast.SelectionSet, v *model.OpenPortRow) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._OpenPortRow(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNPromptType2pentagiᚋpkgᚋgraphᚋmodelᚐPromptType(ctx context.Context, v interface{}) (model.PromptType, error) {
@@ -45189,6 +50480,60 @@ func (ec *executionContext) marshalNUserResource2ᚖpentagiᚋpkgᚋgraphᚋmode
 	return ec._UserResource(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNValidAccessRow2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐValidAccessRowᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ValidAccessRow) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNValidAccessRow2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐValidAccessRow(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNValidAccessRow2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐValidAccessRow(ctx context.Context, sel ast.SelectionSet, v *model.ValidAccessRow) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ValidAccessRow(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNVectorStoreAction2pentagiᚋpkgᚋgraphᚋmodelᚐVectorStoreAction(ctx context.Context, v interface{}) (model.VectorStoreAction, error) {
 	var res model.VectorStoreAction
 	err := res.UnmarshalGQL(v)
@@ -45211,6 +50556,70 @@ func (ec *executionContext) marshalNVectorStoreLog2ᚖpentagiᚋpkgᚋgraphᚋmo
 		return graphql.Null
 	}
 	return ec._VectorStoreLog(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNVulnBreakdownRow2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐVulnBreakdownRowᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.VulnBreakdownRow) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNVulnBreakdownRow2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐVulnBreakdownRow(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNVulnBreakdownRow2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐVulnBreakdownRow(ctx context.Context, sel ast.SelectionSet, v *model.VulnBreakdownRow) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._VulnBreakdownRow(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNVulnCategory2pentagiᚋpkgᚋgraphᚋmodelᚐVulnCategory(ctx context.Context, v interface{}) (model.VulnCategory, error) {
+	var res model.VulnCategory
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNVulnCategory2pentagiᚋpkgᚋgraphᚋmodelᚐVulnCategory(ctx context.Context, sel ast.SelectionSet, v model.VulnCategory) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {
