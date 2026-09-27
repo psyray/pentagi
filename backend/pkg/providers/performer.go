@@ -573,6 +573,27 @@ func (fp *flowProvider) callWithRetries(
 			nresp, err = fp.CallWithExtraOptions(
 				ctx, optAgentType, chain, executor.Tools(), nil, llms.WithN(fp.clm.bestOfN),
 			)
+			if err == nil && len(nresp.Choices) < fp.clm.bestOfN {
+				// Some OpenAI-compatible backends silently ignore n (Ollama Cloud
+				// via LiteLLM returns a single completion): gather the remaining
+				// candidates with sequential plain calls so the verifier still has
+				// a menu to rank. A smaller menu is fine, the rank runs on what
+				// was collected; only the starved single-candidate case skips it.
+				logger.WithFields(logrus.Fields{
+					"requested": fp.clm.bestOfN,
+					"returned":  len(nresp.Choices),
+				}).Info("clm best-of-N: backend returned fewer completions than requested, gathering the rest sequentially")
+				for len(nresp.Choices) < fp.clm.bestOfN {
+					var eresp *llms.ContentResponse
+					eresp, err = fp.CallWithExtraOptions(ctx, optAgentType, chain, executor.Tools(), nil)
+					if err != nil || len(eresp.Choices) == 0 {
+						logger.WithError(err).Warn("clm best-of-N: sequential candidate gathering failed, ranking whatever was collected")
+						err = nil
+						break
+					}
+					nresp.Choices = append(nresp.Choices, eresp.Choices[0])
+				}
+			}
 			if err == nil {
 				var chosen *callResult
 				chosen, err = fp.chooseBestOfN(ctx, chain, optAgentType, nresp.Choices, logger)
