@@ -245,6 +245,10 @@ func (fp *flowProvider) chooseBestOfN(
 	}
 
 	if len(candidates) == 1 {
+		logger.WithFields(logrus.Fields{
+			"agent":      optAgentType,
+			"candidates": len(choices),
+		}).Info("clm verifier: single usable candidate, skipping rank (keeping candidate 0)")
 		return candidates[0], nil
 	}
 
