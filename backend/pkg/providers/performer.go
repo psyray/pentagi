@@ -55,6 +55,68 @@ type callResult struct {
 	content   string
 }
 
+// fillCallResult folds one LLM response into result: text parts are joined into
+// content, reasoning is captured for logging, tool call arguments are sanitized
+// (invalid JSON is replaced with an empty object so the tool-call fixer can
+// regenerate them later). A response with neither text nor tool calls is an
+// error so the caller can retry.
+func (fp *flowProvider) fillCallResult(result *callResult, resp *llms.ContentResponse, logger *logrus.Entry) error {
+	var stopReason string
+	var parts []string
+
+	if resp == nil || len(resp.Choices) == 0 {
+		return fmt.Errorf("no choices in response")
+	}
+
+	for _, choice := range resp.Choices {
+		if stopReason == "" {
+			stopReason = choice.StopReason
+		}
+
+		if choice.GenerationInfo != nil {
+			result.info = choice.GenerationInfo
+		}
+
+		// Extract reasoning for logging/analytics (provider-aware)
+		if result.thinking.IsEmpty() {
+			if !choice.Reasoning.IsEmpty() {
+				result.thinking = choice.Reasoning
+			} else if len(choice.ToolCalls) > 0 && !choice.ToolCalls[0].Reasoning.IsEmpty() {
+				// Gemini puts reasoning in first tool call when tools are used
+				result.thinking = choice.ToolCalls[0].Reasoning
+			}
+		}
+
+		if strings.TrimSpace(choice.Content) != "" {
+			parts = append(parts, choice.Content)
+		}
+
+		for _, toolCall := range choice.ToolCalls {
+			if toolCall.FunctionCall == nil {
+				continue
+			}
+			sanitizedArgs := cast.SanitizeJSONControlChars(toolCall.FunctionCall.Arguments)
+			if !json.Valid([]byte(sanitizedArgs)) {
+				logger.WithFields(logrus.Fields{
+					"tool_call_id": toolCall.ID,
+					"tool_name":    toolCall.FunctionCall.Name,
+					"raw_args":     toolCall.FunctionCall.Arguments[:min(200, len(toolCall.FunctionCall.Arguments))],
+				}).Warn("tool call has invalid JSON arguments, replacing with empty object to allow tool-call fixer to regenerate them")
+				sanitizedArgs = "{}"
+			}
+			toolCall.FunctionCall.Arguments = sanitizedArgs
+			result.funcCalls = append(result.funcCalls, toolCall)
+		}
+	}
+
+	result.content = strings.Join(parts, "\n")
+	if strings.Trim(result.content, "' \"\n\r\t") == "" && len(result.funcCalls) == 0 {
+		return fmt.Errorf("no content and tool calls in response: stop reason '%s'", stopReason)
+	}
+
+	return nil
+}
+
 func (fp *flowProvider) performAgentChain(
 	ctx context.Context,
 	optAgentType pconfig.ProviderOptionsType,
@@ -148,7 +210,7 @@ func (fp *flowProvider) performAgentChain(
 				}
 			}
 
-			result, err = fp.callWithRetries(ctx, optAgentType, chainID, taskID, subtaskID, chain, executor, executionContext)
+			result, err = fp.callWithRetries(ctx, optAgentType, chainID, taskID, subtaskID, chain, executor, executionContext, iteration)
 			if err != nil {
 				obs.LogErrorOrCancel(logger, err, "failed to call agent chain")
 				return err
@@ -447,6 +509,7 @@ func (fp *flowProvider) callWithRetries(
 	chain []llms.MessageContent,
 	executor tools.ContextToolsExecutor,
 	executionContext string,
+	iteration int,
 ) (*callResult, error) {
 	var (
 		err     error
@@ -483,61 +546,15 @@ func (fp *flowProvider) callWithRetries(
 	}
 
 	fillResult := func(resp *llms.ContentResponse) error {
-		var stopReason string
-		var parts []string
-
-		if resp == nil || len(resp.Choices) == 0 {
-			return fmt.Errorf("no choices in response")
-		}
-
-		for _, choice := range resp.Choices {
-			if stopReason == "" {
-				stopReason = choice.StopReason
-			}
-
-			if choice.GenerationInfo != nil {
-				result.info = choice.GenerationInfo
-			}
-
-			// Extract reasoning for logging/analytics (provider-aware)
-			if result.thinking.IsEmpty() {
-				if !choice.Reasoning.IsEmpty() {
-					result.thinking = choice.Reasoning
-				} else if len(choice.ToolCalls) > 0 && !choice.ToolCalls[0].Reasoning.IsEmpty() {
-					// Gemini puts reasoning in first tool call when tools are used
-					result.thinking = choice.ToolCalls[0].Reasoning
-				}
-			}
-
-			if strings.TrimSpace(choice.Content) != "" {
-				parts = append(parts, choice.Content)
-			}
-
-			for _, toolCall := range choice.ToolCalls {
-				if toolCall.FunctionCall == nil {
-					continue
-				}
-				sanitizedArgs := cast.SanitizeJSONControlChars(toolCall.FunctionCall.Arguments)
-				if !json.Valid([]byte(sanitizedArgs)) {
-					logger.WithFields(logrus.Fields{
-						"tool_call_id": toolCall.ID,
-						"tool_name":    toolCall.FunctionCall.Name,
-						"raw_args":     toolCall.FunctionCall.Arguments[:min(200, len(toolCall.FunctionCall.Arguments))],
-					}).Warn("tool call has invalid JSON arguments, replacing with empty object to allow tool-call fixer to regenerate them")
-					sanitizedArgs = "{}"
-				}
-				toolCall.FunctionCall.Arguments = sanitizedArgs
-				result.funcCalls = append(result.funcCalls, toolCall)
-			}
-		}
-
-		result.content = strings.Join(parts, "\n")
-		if strings.Trim(result.content, "' \"\n\r\t") == "" && len(result.funcCalls) == 0 {
-			return fmt.Errorf("no content and tool calls in response: stop reason '%s'", stopReason)
-		}
-
-		return nil
+		return fp.fillCallResult(&result, resp, logger)
 	}
+
+	// CLM best-of-N: when enabled for this agent type and this chain iteration
+	// (see clmVerifier.shouldRun), the first attempt of this chain call requests
+	// N completions in a single request and lets the CLM verifier pick the one
+	// to execute (the rest are only logged).
+	clmActive := fp.clm.appliesTo(optAgentType) && fp.clm.shouldRun(iteration)
+	clmFailed := false
 
 	for idx := 0; idx <= maxRetriesToCallAgentChain; idx++ {
 		if idx == maxRetriesToCallAgentChain {
@@ -588,6 +605,49 @@ func (fp *flowProvider) callWithRetries(
 				}
 				return nil
 			}
+		}
+
+		if clmActive && !clmFailed {
+			// Streaming stays off here: N parallel choices would interleave into
+			// one unreadable live stream; the winning completion is flushed to
+			// the UI once after the loop instead.
+			var nresp *llms.ContentResponse
+			nresp, err = fp.CallWithExtraOptions(
+				ctx, optAgentType, chain, executor.Tools(), nil, llms.WithN(fp.clm.bestOfN),
+			)
+			if err == nil && len(nresp.Choices) < fp.clm.bestOfN {
+				// Some OpenAI-compatible backends silently ignore n (Ollama Cloud
+				// via LiteLLM returns a single completion): gather the remaining
+				// candidates with sequential plain calls so the verifier still has
+				// a menu to rank. A smaller menu is fine, the rank runs on what
+				// was collected; only the starved single-candidate case skips it.
+				logger.WithFields(logrus.Fields{
+					"requested": fp.clm.bestOfN,
+					"returned":  len(nresp.Choices),
+				}).Info("clm best-of-N: backend returned fewer completions than requested, gathering the rest sequentially")
+				for len(nresp.Choices) < fp.clm.bestOfN {
+					var eresp *llms.ContentResponse
+					eresp, err = fp.CallWithExtraOptions(ctx, optAgentType, chain, executor.Tools(), nil)
+					if err != nil || len(eresp.Choices) == 0 {
+						logger.WithError(err).Warn("clm best-of-N: sequential candidate gathering failed, ranking whatever was collected")
+						err = nil
+						break
+					}
+					nresp.Choices = append(nresp.Choices, eresp.Choices[0])
+				}
+			}
+			if err == nil {
+				var chosen *callResult
+				chosen, err = fp.chooseBestOfN(ctx, chain, optAgentType, nresp.Choices, logger)
+				if err == nil {
+					chosen.streamID = result.streamID
+					result = *chosen
+					break
+				}
+			}
+			clmFailed = true
+			logger.WithError(err).Warn("clm best-of-N attempt failed, falling back to plain completion for this chain call")
+			err = nil
 		}
 
 		resp, err = callAgent(streamCb)
@@ -787,7 +847,9 @@ func (fp *flowProvider) performReflector(
 	}()
 
 	chain = append(chain, llms.TextParts(llms.ChatMessageTypeHuman, advice))
-	result, err := fp.callWithRetries(ctx, optOriginType, chainID, taskID, subtaskID, chain, executor, executionContext)
+	// iteration -1 = not an iteration-driven call: the CLM verifier never gates
+	// caller-reflector invocations (clmVerifier.shouldRun)
+	result, err := fp.callWithRetries(ctx, optOriginType, chainID, taskID, subtaskID, chain, executor, executionContext, -1)
 	if err != nil {
 		obs.LogErrorOrCancel(logger, err, "failed to call agent chain by reflector")
 		level := langfuse.ObservationLevelError
