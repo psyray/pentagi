@@ -17,6 +17,7 @@ const (
 	observabilityDirectory         = "observability"
 	graphitiConfigsDirectory       = "graphiti"
 	neo4jDirectory                 = "neo4j"
+	langfuseClickhouseConfigFile   = "langfuse/clickhouse/system-logs.xml"
 	pentagiExampleCustomConfigLLM  = "example.custom.provider.yml"
 	pentagiExampleOllamaConfigLLM  = "example.ollama.provider.yml"
 	pentagiExampleBedrockConfigLLM = "example.bedrock.provider.yml"
@@ -96,7 +97,9 @@ func (fs *fileSystemOperationsImpl) ensureStackIntegrity(ctx context.Context, st
 		return errors.Join(errCompose, errConfigs, errNeo4j)
 
 	case ProductStackLangfuse:
-		return fs.ensureFileFromEmbed(composeFileLangfuse, state)
+		errCompose := fs.ensureFileFromEmbed(composeFileLangfuse, state)
+		errConfig := fs.ensureFileFromEmbed(langfuseClickhouseConfigFile, state)
+		return errors.Join(errCompose, errConfig)
 
 	case ProductStackObservability:
 		errCompose := fs.ensureFileFromEmbed(composeFileObservability, state)
@@ -139,7 +142,10 @@ func (fs *fileSystemOperationsImpl) verifyStackIntegrity(ctx context.Context, st
 		return fs.verifyDirectoryIntegrity(neo4jDirectory, state)
 
 	case ProductStackLangfuse:
-		return fs.verifyFileIntegrity(composeFileLangfuse, state)
+		if err := fs.verifyFileIntegrity(composeFileLangfuse, state); err != nil {
+			return err
+		}
+		return fs.verifyFileIntegrity(langfuseClickhouseConfigFile, state)
 
 	case ProductStackObservability:
 		if err := fs.verifyFileIntegrity(composeFileObservability, state); err != nil {
@@ -185,6 +191,7 @@ func (fs *fileSystemOperationsImpl) checkStackIntegrity(ctx context.Context, sta
 
 	case ProductStackLangfuse:
 		result[composeFileLangfuse] = fs.checkFileIntegrity(composeFileLangfuse)
+		result[langfuseClickhouseConfigFile] = fs.checkFileIntegrity(langfuseClickhouseConfigFile)
 
 	case ProductStackObservability:
 		result[composeFileObservability] = fs.checkFileIntegrity(composeFileObservability)
@@ -232,6 +239,7 @@ func (fs *fileSystemOperationsImpl) cleanupStackFiles(ctx context.Context, stack
 
 	case ProductStackLangfuse:
 		filesToRemove = append(filesToRemove, filepath.Join(workingDir, composeFileLangfuse))
+		filesToRemove = append(filesToRemove, filepath.Join(workingDir, langfuseClickhouseConfigFile))
 
 	case ProductStackObservability:
 		filesToRemove = append(filesToRemove, filepath.Join(workingDir, composeFileObservability))
