@@ -621,6 +621,7 @@ func TestPerformer_CallWithRetries_StopsAskingWhenRetryingCannotHelp(t *testing.
 				[]llms.MessageContent{llms.TextParts(llms.ChatMessageTypeHuman, "run the scan")},
 				oneToolExecutor{},
 				"run the scan",
+				0,
 			)
 			elapsed := time.Since(start)
 
