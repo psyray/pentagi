@@ -497,6 +497,39 @@ func TestClient_RunContainer_KeepsTheCallerPidsLimit(t *testing.T) {
 	require.Equal(t, callerLimit, *inspect.HostConfig.PidsLimit)
 }
 
+// DOCKER_NET_ADMIN maps the TUN device openvpn needs: workers deliberately lack
+// CAP_MKNOD, so the node cannot be created from inside.
+func TestClient_RunContainer_MapsTheTunDeviceWhenNetAdmin(t *testing.T) {
+	dc, _ := newRunContainerClient(t)
+	dc.netAdmin = true
+
+	_, inspect := runProbeContainer(t, dc, probeName(t), 4, nil, nil)
+
+	devices := inspect.HostConfig.Devices
+	require.Len(t, devices, 1)
+	require.Equal(t, tunDevicePath, devices[0].PathOnHost)
+	require.Equal(t, tunDevicePath, devices[0].PathInContainer)
+	require.Equal(t, tunDevicePermissions, devices[0].CgroupPermissions)
+}
+
+// No device duty, no device mapping: the caller's Devices are passed through untouched.
+func TestClient_RunContainer_PassesTheCallerDevicesThrough(t *testing.T) {
+	dc, _ := newRunContainerClient(t)
+
+	_, inspect := runProbeContainer(t, dc, probeName(t), 4, nil, &container.HostConfig{
+		Resources: container.Resources{Devices: []container.DeviceMapping{{
+			// /dev/null exists on every daemon: the mapping is about the pass-through, not the device.
+			PathOnHost:        "/dev/null",
+			PathInContainer:   "/dev/null-fake",
+			CgroupPermissions: "rwm",
+		}}},
+	})
+
+	require.Len(t, inspect.HostConfig.Devices, 1)
+	require.Equal(t, "/dev/null", inspect.HostConfig.Devices[0].PathOnHost)
+	require.Equal(t, "/dev/null-fake", inspect.HostConfig.Devices[0].PathInContainer)
+}
+
 // Without a host-side data directory /work is a named, labelled volume and the row records no host path.
 func TestClient_RunContainer_BacksWorkDirWithAVolume(t *testing.T) {
 	dc, recorder := newRunContainerClient(t)
