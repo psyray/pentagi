@@ -38,6 +38,8 @@ const (
 const (
 	defaultImage                = "debian:latest"
 	defaultDockerSocketPath     = "/var/run/docker.sock"
+	tunDevicePath               = "/dev/net/tun"
+	tunDevicePermissions        = "rwm"
 	containerPrimaryTypePattern = "-terminal-"
 	containerLocalCwdTemplate   = "flow-%d"
 	containerPortsNumber        = 2
@@ -80,6 +82,7 @@ type dockerClient struct {
 	hostDir              string
 	client               *client.Client
 	inside               bool
+	netAdmin             bool
 	defImage             string
 	socket               string
 	network              string
@@ -196,6 +199,7 @@ func NewDockerClient(ctx context.Context, db database.Querier, cfg *config.Confi
 		hostDir:              hostDir,
 		logger:               logger,
 		inside:               inside,
+		netAdmin:             cfg.DockerNetAdmin,
 		defImage:             defImage,
 		socket:               socket,
 		network:              netName,
@@ -237,6 +241,28 @@ func (dc *dockerClient) applyWorkerDockerAccess(config *container.Config, hostCo
 		hostConfig.Binds = append(hostConfig.Binds,
 			fmt.Sprintf("%s:%s:ro", dc.insideCertPath, dc.insideCertPath))
 	}
+}
+
+// applyWorkerDevices maps the device nodes a worker needs and may not create for
+// itself. Workers deliberately lack CAP_MKNOD (see workerCapabilities), so the
+// node cannot be made from inside; Docker creates it in each container's /dev at
+// every start, restarts included, which also covers the tmpfs re-creation a
+// stopped-then-started worker gets. openvpn's TUN device is the case this
+// deployment has: c 10:200 drives nothing on its own (the kernel's tun module
+// gates access behind the NET_ADMIN capability) and DockerNetAdmin already says
+// this deployment runs VPNs inside workers. Shared with the startup sandbox
+// check, which measures a container identical to a flow's in every way but the
+// image.
+func (dc *dockerClient) applyWorkerDevices(hostConfig *container.HostConfig) {
+	if !dc.netAdmin {
+		return
+	}
+
+	hostConfig.Devices = append(hostConfig.Devices, container.DeviceMapping{
+		PathOnHost:        tunDevicePath,
+		PathInContainer:   tunDevicePath,
+		CgroupPermissions: tunDevicePermissions,
+	})
 }
 
 func (dc *dockerClient) RunContainer(
@@ -364,6 +390,7 @@ func (dc *dockerClient) RunContainer(
 	hostConfig.Binds = append(hostConfig.Binds, fmt.Sprintf("%s:%s", hostDir, WorkFolderPathInContainer))
 
 	dc.applyWorkerDockerAccess(config, hostConfig)
+	dc.applyWorkerDevices(hostConfig)
 
 	// no-new-privileges was evaluated and deliberately not applied: the capability
 	// bounding set in tools.go Prepare already caps what any process can gain, so
