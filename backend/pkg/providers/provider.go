@@ -164,6 +164,12 @@ type flowProvider struct {
 
 	summarizerCache *lru.Cache[[32]byte, string]
 
+	// contextWindowKnowledge holds what context-window rejections taught about the
+	// backend, per agent type (see performer_context_window.go): the model's context
+	// window and the agent's configured generation budget. Every subsequent call of
+	// this agent type recomputes its max_tokens from the CURRENT chain size.
+	contextWindowKnowledge map[pconfig.ProviderOptionsType]contextWindowKnowledge
+
 	maxGACallsLimit int
 	maxLACallsLimit int
 	buildMonitor    executionMonitorBuilder
