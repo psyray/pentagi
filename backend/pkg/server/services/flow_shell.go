@@ -303,8 +303,13 @@ func (s *FlowShellService) pump(ws *websocket.Conn, sess *shell.Session) {
 		select {
 		case chunk, ok := <-sub.C():
 			if !ok {
-				code, _ := sess.ExitCode()
-				writeExit(ws, &code)
+				// The channel closes either because the shell ended or because
+				// this subscriber was dropped for lagging behind. Only the former
+				// is a real exit; the latter just detaches (the client reattaches).
+				if sess.IsDone() {
+					code, _ := sess.ExitCode()
+					writeExit(ws, &code)
+				}
 
 				return
 			}
