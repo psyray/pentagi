@@ -340,6 +340,11 @@ type ComplexityRoot struct {
 		TotalDurationSeconds func(childComplexity int) int
 	}
 
+	GraphitiProperty struct {
+		Key   func(childComplexity int) int
+		Value func(childComplexity int) int
+	}
+
 	GraphitiTagStat struct {
 		Count func(childComplexity int) int
 		Tag   func(childComplexity int) int
@@ -574,6 +579,7 @@ type ComplexityRoot struct {
 		FlowCredentialsStatus           func(childComplexity int, flowID int64) int
 		FlowDetectedCVEs                func(childComplexity int, flowID int64) int
 		FlowFiles                       func(childComplexity int, flowID int64) int
+		FlowGraphNodeProperties         func(childComplexity int, flowID int64, uuid string) int
 		FlowGraphitiTagStats            func(childComplexity int, flowID int64) int
 		FlowGraphitiToolUsage           func(childComplexity int, flowID int64) int
 		FlowInfrastructureMap           func(childComplexity int, flowID int64) int
@@ -955,6 +961,7 @@ type QueryResolver interface {
 	SearchKnowledge(ctx context.Context, query string, filter *model.KnowledgeFilter, limit *int) ([]*model.KnowledgeDocumentWithScore, error)
 	KgDashboardEnabled(ctx context.Context) (bool, error)
 	FlowAttackGraph(ctx context.Context, flowID int64, view model.AttackGraphView) (*model.AttackGraph, error)
+	FlowGraphNodeProperties(ctx context.Context, flowID int64, uuid string) ([]*model.GraphitiProperty, error)
 	FlowGraphitiTagStats(ctx context.Context, flowID int64) ([]*model.GraphitiTagStat, error)
 	FlowAttackSurface(ctx context.Context, flowID int64) ([]*model.AttackSurfaceItem, error)
 	FlowCredentialsStatus(ctx context.Context, flowID int64) ([]*model.CredentialStatusRow, error)
@@ -2363,6 +2370,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.FunctionToolcallsStats.TotalDurationSeconds(childComplexity), true
 
+	case "GraphitiProperty.key":
+		if e.complexity.GraphitiProperty.Key == nil {
+			break
+		}
+
+		return e.complexity.GraphitiProperty.Key(childComplexity), true
+
+	case "GraphitiProperty.value":
+		if e.complexity.GraphitiProperty.Value == nil {
+			break
+		}
+
+		return e.complexity.GraphitiProperty.Value(childComplexity), true
+
 	case "GraphitiTagStat.count":
 		if e.complexity.GraphitiTagStat.Count == nil {
 			break
@@ -3746,6 +3767,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.FlowFiles(childComplexity, args["flowId"].(int64)), true
+
+	case "Query.flowGraphNodeProperties":
+		if e.complexity.Query.FlowGraphNodeProperties == nil {
+			break
+		}
+
+		args, err := ec.field_Query_flowGraphNodeProperties_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.FlowGraphNodeProperties(childComplexity, args["flowId"].(int64), args["uuid"].(string)), true
 
 	case "Query.flowGraphitiTagStats":
 		if e.complexity.Query.FlowGraphitiTagStats == nil {
@@ -7994,6 +8027,65 @@ func (ec *executionContext) field_Query_flowFiles_argsFlowID(
 	}
 
 	var zeroVal int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_flowGraphNodeProperties_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Query_flowGraphNodeProperties_argsFlowID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["flowId"] = arg0
+	arg1, err := ec.field_Query_flowGraphNodeProperties_argsUUID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["uuid"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Query_flowGraphNodeProperties_argsFlowID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["flowId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("flowId"))
+	if tmp, ok := rawArgs["flowId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_flowGraphNodeProperties_argsUUID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (string, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["uuid"]
+	if !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("uuid"))
+	if tmp, ok := rawArgs["uuid"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
 	return zeroVal, nil
 }
 
@@ -19111,6 +19203,94 @@ func (ec *executionContext) fieldContext_FunctionToolcallsStats_avgDurationSecon
 	return fc, nil
 }
 
+func (ec *executionContext) _GraphitiProperty_key(ctx context.Context, field graphql.CollectedField, obj *model.GraphitiProperty) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GraphitiProperty_key(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Key, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GraphitiProperty_key(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GraphitiProperty",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _GraphitiProperty_value(ctx context.Context, field graphql.CollectedField, obj *model.GraphitiProperty) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_GraphitiProperty_value(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Value, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_GraphitiProperty_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "GraphitiProperty",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _GraphitiTagStat_tag(ctx context.Context, field graphql.CollectedField, obj *model.GraphitiTagStat) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_GraphitiTagStat_tag(ctx, field)
 	if err != nil {
@@ -29931,6 +30111,67 @@ func (ec *executionContext) fieldContext_Query_flowAttackGraph(ctx context.Conte
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_flowAttackGraph_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_flowGraphNodeProperties(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_flowGraphNodeProperties(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().FlowGraphNodeProperties(rctx, fc.Args["flowId"].(int64), fc.Args["uuid"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.GraphitiProperty)
+	fc.Result = res
+	return ec.marshalNGraphitiProperty2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐGraphitiPropertyᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_flowGraphNodeProperties(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "key":
+				return ec.fieldContext_GraphitiProperty_key(ctx, field)
+			case "value":
+				return ec.fieldContext_GraphitiProperty_value(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type GraphitiProperty", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_flowGraphNodeProperties_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -44763,6 +45004,50 @@ func (ec *executionContext) _FunctionToolcallsStats(ctx context.Context, sel ast
 	return out
 }
 
+var graphitiPropertyImplementors = []string{"GraphitiProperty"}
+
+func (ec *executionContext) _GraphitiProperty(ctx context.Context, sel ast.SelectionSet, obj *model.GraphitiProperty) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, graphitiPropertyImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("GraphitiProperty")
+		case "key":
+			out.Values[i] = ec._GraphitiProperty_key(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "value":
+			out.Values[i] = ec._GraphitiProperty_value(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var graphitiTagStatImplementors = []string{"GraphitiTagStat"}
 
 func (ec *executionContext) _GraphitiTagStat(ctx context.Context, sel ast.SelectionSet, obj *model.GraphitiTagStat) graphql.Marshaler {
@@ -47218,6 +47503,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_flowAttackGraph(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "flowGraphNodeProperties":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_flowGraphNodeProperties(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -50523,6 +50830,60 @@ func (ec *executionContext) marshalNFunctionToolcallsStats2ᚖpentagiᚋpkgᚋgr
 		return graphql.Null
 	}
 	return ec._FunctionToolcallsStats(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNGraphitiProperty2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐGraphitiPropertyᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.GraphitiProperty) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNGraphitiProperty2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐGraphitiProperty(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNGraphitiProperty2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐGraphitiProperty(ctx context.Context, sel ast.SelectionSet, v *model.GraphitiProperty) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._GraphitiProperty(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNGraphitiTagStat2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐGraphitiTagStatᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.GraphitiTagStat) graphql.Marshaler {

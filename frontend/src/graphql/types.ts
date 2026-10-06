@@ -74,8 +74,11 @@ export type AgentsConfigInput = {
 };
 
 export enum AttackGraphView {
+    Action = 'ACTION',
     Full = 'FULL',
+    Infra = 'INFRA',
     Main = 'MAIN',
+    Privesc = 'PRIVESC',
 }
 
 export type CreateApiTokenInput = {
@@ -1533,6 +1536,15 @@ export type FlowAttackGraphQueryVariables = Exact<{
 }>;
 
 export type FlowAttackGraphQuery = { flowAttackGraph: AttackGraphFragmentFragment };
+
+export type GraphitiPropertyFragmentFragment = { key: string; value: string };
+
+export type FlowGraphNodePropertiesQueryVariables = Exact<{
+    flowId: string | number;
+    uuid: string;
+}>;
+
+export type FlowGraphNodePropertiesQuery = { flowGraphNodeProperties: Array<GraphitiPropertyFragmentFragment> };
 
 export type FlowGraphitiTagStatsQueryVariables = Exact<{
     flowId: string | number;
@@ -3871,6 +3883,23 @@ export const ArtifactRowFragmentFragmentDoc = {
         },
     ],
 } as unknown as DocumentNode<ArtifactRowFragmentFragment, unknown>;
+export const GraphitiPropertyFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'graphitiPropertyFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'GraphitiProperty' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'key' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'value' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<GraphitiPropertyFragmentFragment, unknown>;
 export const FlowsDocument = {
     kind: 'Document',
     definitions: [
@@ -13366,6 +13395,67 @@ export const FlowAttackGraphDocument = {
         },
     ],
 } as unknown as DocumentNode<FlowAttackGraphQuery, FlowAttackGraphQueryVariables>;
+export const FlowGraphNodePropertiesDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowGraphNodeProperties' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'uuid' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'String' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowGraphNodeProperties' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'uuid' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'uuid' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'graphitiPropertyFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'graphitiPropertyFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'GraphitiProperty' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'key' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'value' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowGraphNodePropertiesQuery, FlowGraphNodePropertiesQueryVariables>;
 export const FlowGraphitiTagStatsDocument = {
     kind: 'Document',
     definitions: [

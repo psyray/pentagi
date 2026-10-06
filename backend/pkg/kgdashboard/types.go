@@ -18,9 +18,19 @@ type AttackGraphView string
 
 const (
 	// AttackGraphViewMain restricts the graph to the attack-chain backbone:
-	// Host → Port → Service → Vulnerability / Misconfiguration → ValidAccess
-	// → Account, plus the supporting Credential / Attempt / PrivChange nodes.
+	// Host → Port → Service → WebApp → Vhost → Endpoint → Vulnerability.
 	AttackGraphViewMain AttackGraphView = "MAIN"
+	// AttackGraphViewAction materializes the action chain: the backbone plus
+	// the action-level entities (Attempt, Artifact, Evidence, AttackTechnique,
+	// Tool, ToolExecution, Misconfiguration) connected to the target hosts.
+	AttackGraphViewAction AttackGraphView = "ACTION"
+	// AttackGraphViewInfra restricts the graph to the infrastructure map:
+	// Host → Port → Service only.
+	AttackGraphViewInfra AttackGraphView = "INFRA"
+	// AttackGraphViewPrivesc restricts the graph to the privilege-escalation
+	// chain: Credential / ValidAccess / Account / PrivChange with the
+	// supporting Service / Host context.
+	AttackGraphViewPrivesc AttackGraphView = "PRIVESC"
 	// AttackGraphViewFull materializes every entity and edge of the flow,
 	// subject to a configurable node cap (default 1500). Above the cap, nodes
 	// are sampled by recency.
@@ -34,6 +44,15 @@ type AttackGraphNode struct {
 	Name      string    `json:"name"`
 	Summary   string    `json:"summary"`
 	CreatedAt time.Time `json:"createdAt"`
+}
+
+// GraphitiProperty is one Graphiti node attribute exposed for the node detail
+// panel. Graphiti attributes are heterogeneous (strings, numbers, booleans,
+// lists); they are stringified once on the backend so the client renders them
+// without type-specific handling.
+type GraphitiProperty struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 // AttackGraphEdge is a Neo4j relationship projected for graph rendering.

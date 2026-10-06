@@ -2660,6 +2660,26 @@ func (r *queryResolver) FlowAttackGraph(ctx context.Context, flowID int64, view 
 	return convertAttackGraph(g), nil
 }
 
+// FlowGraphNodeProperties is the resolver for the flowGraphNodeProperties field.
+func (r *queryResolver) FlowGraphNodeProperties(ctx context.Context, flowID int64, uuid string) ([]*model.GraphitiProperty, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "flows.view", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+	r.Logger.WithFields(logrus.Fields{
+		"uid":  uid,
+		"flow": flowID,
+		"node": uuid,
+	}).Debug("get flow graph node properties")
+
+	groupID := r.Config.GroupID(flowID)
+	props, err := r.KgDashboard.GetNodeProperties(ctx, flowID, groupID, uuid)
+	if err != nil {
+		return nil, err
+	}
+	return convertGraphitiProperties(props), nil
+}
+
 // FlowGraphitiTagStats is the resolver for the flowGraphitiTagStats field.
 func (r *queryResolver) FlowGraphitiTagStats(ctx context.Context, flowID int64) ([]*model.GraphitiTagStat, error) {
 	uid, err := validatePermissionWithFlowID(ctx, "flows.view", flowID, r.DB)
