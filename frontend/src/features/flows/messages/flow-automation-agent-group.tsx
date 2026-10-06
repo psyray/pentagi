@@ -22,14 +22,23 @@ function FlowAutomationAgentGroup({ group, searchValue = '', subtaskTitle }: Flo
     const [isOpen, setIsOpen] = useState(true);
     const isPlanner = isPlannerAgent(group.agent);
 
+    const toggle = () => setIsOpen(!isOpen);
+
     return (
         <div className="bg-card/40 rounded-lg border">
-            <div className="flex items-center gap-2 p-3">
-                <button
+            <div className="flex items-center gap-1 p-3">
+                <div
                     aria-expanded={isOpen}
-                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                    onClick={() => setIsOpen(!isOpen)}
-                    type="button"
+                    className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left"
+                    onClick={toggle}
+                    onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            toggle();
+                        }
+                    }}
+                    role="button"
+                    tabIndex={0}
                 >
                     <ChevronDown
                         className={cn(
@@ -38,16 +47,16 @@ function FlowAutomationAgentGroup({ group, searchValue = '', subtaskTitle }: Flo
                         )}
                     />
                     <FlowAgentIcon
-                        className="text-muted-foreground"
+                        className="text-muted-foreground size-5"
                         type={group.agent}
                     />
                     <span className="text-sm font-medium">{agentGroupLabel(group.agent)}</span>
                     {!isPlanner && <Badge variant="outline">{group.agent}</Badge>}
-                </button>
-                <FlowAutomationSummary
-                    className="text-muted-foreground shrink-0 text-xs"
-                    metrics={group.metrics}
-                />
+                    <FlowAutomationSummary
+                        className="text-muted-foreground ml-auto shrink-0 text-xs"
+                        metrics={group.metrics}
+                    />
+                </div>
                 <FlowAutomationAgentPanel
                     group={group}
                     searchValue={searchValue}

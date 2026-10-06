@@ -33,23 +33,39 @@ function FlowAutomationGroup({ group, searchValue = '' }: FlowAutomationGroupPro
     const { subtask } = group;
     const title = subtask?.title || `Subtask ${group.subtaskId}`;
 
+    const toggle = () => setIsOpen(!isOpen);
+
     return (
-        <div className="bg-card text-card-foreground rounded-xl border shadow-sm">
-            <div className="flex items-start gap-2 border-b p-3">
-                <button
-                    aria-expanded={isOpen}
-                    aria-label="Toggle subtask"
-                    className="text-muted-foreground hover:text-foreground mt-0.5 shrink-0"
-                    onClick={() => setIsOpen(!isOpen)}
-                    type="button"
-                >
-                    <ChevronDown className={cn('size-4 transition-transform', !isOpen && '-rotate-90')} />
-                </button>
+        <div className="bg-card text-card-foreground max-w-3xl rounded-xl border shadow-sm">
+            <div
+                aria-expanded={isOpen}
+                className="flex w-full cursor-pointer items-start gap-2 p-3 text-left"
+                onClick={toggle}
+                onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        toggle();
+                    }
+                }}
+                role="button"
+                tabIndex={0}
+            >
+                <ChevronDown
+                    className={cn(
+                        'text-muted-foreground mt-0.5 size-5 shrink-0 transition-transform',
+                        !isOpen && '-rotate-90',
+                    )}
+                />
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <div className="flex items-center gap-2">
                         <Markdown className="prose-xs prose-fixed wrap-break-word *:m-0">{title}</Markdown>
                         {subtask?.status && (
-                            <Badge variant={statusVariants[subtask.status] ?? 'secondary'}>{subtask.status}</Badge>
+                            <Badge
+                                className="ml-auto shrink-0"
+                                variant={statusVariants[subtask.status] ?? 'secondary'}
+                            >
+                                {subtask.status}
+                            </Badge>
                         )}
                     </div>
                     <FlowAutomationSummary
