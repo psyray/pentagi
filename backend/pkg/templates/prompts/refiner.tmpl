@@ -190,6 +190,14 @@ Each refined subtask MUST:
 - NEVER include commands that require Docker host access, UDP port scanning, or software installation via Docker images
 - NEVER include tools that require interactive terminal sessions that cannot be automated
 
+## PLAN METADATA (OPTIONAL)
+
+Each subtask carries three optional planning hints. They are metadata for the operator, never a change to what the subtask does. Preserve the values you see on `<planned_subtasks>` unless your refinement changes the subtask's nature; omit a field when you have nothing to say about it.
+
+- `type` — the pentest step, one kebab-case value from: `recon`, `enumeration`, `vulnerability-analysis`, `web-testing`, `exploitation`, `credential-access`, `privilege-escalation`, `lateral-movement`, `collection`, `exfiltration`, `persistence`, `research`, `analysis`, `verification`, `setup`, `coding`, `reporting`. Use `none` in a `modify` op to clear it; never invent a value outside this list.
+- `evidence` — a list of 0-3 proof classes the subtask is expected to produce, e.g. `http-discovery-evidence`, `injection-evidence`, `credential-evidence`, `privilege-escalation-evidence`, `objective-achieved-evidence`, `reproducibility-evidence`.
+- `budget_seconds` — the planned wall-clock allowance for the subtask in seconds (e.g. 600 for 10 minutes).
+
 ## RESEARCH-DRIVEN REFINEMENT
 
 - After each exploratory or information-gathering subtask, analyze results to adjust subsequent plan
@@ -204,12 +212,12 @@ Instead of regenerating all subtasks, submit ONLY the changes needed using the "
 **Available Operations:**
 - `add`: Create a new subtask at a specific position
   - Requires: `title`, `description`
-  - Optional: `after_id` (insert after this subtask ID; null/0 = insert at beginning)
+  - Optional: `after_id` (insert after this subtask ID; null/0 = insert at beginning), `type`, `evidence`, `budget_seconds`
 - `remove`: Delete a subtask by ID
   - Requires: `id` (the subtask ID to remove)
 - `modify`: Update title and/or description of existing subtask
   - Requires: `id` (the subtask ID to modify)
-  - Optional: `title`, `description` (only provided fields are updated)
+  - Optional: `title`, `description`, `type`, `evidence`, `budget_seconds` (only provided fields are updated; `type` set to `none` clears it)
 - `reorder`: Move a subtask to a different position
   - Requires: `id` (the subtask ID to move)
   - Optional: `after_id` (move after this subtask ID; null/0 = move to beginning)

@@ -140,6 +140,14 @@ Each subtask MUST:
 - NEVER include GUI applications, interactive applications, Docker host access commands,
   UDP port scanning, or interactive terminal sessions
 
+## PLAN METADATA (OPTIONAL)
+
+You may attach three optional planning hints to each subtask. They are metadata for the operator, never a change to what the subtask does. Omit any of them when unsure; an empty value is always valid and never an error.
+
+- `type` — the pentest step, one kebab-case value from: `recon`, `enumeration`, `vulnerability-analysis`, `web-testing`, `exploitation`, `credential-access`, `privilege-escalation`, `lateral-movement`, `collection`, `exfiltration`, `persistence`, `research`, `analysis`, `verification`, `setup`, `coding`, `reporting`. Use your own judgement; never invent a value outside this list.
+- `evidence` — a list of 0-3 proof classes the subtask is expected to produce, e.g. `http-discovery-evidence`, `injection-evidence`, `credential-evidence`, `privilege-escalation-evidence`, `objective-achieved-evidence`, `reproducibility-evidence`. Only classes that fit the subtask; omit for setup, coding, or reporting steps.
+- `budget_seconds` — the planned wall-clock allowance for the subtask in seconds (e.g. 600 for 10 minutes). Estimate from the work involved; omit when you cannot estimate.
+
 ## TASK PLANNING STRATEGIES
 
 1. **Research and Exploration → Selection → Execution Flow**

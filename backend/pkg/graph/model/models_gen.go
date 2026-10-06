@@ -490,14 +490,17 @@ type Subscription struct {
 }
 
 type Subtask struct {
-	ID          int64      `json:"id"`
-	Status      StatusType `json:"status"`
-	Title       string     `json:"title"`
-	Description string     `json:"description"`
-	Result      string     `json:"result"`
-	TaskID      int64      `json:"taskId"`
-	CreatedAt   time.Time  `json:"createdAt"`
-	UpdatedAt   time.Time  `json:"updatedAt"`
+	ID            int64      `json:"id"`
+	Status        StatusType `json:"status"`
+	Title         string     `json:"title"`
+	Description   string     `json:"description"`
+	Result        string     `json:"result"`
+	TaskID        int64      `json:"taskId"`
+	CreatedAt     time.Time  `json:"createdAt"`
+	UpdatedAt     time.Time  `json:"updatedAt"`
+	Type          *string    `json:"type,omitempty"`
+	Evidence      []string   `json:"evidence,omitempty"`
+	BudgetSeconds *int       `json:"budgetSeconds,omitempty"`
 }
 
 type SubtaskExecutionStats struct {

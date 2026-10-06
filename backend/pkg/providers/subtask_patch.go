@@ -30,11 +30,8 @@ func applySubtaskOperations(
 	result := make([]tools.SubtaskInfoPatch, 0, len(planned))
 	for _, st := range planned {
 		result = append(result, tools.SubtaskInfoPatch{
-			ID: st.ID,
-			SubtaskInfo: tools.SubtaskInfo{
-				Title:       st.Title,
-				Description: st.Description,
-			},
+			ID:          st.ID,
+			SubtaskInfo: subtaskInfoFromDB(st),
 		})
 	}
 
@@ -94,6 +91,20 @@ func applySubtaskOperations(
 				result[idx].Description = op.Description
 				opLogger.WithField("new_description_len", len(op.Description)).Debug("updated subtask description")
 			}
+			// "none" clears the value; an empty field leaves the existing one untouched.
+			if op.Type != "" {
+				if op.Type == tools.SubtaskMetadataNone {
+					result[idx].Type = ""
+				} else {
+					result[idx].Type = op.Type
+				}
+			}
+			if len(op.Evidence) > 0 {
+				result[idx].Evidence = op.Evidence
+			}
+			if op.BudgetSeconds > 0 {
+				result[idx].BudgetSeconds = op.BudgetSeconds
+			}
 		}
 	}
 
@@ -137,8 +148,11 @@ func applySubtaskOperations(
 			newSubtask := tools.SubtaskInfoPatch{
 				ID: 0, // New subtasks don't have an ID yet
 				SubtaskInfo: tools.SubtaskInfo{
-					Title:       op.Title,
-					Description: op.Description,
+					Title:         op.Title,
+					Description:   op.Description,
+					Type:          op.Type,
+					Evidence:      op.Evidence,
+					BudgetSeconds: op.BudgetSeconds,
 				},
 			}
 
@@ -200,12 +214,22 @@ func applySubtaskOperations(
 func convertSubtaskInfoPatch(subtasks []tools.SubtaskInfoPatch) []tools.SubtaskInfo {
 	result := make([]tools.SubtaskInfo, 0, len(subtasks))
 	for _, st := range subtasks {
-		result = append(result, tools.SubtaskInfo{
-			Title:       st.Title,
-			Description: st.Description,
-		})
+		result = append(result, st.SubtaskInfo)
 	}
 	return result
+}
+
+// subtaskInfoFromDB carries a planned subtask's persisted planning metadata
+// into the tools layer. A NULL type or budget becomes the zero value, and a
+// NULL evidence array becomes a nil slice, matching the optional contract.
+func subtaskInfoFromDB(st database.Subtask) tools.SubtaskInfo {
+	return tools.SubtaskInfo{
+		Title:         st.Title,
+		Description:   st.Description,
+		Type:          st.Type.String,
+		Evidence:      st.Evidence,
+		BudgetSeconds: tools.Int64(int64(st.BudgetSeconds.Int32)),
+	}
 }
 
 // buildIndexMap creates a map from subtask ID to its index in the slice.
@@ -244,11 +268,8 @@ func fixSubtaskPatch(planned []database.Subtask, patch tools.SubtaskPatch) tools
 	plannedMap := make(map[int64]tools.SubtaskInfoPatch)
 	for _, st := range planned {
 		plannedMap[st.ID] = tools.SubtaskInfoPatch{
-			ID: st.ID,
-			SubtaskInfo: tools.SubtaskInfo{
-				Title:       st.Title,
-				Description: st.Description,
-			},
+			ID:          st.ID,
+			SubtaskInfo: subtaskInfoFromDB(st),
 		}
 	}
 	isEmptyID := func(id *int64) bool {
@@ -277,11 +298,14 @@ func fixSubtaskPatch(planned []database.Subtask, patch tools.SubtaskPatch) tools
 				continue
 			}
 			newPatch.Operations = append(newPatch.Operations, tools.SubtaskOperation{
-				Op:          op.Op,
-				ID:          nil, // Generate new ID
-				AfterID:     cleanID(op.AfterID),
-				Title:       op.Title,
-				Description: op.Description,
+				Op:            op.Op,
+				ID:            nil, // Generate new ID
+				AfterID:       cleanID(op.AfterID),
+				Title:         op.Title,
+				Description:   op.Description,
+				Type:          op.Type,
+				Evidence:      op.Evidence,
+				BudgetSeconds: op.BudgetSeconds,
 			})
 		case tools.SubtaskOpRemove:
 			if isEmptyID(op.ID) || !isPlannedID(op.ID) {
@@ -301,21 +325,27 @@ func fixSubtaskPatch(planned []database.Subtask, patch tools.SubtaskPatch) tools
 					continue // Skip if missing required fields for ADD
 				}
 				newPatch.Operations = append(newPatch.Operations, tools.SubtaskOperation{
-					Op:          tools.SubtaskOpAdd,
-					ID:          nil,
-					AfterID:     cleanID(op.AfterID),
-					Title:       op.Title,
-					Description: op.Description,
+					Op:            tools.SubtaskOpAdd,
+					ID:            nil,
+					AfterID:       cleanID(op.AfterID),
+					Title:         op.Title,
+					Description:   op.Description,
+					Type:          op.Type,
+					Evidence:      op.Evidence,
+					BudgetSeconds: op.BudgetSeconds,
 				})
 			} else {
 				// Keep as MODIFY for existing IDs
 				// Note: AfterID is not used for modify operations (modify doesn't change position)
 				newPatch.Operations = append(newPatch.Operations, tools.SubtaskOperation{
-					Op:          tools.SubtaskOpModify,
-					ID:          op.ID,
-					AfterID:     nil, // Modify doesn't change position
-					Title:       op.Title,
-					Description: op.Description,
+					Op:            tools.SubtaskOpModify,
+					ID:            op.ID,
+					AfterID:       nil, // Modify doesn't change position
+					Title:         op.Title,
+					Description:   op.Description,
+					Type:          op.Type,
+					Evidence:      op.Evidence,
+					BudgetSeconds: op.BudgetSeconds,
 				})
 			}
 		case tools.SubtaskOpReorder:

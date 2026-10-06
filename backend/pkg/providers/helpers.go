@@ -877,9 +877,49 @@ func (fp *flowProvider) subtasksToMarkdown(subtasks []tools.SubtaskInfo) string 
 	for sid, subtask := range subtasks {
 		fmt.Fprintf(&buffer, "# Subtask %d\n\n", sid+1)
 		fmt.Fprintf(&buffer, "## %s\n\n%s\n\n", subtask.Title, subtask.Description)
+		if meta := subtaskMetadataLine(subtask); meta != "" {
+			fmt.Fprintf(&buffer, "%s\n\n", meta)
+		}
 	}
 
 	return buffer.String()
+}
+
+// subtaskMetadataLine renders the optional plan metadata (type, evidence,
+// budget) as a single markdown line, or an empty string when none is set.
+func subtaskMetadataLine(subtask tools.SubtaskInfo) string {
+	var parts []string
+	if subtask.Type != "" {
+		parts = append(parts, "Type: "+subtask.Type)
+	}
+	if len(subtask.Evidence) > 0 {
+		parts = append(parts, "Evidence: "+strings.Join(subtask.Evidence, ", "))
+	}
+	if subtask.BudgetSeconds > 0 {
+		parts = append(parts, fmt.Sprintf("Budget: %ds", int64(subtask.BudgetSeconds)))
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+
+	return "*" + strings.Join(parts, " · ") + "*"
+}
+
+// logUnknownSubtaskMetadata records plan metadata that is outside the reference
+// vocabulary. It is never an error; the value is kept verbatim and the UI shows
+// a neutral badge, but a log line makes the drift visible.
+func logUnknownSubtaskMetadata(logger *logrus.Entry, subtasks []tools.SubtaskInfo) {
+	for _, st := range subtasks {
+		unknownType, unknownEvidence := tools.UnknownSubtaskMetadata(st.Type, st.Evidence)
+		if unknownType == "" && len(unknownEvidence) == 0 {
+			continue
+		}
+		logger.WithFields(logrus.Fields{
+			"subtask_title":    st.Title,
+			"unknown_type":     unknownType,
+			"unknown_evidence": unknownEvidence,
+		}).Warn("subtask plan carries metadata outside the reference vocabulary")
+	}
 }
 
 func (fp *flowProvider) getContainerPortsDescription() string {

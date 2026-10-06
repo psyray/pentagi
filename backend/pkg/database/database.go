@@ -53,6 +53,12 @@ func NullInt64ToInt64(i sql.NullInt64) *int64 {
 	return nil
 }
 
+// Int64ToNullInt32 stores a non-positive value as SQL NULL. Used for optional
+// positive-only fields such as a subtask's planned budget in seconds.
+func Int64ToNullInt32(i int64) sql.NullInt32 {
+	return sql.NullInt32{Int32: int32(i), Valid: i > 0}
+}
+
 func TimeToNullTime(t time.Time) sql.NullTime {
 	return sql.NullTime{Time: t, Valid: !t.IsZero()}
 }

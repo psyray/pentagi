@@ -617,14 +617,17 @@ type ComplexityRoot struct {
 	}
 
 	Subtask struct {
-		CreatedAt   func(childComplexity int) int
-		Description func(childComplexity int) int
-		ID          func(childComplexity int) int
-		Result      func(childComplexity int) int
-		Status      func(childComplexity int) int
-		TaskID      func(childComplexity int) int
-		Title       func(childComplexity int) int
-		UpdatedAt   func(childComplexity int) int
+		BudgetSeconds func(childComplexity int) int
+		CreatedAt     func(childComplexity int) int
+		Description   func(childComplexity int) int
+		Evidence      func(childComplexity int) int
+		ID            func(childComplexity int) int
+		Result        func(childComplexity int) int
+		Status        func(childComplexity int) int
+		TaskID        func(childComplexity int) int
+		Title         func(childComplexity int) int
+		Type          func(childComplexity int) int
+		UpdatedAt     func(childComplexity int) int
 	}
 
 	SubtaskExecutionStats struct {
@@ -4246,6 +4249,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Subscription.VectorStoreLogAdded(childComplexity, args["flowId"].(int64)), true
 
+	case "Subtask.budgetSeconds":
+		if e.complexity.Subtask.BudgetSeconds == nil {
+			break
+		}
+
+		return e.complexity.Subtask.BudgetSeconds(childComplexity), true
+
 	case "Subtask.createdAt":
 		if e.complexity.Subtask.CreatedAt == nil {
 			break
@@ -4259,6 +4269,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Subtask.Description(childComplexity), true
+
+	case "Subtask.evidence":
+		if e.complexity.Subtask.Evidence == nil {
+			break
+		}
+
+		return e.complexity.Subtask.Evidence(childComplexity), true
 
 	case "Subtask.id":
 		if e.complexity.Subtask.ID == nil {
@@ -4294,6 +4311,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Subtask.Title(childComplexity), true
+
+	case "Subtask.type":
+		if e.complexity.Subtask.Type == nil {
+			break
+		}
+
+		return e.complexity.Subtask.Type(childComplexity), true
 
 	case "Subtask.updatedAt":
 		if e.complexity.Subtask.UpdatedAt == nil {
@@ -32148,6 +32172,129 @@ func (ec *executionContext) fieldContext_Subtask_updatedAt(_ context.Context, fi
 	return fc, nil
 }
 
+func (ec *executionContext) _Subtask_type(ctx context.Context, field graphql.CollectedField, obj *model.Subtask) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Subtask_type(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Type, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Subtask_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subtask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Subtask_evidence(ctx context.Context, field graphql.CollectedField, obj *model.Subtask) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Subtask_evidence(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Evidence, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]string)
+	fc.Result = res
+	return ec.marshalOString2ᚕstringᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Subtask_evidence(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subtask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Subtask_budgetSeconds(ctx context.Context, field graphql.CollectedField, obj *model.Subtask) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Subtask_budgetSeconds(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.BudgetSeconds, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*int)
+	fc.Result = res
+	return ec.marshalOInt2ᚖint(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Subtask_budgetSeconds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Subtask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _SubtaskExecutionStats_subtaskId(ctx context.Context, field graphql.CollectedField, obj *model.SubtaskExecutionStats) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_SubtaskExecutionStats_subtaskId(ctx, field)
 	if err != nil {
@@ -32992,6 +33139,12 @@ func (ec *executionContext) fieldContext_Task_subtasks(_ context.Context, field 
 				return ec.fieldContext_Subtask_createdAt(ctx, field)
 			case "updatedAt":
 				return ec.fieldContext_Subtask_updatedAt(ctx, field)
+			case "type":
+				return ec.fieldContext_Subtask_type(ctx, field)
+			case "evidence":
+				return ec.fieldContext_Subtask_evidence(ctx, field)
+			case "budgetSeconds":
+				return ec.fieldContext_Subtask_budgetSeconds(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Subtask", field.Name)
 		},
@@ -44263,6 +44416,12 @@ func (ec *executionContext) _Subtask(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "type":
+			out.Values[i] = ec._Subtask_type(ctx, field, obj)
+		case "evidence":
+			out.Values[i] = ec._Subtask_evidence(ctx, field, obj)
+		case "budgetSeconds":
+			out.Values[i] = ec._Subtask_budgetSeconds(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

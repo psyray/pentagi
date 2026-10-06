@@ -551,3 +551,48 @@ func TestSubtaskPatch_ConvertSubtaskInfoPatch_DropsOnlyTheIDs(t *testing.T) {
 		{Title: "Check for SQL injection", Description: "Test web forms for SQL injection"},
 	}, got)
 }
+
+// Planning metadata survives a refinement that does not mention it: it is carried
+// from the persisted plan, not re-emitted by the model.
+func TestSubtaskPatch_ApplySubtaskOperations_KeepsPlanningMetadata(t *testing.T) {
+	planned := []database.Subtask{{
+		ID: 1, Title: "Recon", Description: "map the surface",
+		Type:          database.StringToNullString("recon"),
+		Evidence:      []string{"http-discovery-evidence"},
+		BudgetSeconds: database.Int64ToNullInt32(600),
+	}}
+
+	t.Run("a title-only modify keeps the metadata", func(t *testing.T) {
+		got, err := applySubtaskOperations(planned, tools.SubtaskPatch{Operations: []tools.SubtaskOperation{
+			{Op: tools.SubtaskOpModify, ID: subtaskPatchID(1), Title: "Recon 2"},
+		}}, subtaskPatchLogger())
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		assert.Equal(t, "recon", got[0].Type)
+		assert.Equal(t, tools.Strings{"http-discovery-evidence"}, got[0].Evidence)
+		assert.Equal(t, tools.Int64(600), got[0].BudgetSeconds)
+	})
+
+	t.Run("the none sentinel clears only the type", func(t *testing.T) {
+		got, err := applySubtaskOperations(planned, tools.SubtaskPatch{Operations: []tools.SubtaskOperation{
+			{Op: tools.SubtaskOpModify, ID: subtaskPatchID(1), Title: "Recon 2", Type: tools.SubtaskMetadataNone},
+		}}, subtaskPatchLogger())
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		assert.Empty(t, got[0].Type)
+		assert.Equal(t, tools.Strings{"http-discovery-evidence"}, got[0].Evidence)
+		assert.Equal(t, tools.Int64(600), got[0].BudgetSeconds)
+	})
+
+	t.Run("an add carries the metadata it was given", func(t *testing.T) {
+		got, err := applySubtaskOperations(nil, tools.SubtaskPatch{Operations: []tools.SubtaskOperation{
+			{Op: tools.SubtaskOpAdd, Title: "Exploit", Description: "get a shell", Type: "exploitation",
+				Evidence: tools.Strings{"injection-evidence"}, BudgetSeconds: 300},
+		}}, subtaskPatchLogger())
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		assert.Equal(t, "exploitation", got[0].Type)
+		assert.Equal(t, tools.Strings{"injection-evidence"}, got[0].Evidence)
+		assert.Equal(t, tools.Int64(300), got[0].BudgetSeconds)
+	})
+}
