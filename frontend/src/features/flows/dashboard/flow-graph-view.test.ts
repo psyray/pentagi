@@ -39,6 +39,22 @@ describe('flow-graph-view layout', () => {
         expect(filtered.rfNodes.map((n) => n.id)).toEqual(['h', 'p']);
         expect(filtered.positions.has('a')).toBe(false);
     });
+
+    it('reveals entities progressively with the replay cursor', () => {
+        const nodes = [
+            { ...node('a', 'Host'), createdAt: '2026-01-01T10:00:00Z' },
+            { ...node('b', 'Port'), createdAt: '2026-01-01T10:05:00Z' },
+            { ...node('c', 'Service'), createdAt: '2026-01-01T10:10:00Z' },
+        ];
+
+        const all = buildLayout(nodes, new Set(), null);
+
+        expect(all.rfNodes).toHaveLength(3);
+
+        const partial = buildLayout(nodes, new Set(), new Date('2026-01-01T10:06:00Z').getTime());
+
+        expect(partial.rfNodes.map((n) => n.id)).toEqual(['a', 'b']);
+    });
 });
 
 describe('flow-graph-view edge routing', () => {

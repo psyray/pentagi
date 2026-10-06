@@ -12,8 +12,8 @@ import {
     Position,
     ReactFlow,
 } from '@xyflow/react';
-import { Expand, Loader2, Maximize2, Shrink } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { Expand, Loader2, Maximize2, Pause, Play, Shrink } from 'lucide-react';
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -140,13 +140,27 @@ interface NodePosition {
 
 // buildLayout assigns each visible entity a deterministic lane (column) and row
 // and returns the bare ReactFlow nodes. Entities whose label is in hiddenLabels
-// are dropped from the graph (legend filter).
-export function buildLayout(nodes: AttackGraphNodeFragmentFragment[], hiddenLabels: Set<string>): Layout {
+// are dropped from the graph (legend filter); when revealedBefore is set, an
+// entity with a createdAt past that instant is also dropped (replay timeline).
+// Entities without a createdAt are always kept (they cannot be ordered).
+export function buildLayout(
+    nodes: AttackGraphNodeFragmentFragment[],
+    hiddenLabels: Set<string>,
+    revealedBefore: null | number = null,
+): Layout {
     const byColumn = new Map<number, AttackGraphNodeFragmentFragment[]>();
 
     for (const n of nodes) {
         if (hiddenLabels.has(primaryLabel(n.labels))) {
             continue;
+        }
+
+        if (revealedBefore !== null && n.createdAt) {
+            const t = new Date(n.createdAt).getTime();
+
+            if (!Number.isNaN(t) && t > revealedBefore) {
+                continue;
+            }
         }
 
         const col = columnForLabel(primaryLabel(n.labels));
@@ -304,6 +318,11 @@ export function FlowGraphView({
     const [selectedNodeId, setSelectedNodeId] = useState<null | string>(null);
     const [hoveredEdgeId, setHoveredEdgeId] = useState<null | string>(null);
     const [hiddenLabels, setHiddenLabels] = useState<Set<string>>(() => new Set());
+    // Replay timeline: revealActive off means "show everything"; when on, only
+    // entities created before min + frac*(max-min) are shown.
+    const [revealActive, setRevealActive] = useState(false);
+    const [revealFrac, setRevealFrac] = useState(1);
+    const [playing, setPlaying] = useState(false);
 
     const { data, error, loading } = useQuery(FlowAttackGraphDocument, {
         fetchPolicy: 'cache-and-network',
@@ -352,9 +371,44 @@ export function FlowGraphView({
         return dimmed;
     }, [graph, activeEndpoints]);
 
+    // Time domain of the revealed entities, derived from their createdAt.
+    // Null when there is nothing to animate (no timestamps or a single instant).
+    const timeDomain = useMemo(() => {
+        if (!graph) {
+            return null;
+        }
+
+        let min = Infinity;
+        let max = -Infinity;
+
+        for (const n of graph.nodes) {
+            if (!n.createdAt) {
+                continue;
+            }
+
+            const t = new Date(n.createdAt).getTime();
+
+            if (Number.isNaN(t)) {
+                continue;
+            }
+
+            min = Math.min(min, t);
+            max = Math.max(max, t);
+        }
+
+        if (!Number.isFinite(min) || min === max) {
+            return null;
+        }
+
+        return { max, min };
+    }, [graph]);
+
+    const revealedBefore =
+        revealActive && timeDomain ? timeDomain.min + revealFrac * (timeDomain.max - timeDomain.min) : null;
+
     const layout = useMemo(
-        () => (graph ? buildLayout(graph.nodes, hiddenLabels) : { positions: new Map(), rfNodes: [] }),
-        [graph, hiddenLabels],
+        () => (graph ? buildLayout(graph.nodes, hiddenLabels, revealedBefore) : { positions: new Map(), rfNodes: [] }),
+        [graph, hiddenLabels, revealedBefore],
     );
 
     const rfNodes = useMemo(
@@ -458,6 +512,102 @@ export function FlowGraphView({
         });
     }, []);
 
+    // Number of entities currently drawn vs. the label-visible total, for the
+    // timeline "Visible n/total" readout.
+    const labelVisibleTotal = useMemo(
+        () => (graph ? graph.nodes.filter((n) => !hiddenLabels.has(primaryLabel(n.labels))).length : 0),
+        [graph, hiddenLabels],
+    );
+    const revealedCount = layout.rfNodes.length;
+
+    // Replay animation: advance the cursor until it reaches the end. The stop
+    // happens inside the timer callback (not the effect body) to keep the
+    // render free of synchronous cascading updates.
+    const revealFracRef = useRef(revealFrac);
+
+    useEffect(() => {
+        if (!playing || !timeDomain) {
+            return;
+        }
+
+        const id = setInterval(() => {
+            const next = Math.min(1, revealFracRef.current + 0.02);
+
+            revealFracRef.current = next;
+            setRevealFrac(next);
+
+            if (next >= 1) {
+                setPlaying(false);
+                clearInterval(id);
+            }
+        }, 120);
+
+        return () => clearInterval(id);
+    }, [playing, timeDomain]);
+
+    const handleToggleReplay = useCallback(() => {
+        setRevealActive(true);
+
+        // Starting a fresh replay from the end rewinds to the beginning.
+        if (!playing && revealFracRef.current >= 1) {
+            revealFracRef.current = 0;
+            setRevealFrac(0);
+        }
+
+        setPlaying((p) => !p);
+    }, [playing]);
+
+    const handleScrub = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+        const value = Number(event.target.value) / 100;
+
+        setRevealActive(true);
+        setPlaying(false);
+        revealFracRef.current = value;
+        setRevealFrac(value);
+    }, []);
+
+    const timelineBar = timeDomain ? (
+        <div className="mt-2 flex items-center gap-3 rounded-lg border border-white/10 bg-black/40 px-3 py-2">
+            <Button
+                className="h-7 w-7 p-0"
+                onClick={handleToggleReplay}
+                size="sm"
+                variant="ghost"
+            >
+                {playing ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
+                <span className="sr-only">{playing ? 'Pause replay' : 'Play replay'}</span>
+            </Button>
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <input
+                    aria-label="Replay timeline"
+                    className="w-full accent-sky-500"
+                    max={100}
+                    min={0}
+                    onChange={handleScrub}
+                    type="range"
+                    value={Math.round(revealFrac * 100)}
+                />
+                <div className="text-muted-foreground flex justify-between text-[10px]">
+                    <span>{fmtClock(timeDomain.min)}</span>
+                    <span>{fmtClock(timeDomain.max)}</span>
+                </div>
+            </div>
+            <div className="text-right text-xs">
+                <div className="font-mono font-semibold">{fmtClock(revealedBefore ?? timeDomain.max)}</div>
+                <div className="text-muted-foreground text-[10px]">
+                    {fmtDate(revealedBefore ?? timeDomain.max)} ·{' '}
+                    {fmtOffset((revealedBefore ?? timeDomain.max) - timeDomain.min)}
+                </div>
+            </div>
+            <div className="text-right text-xs">
+                <div className="text-muted-foreground text-[10px] uppercase">Visible</div>
+                <div className="font-mono font-semibold">
+                    {revealedCount}/{labelVisibleTotal}
+                </div>
+            </div>
+        </div>
+    ) : null;
+
     const flowElement = (
         <ReactFlow
             colorMode="dark"
@@ -502,6 +652,7 @@ export function FlowGraphView({
                 onToggle={handleToggleLabel}
             />
             {canvas('h-[420px]')}
+            {timelineBar}
             <p className="text-muted-foreground mt-2 text-xs">
                 Hover a link to see the action; click a node for its full details.
             </p>
@@ -516,6 +667,7 @@ export function FlowGraphView({
                 onToggle={handleToggleLabel}
             />
             {canvas('min-h-0 flex-1')}
+            {timelineBar}
         </div>
     );
 
@@ -783,6 +935,23 @@ function EdgeHoverCard({
     );
 }
 
+// ─── Detail panel ────────────────────────────────────────────────────────
+// ─── Replay timeline formatting ──────────────────────────────────────────
+function fmtClock(t: number): string {
+    return new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function fmtDate(t: number): string {
+    return new Date(t).toLocaleDateString([], { day: 'numeric', month: 'short' });
+}
+
+function fmtOffset(ms: number): string {
+    const totalSeconds = Math.max(0, Math.round(ms / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+
+    return `+${minutes}m ${totalSeconds % 60}s`;
+}
+
 // ─── Legend (clickable type filter) ───────────────────────────────────────
 function GraphLegend({
     hidden,
@@ -840,7 +1009,6 @@ function isAttackEdge(type: string): boolean {
     );
 }
 
-// ─── Detail panel ────────────────────────────────────────────────────────
 function truncate(s: string, n: number): string {
     if (s.length <= n) {
         return s;
