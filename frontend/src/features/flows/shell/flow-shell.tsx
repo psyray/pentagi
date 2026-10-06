@@ -191,18 +191,17 @@ function FlowShell() {
                 {!isDesktop && active && containerAvailable && (
                     <div className="flex gap-1 overflow-x-auto pb-1">
                         {SPECIAL_KEYS.map((key) => (
-                            <Button
+                            // A plain div (unlike a <button>) does not take focus on
+                            // tap, so the soft keyboard stays open and the tap is
+                            // not cancelled the way preventDefault on focus would.
+                            <div
+                                className="border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-7 cursor-pointer touch-manipulation items-center justify-center rounded-md border px-2 text-xs font-medium whitespace-nowrap transition-colors select-none"
                                 key={key.label}
-                                // Sending then letting onFocus pull focus back keeps the
-                                // soft keyboard open without cancelling the tap.
                                 onClick={() => terminalRef.current?.sendKey(key.sequence)}
-                                onFocus={() => terminalRef.current?.focus()}
-                                size="xs"
-                                type="button"
-                                variant="outline"
+                                role="button"
                             >
                                 {key.label}
-                            </Button>
+                            </div>
                         ))}
                     </div>
                 )}
