@@ -191,20 +191,21 @@ function FlowShell() {
                 {!isDesktop && active && containerAvailable && (
                     <div className="flex gap-1 overflow-x-auto pb-1">
                         {SPECIAL_KEYS.map((key) => (
-                            // Send on pointerdown (before the control can take focus)
-                            // and keep focus off it, so the key always registers and
-                            // the soft keyboard stays open.
-                            <div
-                                className="border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex h-7 cursor-pointer touch-manipulation items-center justify-center rounded-md border px-2 text-xs font-medium whitespace-nowrap transition-colors select-none"
+                            // A real <button> receives the tap's click (a plain div
+                            // does not in Gecko), and refocusing the terminal right
+                            // after keeps the soft keyboard open.
+                            <Button
                                 key={key.label}
-                                onPointerDown={(event) => {
-                                    event.preventDefault();
+                                onClick={() => {
                                     terminalRef.current?.sendKey(key.sequence);
+                                    terminalRef.current?.focus();
                                 }}
-                                role="button"
+                                size="xs"
+                                type="button"
+                                variant="outline"
                             >
                                 {key.label}
-                            </div>
+                            </Button>
                         ))}
                     </div>
                 )}
