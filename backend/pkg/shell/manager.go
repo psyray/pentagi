@@ -88,6 +88,11 @@ func (m *Manager) Create(
 		rows = defaultRows
 	}
 
+	m.mu.Lock()
+	m.seq++
+	id := fmt.Sprintf("t%d-%d", flowID, m.seq)
+	m.mu.Unlock()
+
 	created, err := m.dc.ContainerExecCreate(ctx, container, client.ExecCreateOptions{
 		Cmd:          []string{"/bin/sh", "-c", shellScript(shellName)},
 		AttachStdin:  true,
@@ -96,6 +101,9 @@ func (m *Manager) Create(
 		TTY:          true,
 		ConsoleSize:  client.ConsoleSize{Height: rows, Width: cols},
 		WorkingDir:   docker.WorkFolderPathInContainer,
+		// Tag every process of this session so terminate() can sweep the tree
+		// without depending on docker's (host) exec PID.
+		Env: []string{ShellIDEnvVar + "=" + id},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create shell exec: %w", err)
@@ -105,11 +113,6 @@ func (m *Manager) Create(
 	if err != nil {
 		return nil, fmt.Errorf("failed to attach shell exec: %w", err)
 	}
-
-	m.mu.Lock()
-	m.seq++
-	id := fmt.Sprintf("t%d-%d", flowID, m.seq)
-	m.mu.Unlock()
 
 	sess := newSession(m.dc, id, flowID, container, shellName, created.ID, resp.Conn, resp.Reader, m.logger)
 	sess.onDone = m.remove
