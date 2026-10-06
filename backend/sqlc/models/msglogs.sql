@@ -41,10 +41,11 @@ INSERT INTO msglogs (
   thinking,
   flow_id,
   task_id,
-  subtask_id
+  subtask_id,
+  agent_type
 )
 VALUES (
-  $1, $2, $3, $4, $5, $6
+  $1, $2, $3, $4, $5, $6, $7
 )
 RETURNING *;
 
@@ -57,10 +58,11 @@ INSERT INTO msglogs (
   result_format,
   flow_id,
   task_id,
-  subtask_id
+  subtask_id,
+  agent_type
 )
 VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8
+  $1, $2, $3, $4, $5, $6, $7, $8, $9
 )
 RETURNING *;
 
