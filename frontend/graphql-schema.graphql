@@ -1560,6 +1560,17 @@ query flowAttackGraph($flowId: ID!, $view: AttackGraphView!) {
     }
 }
 
+fragment graphitiPropertyFragment on GraphitiProperty {
+    key
+    value
+}
+
+query flowGraphNodeProperties($flowId: ID!, $uuid: String!) {
+    flowGraphNodeProperties(flowId: $flowId, uuid: $uuid) {
+        ...graphitiPropertyFragment
+    }
+}
+
 query flowGraphitiTagStats($flowId: ID!) {
     flowGraphitiTagStats(flowId: $flowId) {
         ...graphitiTagStatFragment

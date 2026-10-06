@@ -79,6 +79,15 @@ func convertTagStats(in []kgdashboard.GraphitiTagStat) []*model.GraphitiTagStat 
 	return out
 }
 
+func convertGraphitiProperties(in []kgdashboard.GraphitiProperty) []*model.GraphitiProperty {
+	out := make([]*model.GraphitiProperty, 0, len(in))
+	for _, p := range in {
+		p := p
+		out = append(out, &model.GraphitiProperty{Key: p.Key, Value: p.Value})
+	}
+	return out
+}
+
 func convertAttackSurface(in []kgdashboard.AttackSurfaceItem) []*model.AttackSurfaceItem {
 	out := make([]*model.AttackSurfaceItem, 0, len(in))
 	for _, it := range in {

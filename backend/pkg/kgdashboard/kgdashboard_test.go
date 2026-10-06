@@ -112,3 +112,77 @@ func TestDedupEdgesByUUID(t *testing.T) {
 	assert.Equal(t, "e2", out[1].UUID)
 	assert.Equal(t, "", out[2].UUID)
 }
+
+func TestNodePropertiesExcludesInternalAndSorts(t *testing.T) {
+	t.Parallel()
+	n := neo4j.Node{
+		ElementId: "4:abc:9",
+		Props: map[string]any{
+			"uuid":        "n-uuid",
+			"name":        "/flag",
+			"summary":     "POST /flag returned 404",
+			"group_id":    "flow-857",
+			"created_at":  time.Now(),
+			"status_code": int64(404),
+			"method":      "POST",
+			"path":        "/flag",
+			"severity":    "critical",
+			"nested":      map[string]any{"a": 1},
+			"empty":       "",
+		},
+	}
+	got := nodeProperties(n)
+
+	// uuid/name/summary/group_id/created_at are excluded; nested maps and empty
+	// strings are dropped; the rest is sorted by key.
+	keys := make([]string, 0, len(got))
+	for _, p := range got {
+		keys = append(keys, p.Key)
+	}
+	assert.Equal(t, []string{"method", "path", "severity", "status_code"}, keys)
+	assert.Equal(t, "404", got[3].Value)
+}
+
+func TestStringifyProp(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name   string
+		in     any
+		want   string
+		okWant bool
+	}{
+		{"string", "critical", "critical", true},
+		{"bool", true, "true", true},
+		{"int64", int64(404), "404", true},
+		{"float", 1.5, "1.5", true},
+		{"list of strings", []string{"a", "b"}, "a, b", true},
+		{"list of any", []any{"a", int64(2)}, "a, 2", true},
+		{"nil", nil, "", false},
+		{"map dropped", map[string]any{"a": 1}, "", false},
+		{"empty list", []string{}, "", false},
+	}
+	for _, c := range cases {
+		got, ok := stringifyProp(c.in)
+		assert.Equalf(t, c.okWant, ok, "%s: ok", c.name)
+		assert.Equalf(t, c.want, got, "%s: value", c.name)
+	}
+}
+
+func TestAttackGraphViewSpecsCoverAllScopedViews(t *testing.T) {
+	t.Parallel()
+	for _, v := range []AttackGraphView{
+		AttackGraphViewMain,
+		AttackGraphViewAction,
+		AttackGraphViewInfra,
+		AttackGraphViewPrivesc,
+	} {
+		spec, ok := attackGraphViewSpecs[v]
+		assert.Truef(t, ok, "view %q has a spec", v)
+		assert.NotEmptyf(t, spec.labels, "view %q has labels", v)
+		assert.Positivef(t, spec.capNodes, "view %q has a positive cap", v)
+	}
+	// MAIN keeps every edge between its nodes (empty allowlist) so early flows
+	// stay connected; the other scoped views filter by relationship type.
+	assert.Empty(t, attackGraphViewSpecs[AttackGraphViewMain].edgeTypes)
+	assert.NotEmpty(t, attackGraphViewSpecs[AttackGraphViewInfra].edgeTypes)
+}

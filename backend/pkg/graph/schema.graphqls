@@ -1010,8 +1010,14 @@ input UpdateKnowledgeDocumentInput {
 # results (not an error) when Graphiti is disabled or Neo4j is unreachable.
 
 # Slice of the knowledge graph to materialize for the attack-chain view.
+# MAIN is the attack-chain backbone, ACTION adds the action-level entities,
+# INFRA is the infrastructure map (Host/Port/Service) and PRIVESC is the
+# privilege-escalation chain. FULL materializes every entity (capped).
 enum AttackGraphView {
   MAIN
+  ACTION
+  INFRA
+  PRIVESC
   FULL
 }
 
@@ -1131,6 +1137,12 @@ type ArtifactRow {
   summary: String!
 }
 
+# One attribute of a Graphiti node, stringified for the node detail panel.
+type GraphitiProperty {
+  key: String!
+  value: String!
+}
+
 
 # ==================== GraphQL Operations ====================
 
@@ -1203,6 +1215,7 @@ type Query {
   # when Graphiti is disabled or Neo4j is unreachable.
   kgDashboardEnabled: Boolean!
   flowAttackGraph(flowId: ID!, view: AttackGraphView!): AttackGraph!
+  flowGraphNodeProperties(flowId: ID!, uuid: String!): [GraphitiProperty!]!
   flowGraphitiTagStats(flowId: ID!): [GraphitiTagStat!]!
   flowAttackSurface(flowId: ID!): [AttackSurfaceItem!]!
   flowCredentialsStatus(flowId: ID!): [CredentialStatusRow!]!

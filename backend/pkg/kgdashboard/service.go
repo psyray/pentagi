@@ -32,6 +32,7 @@ const defaultCacheTTL = 15 * time.Second
 type Service interface {
 	IsEnabled() bool
 	GetAttackGraph(ctx context.Context, flowID int64, groupID string, view AttackGraphView) (*AttackGraph, error)
+	GetNodeProperties(ctx context.Context, flowID int64, groupID, uuid string) ([]GraphitiProperty, error)
 	GetTagStats(ctx context.Context, flowID int64, groupID string) ([]GraphitiTagStat, error)
 	GetAttackSurface(ctx context.Context, flowID int64, groupID string) ([]AttackSurfaceItem, error)
 	GetCredentialsStatus(ctx context.Context, flowID int64, groupID string) ([]CredentialStatusRow, error)
@@ -126,9 +127,10 @@ func (s *service) run(ctx context.Context, cypher string, params map[string]any,
 	return s.client.runReadTx(ctx, cypher, params, visit)
 }
 
-// GetAttackGraph materializes the requested view. MAIN filters by
-// attack-chain labels and edge types; FULL returns every flow node, capped at
-// maxNodes (newest first).
+// GetAttackGraph materializes the requested view. Scoped views (MAIN, ACTION,
+// INFRA, PRIVESC) filter by their entity label set and (optionally) their
+// relationship allowlist, and are bounded to target-connected entities. FULL
+// returns every flow node, capped at maxNodes (newest first).
 func (s *service) GetAttackGraph(ctx context.Context, flowID int64, groupID string, view AttackGraphView) (*AttackGraph, error) {
 	if !s.IsEnabled() {
 		return &AttackGraph{}, nil
@@ -148,28 +150,31 @@ func (s *service) GetAttackGraph(ctx context.Context, flowID int64, groupID stri
 		nodesCypher, edgesCypher, countCypher string
 		baseParams                            map[string]any
 	)
-	switch view {
-	case AttackGraphViewFull:
+
+	spec, scoped := attackGraphViewSpecs[view]
+	switch {
+	case view == AttackGraphViewFull:
 		baseParams = map[string]any{"group_id": groupID, "cap": int64(s.maxNodes)}
 		nodesCypher = attackGraphFullQuery
 		edgesCypher = attackGraphFullEdgesQuery
 		countCypher = attackGraphFullCountQuery
-	case AttackGraphViewMain:
-		// The MAIN view uses a tighter cap than FULL — it only shows the attack
-		// chain backbone, which is a small fraction of the full graph.
-		mainCap := s.maxNodes
-		if mainCap > 200 {
-			mainCap = 200
+	case scoped:
+		// The scoped views only show a fraction of the full graph, so they use a
+		// tighter cap than FULL to keep the payload and the layout predictable.
+		edgeTypes := spec.edgeTypes
+		if edgeTypes == nil {
+			edgeTypes = []string{}
 		}
 		baseParams = map[string]any{
 			"group_id":     groupID,
-			"cap":          int64(mainCap),
-			"labels":       mainViewLabels,
+			"cap":          int64(spec.capNodes),
+			"labels":       spec.labels,
+			"edgeTypes":    edgeTypes,
 			"minEdgeTypes": int64(minHostEdgeTypes),
 		}
-		nodesCypher = attackGraphMainQuery
-		edgesCypher = attackGraphMainEdgesQuery
-		countCypher = attackGraphMainCountQuery
+		nodesCypher = attackGraphScopedQuery
+		edgesCypher = attackGraphScopedEdgesQuery
+		countCypher = attackGraphScopedCountQuery
 	default:
 		return out, fmt.Errorf("kgdashboard: unknown attack graph view %q", view)
 	}
@@ -255,6 +260,44 @@ func (s *service) GetAttackGraph(ctx context.Context, flowID int64, groupID stri
 
 	out.Edges = dedupEdgesByUUID(out.Edges)
 	out.TotalEdges = len(out.Edges)
+
+	s.putCache(k, out)
+	return out, nil
+}
+
+// GetNodeProperties returns the display attributes of a single node, addressed
+// by its Graphiti UUID (or Neo4j element id as fallback). It backs the node
+// detail panel, so it is served on demand rather than embedded in the (capped)
+// graph payload. An unknown node yields an empty list, never an error.
+func (s *service) GetNodeProperties(ctx context.Context, flowID int64, groupID, uuid string) ([]GraphitiProperty, error) {
+	if !s.IsEnabled() || uuid == "" {
+		return nil, nil
+	}
+	k := cacheKey{block: "nodeprops", flowID: flowID, view: uuid}
+	if v, ok := s.fromCache(k); ok {
+		return v.([]GraphitiProperty), nil
+	}
+
+	out := []GraphitiProperty{}
+	err := s.run(ctx, nodePropertiesQuery, map[string]any{
+		"group_id": groupID,
+		"uuid":     uuid,
+	}, func(rec *neo4j.Record) error {
+		n, ok := rec.Get("n")
+		if !ok {
+			return nil
+		}
+		neo4jNode, ok := n.(neo4j.Node)
+		if !ok {
+			return nil
+		}
+		out = nodeProperties(neo4jNode)
+		return nil
+	})
+	if err != nil {
+		logrus.WithError(err).WithField("flow_id", flowID).Warn("kgdashboard: node properties read failed")
+		return nil, nil
+	}
 
 	s.putCache(k, out)
 	return out, nil
