@@ -34,6 +34,9 @@
       <description>{{.Description}}</description>
       <status>{{.Status}}</status>
       <result>{{.Result}}</result>
+      {{if .Type.Valid}}<type>{{.Type.String}}</type>{{end}}
+      {{with .Evidence}}<evidence>{{.}}</evidence>{{end}}
+      {{if .BudgetSeconds.Valid}}<budget_seconds>{{.BudgetSeconds.Int32}}</budget_seconds>{{end}}
     </subtask>
     {{end}}
   </completed_subtasks>
@@ -46,6 +49,9 @@
       <id>{{.ID}}</id>
       <title>{{.Title}}</title>
       <description>{{.Description}}</description>
+      {{if .Type.Valid}}<type>{{.Type.String}}</type>{{end}}
+      {{with .Evidence}}<evidence>{{.}}</evidence>{{end}}
+      {{if .BudgetSeconds.Valid}}<budget_seconds>{{.BudgetSeconds.Int32}}</budget_seconds>{{end}}
     </subtask>
     {{end}}
   </planned_subtasks>

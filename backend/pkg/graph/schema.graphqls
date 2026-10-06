@@ -310,6 +310,9 @@ type Subtask {
   taskId: ID!
   createdAt: Time!
   updatedAt: Time!
+  type: String
+  evidence: [String!]
+  budgetSeconds: Int
 }
 
 # ==================== Logging Types ====================

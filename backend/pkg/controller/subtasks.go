@@ -90,10 +90,13 @@ func (stc *subtaskController) GenerateSubtasks(ctx context.Context) error {
 	// TODO: change it to insert subtasks in transaction
 	for _, info := range plan {
 		_, err := stc.taskCtx.DB.CreateSubtask(ctx, database.CreateSubtaskParams{
-			Status:      database.SubtaskStatusCreated,
-			TaskID:      stc.taskCtx.TaskID,
-			Title:       info.Title,
-			Description: info.Description,
+			Status:        database.SubtaskStatusCreated,
+			TaskID:        stc.taskCtx.TaskID,
+			Title:         info.Title,
+			Description:   info.Description,
+			Type:          database.StringToNullString(info.Type),
+			Evidence:      info.Evidence,
+			BudgetSeconds: database.Int64ToNullInt32(int64(info.BudgetSeconds)),
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create subtask for task %d: %w", stc.taskCtx.TaskID, err)
@@ -146,10 +149,13 @@ func (stc *subtaskController) RefineSubtasks(ctx context.Context) error {
 	// TODO: change it to insert subtasks in transaction and union it with delete ones
 	for _, info := range plan {
 		_, err := stc.taskCtx.DB.CreateSubtask(ctx, database.CreateSubtaskParams{
-			Status:      database.SubtaskStatusCreated,
-			TaskID:      stc.taskCtx.TaskID,
-			Title:       info.Title,
-			Description: info.Description,
+			Status:        database.SubtaskStatusCreated,
+			TaskID:        stc.taskCtx.TaskID,
+			Title:         info.Title,
+			Description:   info.Description,
+			Type:          database.StringToNullString(info.Type),
+			Evidence:      info.Evidence,
+			BudgetSeconds: database.Int64ToNullInt32(int64(info.BudgetSeconds)),
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create subtask for task %d: %w", stc.taskCtx.TaskID, err)

@@ -172,6 +172,8 @@ func (fp *flowProvider) performSubtasksGenerator(
 		)
 	}
 
+	logUnknownSubtaskMetadata(logrus.WithContext(ctx).WithField("task_id", taskID), subtaskList.Subtasks)
+
 	return subtaskList.Subtasks, nil
 }
 
@@ -359,6 +361,7 @@ func (fp *flowProvider) performSubtasksRefiner(
 	}).Debug("successfully applied subtask patch")
 
 	subtasks := convertSubtaskInfoPatch(result)
+	logUnknownSubtaskMetadata(logger, subtasks)
 	if agentCtx, ok := tools.GetAgentContext(ctx); ok {
 		_, _ = fp.putAgentLog(
 			ctx,

@@ -661,10 +661,13 @@ func (ap *assistantProvider) patchAssistantFlowSubtasks(
 	// plus any new entries from add operations — all safe to create unconditionally.
 	for _, info := range result {
 		if _, err := db.CreateSubtask(ctx, database.CreateSubtaskParams{
-			Status:      database.SubtaskStatusCreated,
-			TaskID:      taskID,
-			Title:       info.Title,
-			Description: info.Description,
+			Status:        database.SubtaskStatusCreated,
+			TaskID:        taskID,
+			Title:         info.Title,
+			Description:   info.Description,
+			Type:          database.StringToNullString(info.Type),
+			Evidence:      info.Evidence,
+			BudgetSeconds: database.Int64ToNullInt32(int64(info.BudgetSeconds)),
 		}); err != nil {
 			return fmt.Errorf("failed to create subtask %q for task %d: %w", info.Title, taskID, err)
 		}
