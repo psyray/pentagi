@@ -87,6 +87,23 @@ fragment messageLogFragment on MessageLog {
     result
     resultFormat
     flowId
+    agent
+    taskId
+    subtaskId
+    createdAt
+}
+
+fragment msgchainFragment on Msgchain {
+    id
+    type
+    model
+    modelProvider
+    usageIn
+    usageOut
+    usageCacheIn
+    usageCacheOut
+    durationSeconds
+    flowId
     taskId
     subtaskId
     createdAt
@@ -857,6 +874,9 @@ query flow($id: ID!) {
     }
     messageLogs(flowId: $id) {
         ...messageLogFragment
+    }
+    msgchains(flowId: $id) {
+        ...msgchainFragment
     }
     agentLogs(flowId: $id) {
         ...agentLogFragment

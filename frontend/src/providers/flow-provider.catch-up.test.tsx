@@ -41,6 +41,7 @@ const flowPayload = (logs: string[]) => ({
         userId: '1',
     },
     messageLogs: [],
+    msgchains: [],
     screenshots: [],
     searchLogs: [],
     tasks: [],
