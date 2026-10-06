@@ -314,6 +314,7 @@ type ComplexityRoot struct {
 	}
 
 	MessageLog struct {
+		Agent        func(childComplexity int) int
 		CreatedAt    func(childComplexity int) int
 		FlowID       func(childComplexity int) int
 		ID           func(childComplexity int) int
@@ -2168,6 +2169,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.KnowledgeDocumentWithScore.Score(childComplexity), true
+
+	case "MessageLog.agent":
+		if e.complexity.MessageLog.Agent == nil {
+			break
+		}
+
+		return e.complexity.MessageLog.Agent(childComplexity), true
 
 	case "MessageLog.createdAt":
 		if e.complexity.MessageLog.CreatedAt == nil {
@@ -17925,6 +17933,47 @@ func (ec *executionContext) fieldContext_MessageLog_flowId(_ context.Context, fi
 	return fc, nil
 }
 
+func (ec *executionContext) _MessageLog_agent(ctx context.Context, field graphql.CollectedField, obj *model.MessageLog) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MessageLog_agent(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Agent, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.AgentType)
+	fc.Result = res
+	return ec.marshalOAgentType2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐAgentType(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MessageLog_agent(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MessageLog",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type AgentType does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _MessageLog_taskId(ctx context.Context, field graphql.CollectedField, obj *model.MessageLog) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_MessageLog_taskId(ctx, field)
 	if err != nil {
@@ -24890,6 +24939,8 @@ func (ec *executionContext) fieldContext_Query_messageLogs(ctx context.Context, 
 				return ec.fieldContext_MessageLog_resultFormat(ctx, field)
 			case "flowId":
 				return ec.fieldContext_MessageLog_flowId(ctx, field)
+			case "agent":
+				return ec.fieldContext_MessageLog_agent(ctx, field)
 			case "taskId":
 				return ec.fieldContext_MessageLog_taskId(ctx, field)
 			case "subtaskId":
@@ -29549,6 +29600,8 @@ func (ec *executionContext) fieldContext_Subscription_messageLogAdded(ctx contex
 				return ec.fieldContext_MessageLog_resultFormat(ctx, field)
 			case "flowId":
 				return ec.fieldContext_MessageLog_flowId(ctx, field)
+			case "agent":
+				return ec.fieldContext_MessageLog_agent(ctx, field)
 			case "taskId":
 				return ec.fieldContext_MessageLog_taskId(ctx, field)
 			case "subtaskId":
@@ -29640,6 +29693,8 @@ func (ec *executionContext) fieldContext_Subscription_messageLogUpdated(ctx cont
 				return ec.fieldContext_MessageLog_resultFormat(ctx, field)
 			case "flowId":
 				return ec.fieldContext_MessageLog_flowId(ctx, field)
+			case "agent":
+				return ec.fieldContext_MessageLog_agent(ctx, field)
 			case "taskId":
 				return ec.fieldContext_MessageLog_taskId(ctx, field)
 			case "subtaskId":
@@ -40779,6 +40834,8 @@ func (ec *executionContext) _MessageLog(ctx context.Context, sel ast.SelectionSe
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "agent":
+			out.Values[i] = ec._MessageLog_agent(ctx, field, obj)
 		case "taskId":
 			out.Values[i] = ec._MessageLog_taskId(ctx, field, obj)
 		case "subtaskId":
@@ -46976,6 +47033,22 @@ func (ec *executionContext) marshalOAgentLog2ᚕᚖpentagiᚋpkgᚋgraphᚋmodel
 	}
 
 	return ret
+}
+
+func (ec *executionContext) unmarshalOAgentType2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐAgentType(ctx context.Context, v interface{}) (*model.AgentType, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.AgentType)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOAgentType2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐAgentType(ctx context.Context, sel ast.SelectionSet, v *model.AgentType) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) marshalOAssistant2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐAssistantᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Assistant) graphql.Marshaler {
