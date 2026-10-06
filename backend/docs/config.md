@@ -2160,6 +2160,21 @@ The supervision settings work together as a comprehensive system:
    ```
    Disabled supervision for debugging to observe natural agent behavior.
 
+## Flow Shell Settings
+
+These settings control the Shell tab: an interactive, user-driven shell inside a
+running flow's primary container. The tab is bounded per flow and can be turned
+off entirely on hardened deployments.
+
+| Option                | Environment Variable       | Default Value | Description                                                                 |
+| --------------------- | -------------------------- | ------------- | --------------------------------------------------------------------------- |
+| FlowShellEnabled      | `FLOW_SHELL_ENABLED`       | `true`        | Enable the Shell tab (interactive terminal into a running flow container)   |
+| FlowShellMaxTerminals | `FLOW_SHELL_MAX_TERMINALS` | `5`           | Maximum number of live interactive terminals one flow may hold at once      |
+
+The Shell tab is owner-scoped: a user can only open a shell on a flow they own
+(or any flow when holding `flow_files.admin` / `containers.admin`). Terminals are
+ephemeral and die with the container; there is no persistence.
+
 ## Observability Settings
 
 These settings control the observability and monitoring capabilities, including telemetry and trace collection for system performance and debugging.
