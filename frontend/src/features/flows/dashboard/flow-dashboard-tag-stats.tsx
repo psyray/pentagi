@@ -76,9 +76,13 @@ export function FlowDashboardTagStats({ flowId, pollInterval = 10000 }: FlowDash
                 const bi = preferredOrder.indexOf(b.tag);
 
                 if (ai !== -1 || bi !== -1) {
-                    if (ai === -1) {return 1;}
+                    if (ai === -1) {
+                        return 1;
+                    }
 
-                    if (bi === -1) {return -1;}
+                    if (bi === -1) {
+                        return -1;
+                    }
 
                     return ai - bi;
                 }

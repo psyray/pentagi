@@ -693,6 +693,7 @@ export type DailyToolcallsStatsFragmentFragment = { date: string; stats: Toolcal
 export type FunctionToolcallsStatsFragmentFragment = {
     functionName: string;
     isAgent: boolean;
+    isSubAgent: boolean;
     totalCount: number;
     totalDurationSeconds: number;
     avgDurationSeconds: number;
@@ -3273,6 +3274,7 @@ export const FunctionToolcallsStatsFragmentFragmentDoc = {
                 selections: [
                     { kind: 'Field', name: { kind: 'Name', value: 'functionName' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'isAgent' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'isSubAgent' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'totalCount' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'totalDurationSeconds' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'avgDurationSeconds' } },
@@ -7191,6 +7193,7 @@ export const ToolcallsStatsByFunctionDocument = {
                 selections: [
                     { kind: 'Field', name: { kind: 'Name', value: 'functionName' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'isAgent' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'isSubAgent' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'totalCount' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'totalDurationSeconds' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'avgDurationSeconds' } },
@@ -7299,6 +7302,7 @@ export const ToolcallsStatsByFunctionForFlowDocument = {
                 selections: [
                     { kind: 'Field', name: { kind: 'Name', value: 'functionName' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'isAgent' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'isSubAgent' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'totalCount' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'totalDurationSeconds' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'avgDurationSeconds' } },

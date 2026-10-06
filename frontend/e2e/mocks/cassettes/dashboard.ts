@@ -122,6 +122,7 @@ const toolcallsStatsByFunction: ResultOf<typeof ToolcallsStatsByFunctionDocument
             avgDurationSeconds: 2,
             functionName: 'e2e_terminal',
             isAgent: false,
+            isSubAgent: false,
             totalCount: 21,
             totalDurationSeconds: 42,
         }),

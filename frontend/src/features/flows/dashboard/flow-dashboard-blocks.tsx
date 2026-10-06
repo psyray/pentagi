@@ -102,14 +102,20 @@ function EmptyTable({ message }: { message: string }) {
 }
 
 function ExamplesCell({ examples }: { examples: string[] }) {
-    if (!examples.length) {return <TableCell className="text-muted-foreground">—</TableCell>;}
+    if (!examples.length) {
+        return <TableCell className="text-muted-foreground">—</TableCell>;
+    }
 
     return (
         <TableCell>
             <ul className="flex flex-col gap-1">
                 {examples.map((ex, i) => (
-                    <li className="text-muted-foreground truncate" key={i} title={ex}>
-                    {ex}
+                    <li
+                        className="text-muted-foreground truncate"
+                        key={i}
+                        title={ex}
+                    >
+                        {ex}
                     </li>
                 ))}
             </ul>
@@ -123,7 +129,10 @@ function LoadingRows() {
     return (
         <div className="flex flex-col gap-2">
             {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton className="h-6 w-full" key={i} />
+                <Skeleton
+                    className="h-6 w-full"
+                    key={i}
+                />
             ))}
         </div>
     );
@@ -166,16 +175,15 @@ export function FlowDashboardCredentialsStatus({ flowId }: { flowId: string }) {
                     </TableHeader>
                     <TableBody>
                         {rows.map((r) => {
-                            const meta = credentialStatusBadge[r.status] ?? credentialStatusBadge[CredentialStatus.Unknown];
+                            const meta =
+                                credentialStatusBadge[r.status] ?? credentialStatusBadge[CredentialStatus.Unknown];
 
                             return (
                                 <TableRow key={r.status}>
                                     <TableCell>
                                         <Badge variant={meta.variant}>{meta.label}</Badge>
                                     </TableCell>
-                                    <TableCell className="text-right font-semibold">
-                                        {formatNumber(r.count)}
-                                    </TableCell>
+                                    <TableCell className="text-right font-semibold">{formatNumber(r.count)}</TableCell>
                                     <ExamplesCell examples={r.examples} />
                                 </TableRow>
                             );
@@ -485,15 +493,33 @@ export function FlowDashboardVulnerabilityBreakdown({ flowId }: { flowId: string
             ) : (
                 <div className="flex flex-col gap-4">
                     <div className="h-48">
-                        <ResponsiveContainer height="100%" width="100%">
-                            <BarChart data={rows} layout="vertical" margin={{ bottom: 8, left: 16, right: 16, top: 8 }}>
-                                <XAxis allowDecimals={false} type="number" />
-                                <YAxis dataKey="category" type="category" width={72} />
+                        <ResponsiveContainer
+                            height="100%"
+                            width="100%"
+                        >
+                            <BarChart
+                                data={rows}
+                                layout="vertical"
+                                margin={{ bottom: 8, left: 16, right: 16, top: 8 }}
+                            >
+                                <XAxis
+                                    allowDecimals={false}
+                                    type="number"
+                                />
+                                <YAxis
+                                    dataKey="category"
+                                    type="category"
+                                    width={72}
+                                />
                                 <Tooltip
                                     cursor={{ fill: 'hsl(var(--muted))', fillOpacity: 0.3 }}
                                     formatter={(v) => [formatNumber(Number(v)), 'count']}
                                 />
-                                <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                                <Bar
+                                    dataKey="count"
+                                    fill="hsl(var(--primary))"
+                                    radius={[0, 4, 4, 0]}
+                                />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
@@ -509,13 +535,9 @@ export function FlowDashboardVulnerabilityBreakdown({ flowId }: { flowId: string
                             {rows.map((r) => (
                                 <TableRow key={r.category}>
                                     <TableCell>
-                                        <Badge variant={vulnCategoryBadge[r.category] ?? 'outline'}>
-                                            {r.category}
-                                        </Badge>
+                                        <Badge variant={vulnCategoryBadge[r.category] ?? 'outline'}>{r.category}</Badge>
                                     </TableCell>
-                                    <TableCell className="text-right font-semibold">
-                                        {formatNumber(r.count)}
-                                    </TableCell>
+                                    <TableCell className="text-right font-semibold">{formatNumber(r.count)}</TableCell>
                                     <ExamplesCell examples={r.examples} />
                                 </TableRow>
                             ))}
