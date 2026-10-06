@@ -1,5 +1,5 @@
-import { Plus, Terminal as TerminalIcon, X } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { Maximize2, Minimize2, Plus, Terminal as TerminalIcon, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
@@ -7,12 +7,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Spinner } from '@/components/ui/spinner';
 import { StatusType, TerminalType } from '@/graphql/types';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
+import { cn } from '@/lib/utils';
 import { useFlow } from '@/providers/flow-provider';
 
 import { SHELL_OPTIONS, type ShellName } from './flow-shell-api';
 import FlowShellTerminal, { type FlowShellTerminalHandle } from './flow-shell-terminal';
 import { useFlowShell } from './use-flow-shell';
 import { useResetScrollOnKeyboard } from './use-reset-scroll-on-keyboard';
+import { useVisualViewport } from './use-visual-viewport';
 
 const DEFAULT_COLS = 80;
 const DEFAULT_ROWS = 24;
@@ -36,12 +38,26 @@ function FlowShell() {
     const { isDesktop } = useBreakpoint();
     const { active, close, create, creating, error, handleExit, loading, select, shells } = useFlowShell(flowId);
     const [shell, setShell] = useState<ShellName>('zsh');
+    const [fullscreen, setFullscreen] = useState(false);
     const terminalRef = useRef<FlowShellTerminalHandle | null>(null);
     const rootRef = useRef<HTMLDivElement>(null);
+    const visualViewport = useVisualViewport();
 
     // Keep the pinned header (and its key row) on screen when the soft keyboard
     // pushes the scroll container up on mobile.
     useResetScrollOnKeyboard(rootRef, !isDesktop);
+
+    // Focus the terminal once the fullscreen overlay has laid out, so the soft
+    // keyboard opens straight away in the immersive view.
+    useEffect(() => {
+        if (!fullscreen) {
+            return;
+        }
+
+        const frame = requestAnimationFrame(() => terminalRef.current?.focus());
+
+        return () => cancelAnimationFrame(frame);
+    }, [fullscreen]);
 
     // The shell targets the flow's primary container. Once the flow finishes its
     // container is removed, so no interactive terminal can be opened; grey the
@@ -63,8 +79,22 @@ function FlowShell() {
 
     return (
         <div
-            className="flex size-full min-h-0 flex-col gap-3"
+            className={cn(
+                fullscreen
+                    ? 'bg-background fixed z-50 flex flex-col gap-2 overflow-hidden p-3'
+                    : 'flex size-full min-h-0 flex-col gap-3',
+            )}
             ref={rootRef}
+            style={
+                fullscreen
+                    ? {
+                          height: visualViewport.height,
+                          left: 0,
+                          right: 0,
+                          top: visualViewport.offsetTop,
+                      }
+                    : undefined
+            }
         >
             <div className="bg-background sticky top-0 z-10 flex flex-col gap-2 pr-4">
                 <div className="flex flex-wrap items-center gap-2">
@@ -126,6 +156,15 @@ function FlowShell() {
                         >
                             <Plus />
                             New terminal
+                        </Button>
+                        <Button
+                            aria-label={fullscreen ? 'Exit full screen' : 'Full screen'}
+                            onClick={() => setFullscreen((previous) => !previous)}
+                            size="icon-sm"
+                            title={fullscreen ? 'Exit full screen' : 'Full screen'}
+                            variant="ghost"
+                        >
+                            {fullscreen ? <Minimize2 /> : <Maximize2 />}
                         </Button>
                     </div>
                 </div>

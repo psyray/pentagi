@@ -27,6 +27,14 @@ export interface InteractiveXtermCallbacks {
     onResize: (cols: number, rows: number) => void;
 }
 
+export interface InteractiveXtermOptions {
+    /**
+     * Route input through a dedicated field so soft-keyboard IMEs (autocorrect,
+     * word suggestions) cannot corrupt what reaches the terminal.
+     */
+    mobileInput?: boolean;
+}
+
 export interface UseInteractiveXtermResult {
     clear: () => void;
     containerRef: React.RefObject<HTMLDivElement | null>;
@@ -40,10 +48,13 @@ export interface UseInteractiveXtermResult {
 export function useInteractiveXterm(
     theme: 'dark' | 'light' | 'system',
     callbacks: InteractiveXtermCallbacks,
+    options: InteractiveXtermOptions = {},
 ): UseInteractiveXtermResult {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const terminalRef = useRef<null | Terminal>(null);
     const fitAddonRef = useRef<FitAddon | null>(null);
+    const mobileInputElRef = useRef<HTMLTextAreaElement | null>(null);
+    const mobileInputEnabledRef = useRef(options.mobileInput ?? false);
     const themeRef = useRef(theme);
     const callbacksRef = useRef(callbacks);
     const [isReady, setIsReady] = useState(false);
@@ -56,6 +67,10 @@ export function useInteractiveXterm(
     useEffect(() => {
         callbacksRef.current = callbacks;
     }, [callbacks]);
+
+    useEffect(() => {
+        mobileInputEnabledRef.current = options.mobileInput ?? false;
+    }, [options.mobileInput]);
 
     const write = useCallback((data: string | Uint8Array) => {
         try {
@@ -74,6 +89,18 @@ export function useInteractiveXterm(
     }, []);
 
     const focus = useCallback(() => {
+        const mobileInput = mobileInputElRef.current;
+
+        if (mobileInput) {
+            try {
+                mobileInput.focus({ preventScroll: true });
+
+                return;
+            } catch (error: unknown) {
+                Log.error('Terminal focus failed:', error);
+            }
+        }
+
         try {
             terminalRef.current?.focus();
         } catch (error: unknown) {
@@ -107,9 +134,11 @@ export function useInteractiveXterm(
         }
 
         let mounted = true;
+        let teardownMobileInput: (() => void) | null = null;
 
         const terminal = new Terminal({
             ...INTERACTIVE_TERMINAL_OPTIONS,
+            disableStdin: mobileInputEnabledRef.current,
             theme: getTerminalTheme(isDarkMode(themeRef.current)),
         });
 
@@ -181,6 +210,25 @@ export function useInteractiveXterm(
                 terminal.open(container);
                 resizeObserver.observe(container);
 
+                if (mobileInputEnabledRef.current) {
+                    // xterm would otherwise send the IME's autocorrected commit on
+                    // top of what was typed; own the input instead. Its textarea is
+                    // disabled so it cannot steal focus back (readOnly still can).
+                    const textarea = terminal.textarea;
+
+                    if (textarea) {
+                        textarea.disabled = true;
+                        textarea.tabIndex = -1;
+                    }
+
+                    teardownMobileInput = setupMobileInput(
+                        container,
+                        terminal,
+                        (data) => callbacksRef.current.onData(data),
+                        mobileInputElRef,
+                    );
+                }
+
                 if (container.offsetHeight > 0) {
                     fitAddon.fit();
                 }
@@ -202,6 +250,12 @@ export function useInteractiveXterm(
 
             onDataDisposable.dispose();
             resizeObserver.disconnect();
+
+            if (teardownMobileInput) {
+                teardownMobileInput();
+            }
+
+            mobileInputElRef.current = null;
 
             for (const d of disposables) {
                 try {
@@ -265,4 +319,138 @@ export function useInteractiveXterm(
     }, [theme]);
 
     return { clear, containerRef, fit, focus, isReady, searchAddon, write };
+}
+
+/**
+ * Builds the terminal's mobile input field and wires it to `emit`.
+ *
+ * The field is cleared after every `input`, so the keyboard's IME never keeps a
+ * composing buffer to autocorrect, and `insertReplacementText` (the autocorrect
+ * commit) is dropped outright. Every keystroke therefore reaches the terminal
+ * exactly as typed.
+ */
+function setupMobileInput(
+    container: HTMLDivElement,
+    terminal: Terminal,
+    emit: (data: string) => void,
+    elementRef: React.RefObject<HTMLTextAreaElement | null>,
+): () => void {
+    const input = document.createElement('textarea');
+    input.setAttribute('aria-label', 'Terminal input');
+    input.setAttribute('autocapitalize', 'none');
+    input.setAttribute('autocomplete', 'off');
+    input.setAttribute('autocorrect', 'off');
+    input.setAttribute('enterkeyhint', 'send');
+    input.setAttribute('rows', '1');
+    input.setAttribute('spellcheck', 'false');
+    input.className = 'xterm-mobile-input';
+    input.style.cssText = [
+        'position:absolute',
+        'top:0',
+        'left:0',
+        'width:1px',
+        'height:1px',
+        'padding:0',
+        'border:0',
+        'margin:0',
+        'opacity:0',
+        'overflow:hidden',
+        'background:transparent',
+        'color:transparent',
+        'caret-color:transparent',
+        'font-size:16px',
+        'line-height:1',
+        'resize:none',
+        'z-index:-1',
+    ].join(';');
+
+    const send = (data: string) => {
+        if (data) {
+            emit(data);
+        }
+    };
+
+    const onBeforeInput = (event: Event) => {
+        if ((event as InputEvent).inputType === 'insertReplacementText') {
+            event.preventDefault();
+        }
+    };
+
+    const onKeyDown = (event: KeyboardEvent) => {
+        switch (event.key) {
+            case 'ArrowDown':
+                event.preventDefault();
+                send('\x1b[B');
+                break;
+            case 'ArrowLeft':
+                event.preventDefault();
+                send('\x1b[D');
+                break;
+            case 'ArrowRight':
+                event.preventDefault();
+                send('\x1b[C');
+                break;
+            case 'ArrowUp':
+                event.preventDefault();
+                send('\x1b[A');
+                break;
+            case 'Backspace':
+                event.preventDefault();
+                send('\x7f');
+                break;
+            case 'Enter':
+                event.preventDefault();
+                send('\r');
+                break;
+            case 'Escape':
+                send('\x1b');
+                break;
+            case 'Tab':
+                event.preventDefault();
+                send('\t');
+                break;
+            default:
+                break;
+        }
+    };
+
+    const onInput = () => {
+        const value = input.value;
+        input.value = '';
+        send(value.replace(/\r?\n/g, '\r'));
+    };
+
+    const onPaste = (event: ClipboardEvent) => {
+        event.preventDefault();
+        const text = event.clipboardData?.getData('text/plain') ?? '';
+        input.value = '';
+        send(text.replace(/\r?\n/g, '\r'));
+    };
+
+    const onFocus = () => terminal.element?.classList.add('focus');
+    const onBlur = () => terminal.element?.classList.remove('focus');
+
+    input.addEventListener('beforeinput', onBeforeInput);
+    input.addEventListener('blur', onBlur);
+    input.addEventListener('focus', onFocus);
+    input.addEventListener('input', onInput);
+    input.addEventListener('keydown', onKeyDown);
+    input.addEventListener('paste', onPaste);
+    container.appendChild(input);
+
+    elementRef.current = input;
+
+    return () => {
+        input.removeEventListener('beforeinput', onBeforeInput);
+        input.removeEventListener('blur', onBlur);
+        input.removeEventListener('focus', onFocus);
+        input.removeEventListener('input', onInput);
+        input.removeEventListener('keydown', onKeyDown);
+        input.removeEventListener('paste', onPaste);
+        input.remove();
+
+        if (elementRef.current === input) {
+            elementRef.current = null;
+        }
+    };
 }

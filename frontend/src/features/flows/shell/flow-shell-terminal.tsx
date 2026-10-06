@@ -6,13 +6,16 @@ import { Input } from '@/components/ui/input';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { useTheme } from '@/hooks/use-theme';
 import { cn } from '@/lib/utils';
+import { isCoarsePointer } from '@/lib/utils/platform';
 
 import { type FlowShellInfo, flowShellSocketUrl } from './flow-shell-api';
 import { useInteractiveXterm } from './use-interactive-xterm';
 
 // Imperative surface the parent uses to forward the on-screen keys row, which
-// lives in the sticky header rather than inside the terminal.
+// lives in the sticky header rather than inside the terminal, and to focus the
+// terminal when it goes fullscreen.
 export interface FlowShellTerminalHandle {
+    focus: () => void;
     sendKey: (sequence: string) => void;
 }
 
@@ -61,8 +64,6 @@ function FlowShellTerminal({ className, flowId, onExit, ref, terminal }: FlowShe
         }
     }, []);
 
-    useImperativeHandle(ref, () => ({ sendKey: send }), [send]);
-
     const sendResize = useCallback((cols: number, rows: number) => {
         const socket = socketRef.current;
 
@@ -71,13 +72,19 @@ function FlowShellTerminal({ className, flowId, onExit, ref, terminal }: FlowShe
         }
     }, []);
 
-    const { containerRef, focus, isReady, searchAddon, write } = useInteractiveXterm(theme, {
-        onData: (data) => send(data),
-        onResize: (cols, rows) => {
-            sizeRef.current = { cols, rows };
-            sendResize(cols, rows);
+    const { containerRef, focus, isReady, searchAddon, write } = useInteractiveXterm(
+        theme,
+        {
+            onData: (data) => send(data),
+            onResize: (cols, rows) => {
+                sizeRef.current = { cols, rows };
+                sendResize(cols, rows);
+            },
         },
-    });
+        { mobileInput: isCoarsePointer() },
+    );
+
+    useImperativeHandle(ref, () => ({ focus, sendKey: send }), [focus, send]);
 
     useEffect(() => {
         if (!isReady) {
