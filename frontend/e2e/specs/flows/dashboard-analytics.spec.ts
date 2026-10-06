@@ -110,4 +110,21 @@ test.describe('flow dashboard analytics', { tag: '@flows' }, () => {
 
         expectCleanPage(pageErrorLog);
     });
+
+    test('selecting a node dims the unrelated branches, not the chain', async ({ page, pageErrorLog }) => {
+        await openAnalytics(page);
+
+        const opacityOf = (id: string) =>
+            page
+                .locator(`[data-testid="rf__node-${id}"] [data-kg-node]`)
+                .evaluate((el) => getComputedStyle(el).opacity);
+
+        // Select port 80: its chain (Host ancestor + Service descendant) stays lit.
+        await page.locator('[data-testid="rf__node-kg-port"]').click();
+
+        await expect.poll(() => opacityOf('kg-port2')).toBe('0.25'); // sibling branch
+        await expect.poll(() => opacityOf('kg-svc')).toBe('1'); // on the chain
+
+        expectCleanPage(pageErrorLog);
+    });
 });
