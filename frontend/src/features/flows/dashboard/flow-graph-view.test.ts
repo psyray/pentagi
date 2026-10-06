@@ -1,0 +1,94 @@
+import { describe, expect, it } from 'vitest';
+
+import { buildLayout, columnForLabel, toFlowEdges } from './flow-graph-view';
+
+const node = (uuid: string, label: string, name = '') => ({
+    createdAt: null,
+    labels: [label],
+    name,
+    summary: '',
+    uuid,
+});
+
+const edge = (uuid: string, source: string, target: string, type = 'HAS_PORT') => ({
+    createdAt: null,
+    fact: '',
+    sourceUUID: source,
+    targetUUID: target,
+    type,
+    uuid,
+});
+
+describe('flow-graph-view layout', () => {
+    it('maps known labels to their lane and unknown labels past the mapped columns', () => {
+        expect(columnForLabel('Host')).toBe(2);
+        expect(columnForLabel('Service')).toBe(4);
+        expect(columnForLabel('SomethingBrandNew')).toBeGreaterThan(9);
+    });
+
+    it('drops hidden labels from the graph (legend filter)', () => {
+        const nodes = [node('h', 'Host'), node('p', 'Port'), node('a', 'Artifact')];
+
+        const all = buildLayout(nodes, new Set());
+
+        expect(all.rfNodes).toHaveLength(3);
+        expect(all.positions.get('h')!.col).toBeLessThan(all.positions.get('p')!.col);
+
+        const filtered = buildLayout(nodes, new Set(['Artifact']));
+
+        expect(filtered.rfNodes.map((n) => n.id)).toEqual(['h', 'p']);
+        expect(filtered.positions.has('a')).toBe(false);
+    });
+});
+
+describe('flow-graph-view edge routing', () => {
+    const positions = new Map([
+        ['h', { col: 0, x: 0, y: 0 }],
+        ['p', { col: 1, x: 340, y: 0 }],
+        ['v', { col: 2, x: 680, y: 0 }],
+    ]);
+
+    it('routes forward edges as orthogonal steps sharing the source-column trunk', () => {
+        const edges = toFlowEdges([edge('e1', 'h', 'p'), edge('e2', 'h', 'v')], {
+            hoveredEdgeId: null,
+            positions,
+            selectedNodeId: null,
+        });
+
+        expect(edges).toHaveLength(2);
+
+        for (const e of edges) {
+            expect(e.type).toBe('smoothstep');
+        }
+
+        // Both edges leave the Host lane, so they share the same trunk x.
+        const centers = edges.map((e) => (e as { pathOptions?: { centerX?: number } }).pathOptions?.centerX);
+
+        expect(centers[0]).toBeTypeOf('number');
+        expect(centers[0]).toBe(centers[1]);
+    });
+
+    it('drops edges whose endpoint was filtered out', () => {
+        const edges = toFlowEdges([edge('e1', 'h', 'missing')], {
+            hoveredEdgeId: null,
+            positions,
+            selectedNodeId: null,
+        });
+
+        expect(edges).toHaveLength(0);
+    });
+
+    it('highlights the hovered edge and dims the others', () => {
+        const edges = toFlowEdges([edge('e1', 'h', 'p'), edge('e2', 'p', 'v')], {
+            hoveredEdgeId: 'e1',
+            positions,
+            selectedNodeId: null,
+        });
+
+        const hovered = edges.find((e) => e.id === 'e1')!;
+        const other = edges.find((e) => e.id === 'e2')!;
+
+        expect(hovered.style?.opacity).toBe(1);
+        expect(other.style?.opacity).toBe(0.15);
+    });
+});

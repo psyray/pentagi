@@ -4,6 +4,7 @@ import {
     BackgroundVariant,
     Controls,
     type Edge,
+    type EdgeMouseHandler,
     Handle,
     MarkerType,
     type Node,
@@ -31,7 +32,7 @@ import '@xyflow/react/dist/style.css';
 
 // ─── Color scheme ───────────────────────────────────────────────────────
 // Each entity type gets a hex triplet used for the node background (at 20%
-// alpha), border (at 60% alpha), text, and MiniMap swatch. The scheme is
+// alpha), border (at 60% alpha), text, and legend swatch. The scheme is
 // designed for a black graph background.
 interface LabelColor {
     bg: string;
@@ -97,16 +98,15 @@ const labelColumnMap: Record<string, number> = {
 const maxMappedColumn = 9;
 
 const COLUMN_WIDTH = 340;
+const NODE_WIDTH = 220;
 const ROW_HEIGHT = 110;
 const TOP_PADDING = 60;
 
 // ─── Custom node component ───────────────────────────────────────────────
 interface EntityNodeData {
     [key: string]: unknown;
-    createdAt: null | string;
     dimmed: boolean;
     label: string;
-    labels: string[];
     name: string;
     selected: boolean;
     summary: string;
@@ -114,75 +114,35 @@ interface EntityNodeData {
     uuid: string;
 }
 
-function columnForLabel(label: string): number {
-    const col = labelColumnMap[label];
-
-    if (col !== undefined) {
-        return col;
-    }
-
-    // Unknown labels: append after the known columns, ordered alphabetically.
-    return maxMappedColumn + 1 + (label.charCodeAt(0) % 16);
-}
-
 function EntityNode({ data }: { data: EntityNodeData }) {
     const c = colorForLabel(data.type);
-    const selected = data.selected;
 
     return (
         <div
-            className="rounded-xl border-2 px-3 py-2 backdrop-blur-sm"
+            className="w-full rounded-xl border-2 px-3 py-2 backdrop-blur-sm"
             style={{
-                background: selected ? c.border : c.bg,
-                borderColor: selected ? c.text : c.border,
-                boxShadow: selected ? `0 0 14px 3px ${c.dot}` : '0 4px 6px rgba(0,0,0,0.4)',
+                background: data.selected ? c.border : c.bg,
+                borderColor: data.selected ? c.text : c.border,
+                boxShadow: data.selected ? `0 0 14px 3px ${c.dot}` : '0 4px 6px rgba(0,0,0,0.4)',
                 color: c.text,
-                maxWidth: 220,
-                minWidth: 140,
-                opacity: data.dimmed ? 0.3 : 1,
+                opacity: data.dimmed ? 0.25 : 1,
                 transition: 'opacity 0.2s, box-shadow 0.2s',
             }}
         >
-            {/* Handles: 3 per side so parallel edges (same source-target pair,
-                e.g. DETECTED_VULNERABILITY + HAS_VULNERABILITY) can be assigned
-                to different handle IDs and visually separated by ReactFlow. */}
+            {/* One hidden target on the left, one hidden source on the right.
+                Orthogonal routing (see toFlowEdges) handles edge separation, so
+                multiple handles per side are no longer needed. */}
             <Handle
-                id="t0"
                 position={Position.Left}
                 style={{ opacity: 0 }}
-                type="target"
-            />
-            <Handle
-                id="t1"
-                position={Position.Left}
-                style={{ opacity: 0, top: '30%' }}
-                type="target"
-            />
-            <Handle
-                id="t2"
-                position={Position.Left}
-                style={{ opacity: 0, top: '70%' }}
                 type="target"
             />
             <div className="text-[10px] font-bold tracking-wider uppercase opacity-70">{data.type}</div>
             <div className="text-sm leading-tight font-semibold">{data.name || data.type}</div>
             {data.summary ? <div className="mt-1 line-clamp-2 text-xs opacity-60">{data.summary}</div> : null}
             <Handle
-                id="s0"
                 position={Position.Right}
                 style={{ opacity: 0 }}
-                type="source"
-            />
-            <Handle
-                id="s1"
-                position={Position.Right}
-                style={{ opacity: 0, top: '30%' }}
-                type="source"
-            />
-            <Handle
-                id="s2"
-                position={Position.Right}
-                style={{ opacity: 0, top: '70%' }}
                 type="source"
             />
         </div>
@@ -201,8 +161,6 @@ function primaryLabel(labels: string[]): string {
 
 const nodeTypes = { entityNode: EntityNode };
 
-// ─── Main component ──────────────────────────────────────────────────────
-
 export interface FlowGraphViewProps {
     // When true, a toggle offers the FULL (every entity) view next to the base
     // view. Used by the Action Chain tab; the other Analytics tabs are fixed.
@@ -210,6 +168,136 @@ export interface FlowGraphViewProps {
     flowId: string;
     pollInterval?: number;
     view: AttackGraphView;
+}
+
+interface Layout {
+    // uuid -> lane/position, used by the edge router.
+    positions: Map<string, NodePosition>;
+    // ReactFlow nodes, one per visible entity.
+    rfNodes: Node[];
+}
+
+interface NodePosition {
+    col: number;
+    x: number;
+    y: number;
+}
+
+// buildLayout assigns each visible entity a deterministic lane (column) and row
+// and returns the bare ReactFlow nodes. Entities whose label is in hiddenLabels
+// are dropped from the graph (legend filter).
+export function buildLayout(nodes: AttackGraphNodeFragmentFragment[], hiddenLabels: Set<string>): Layout {
+    const byColumn = new Map<number, AttackGraphNodeFragmentFragment[]>();
+
+    for (const n of nodes) {
+        if (hiddenLabels.has(primaryLabel(n.labels))) {
+            continue;
+        }
+
+        const col = columnForLabel(primaryLabel(n.labels));
+        const arr = byColumn.get(col) ?? [];
+        arr.push(n);
+        byColumn.set(col, arr);
+    }
+
+    const cols = [...byColumn.keys()].sort((a, b) => a - b);
+    const positions = new Map<string, NodePosition>();
+    const rfNodes: Node[] = [];
+
+    cols.forEach((col, colIdx) => {
+        byColumn.get(col)!.forEach((n, rowIdx) => {
+            const type = primaryLabel(n.labels);
+            const x = colIdx * COLUMN_WIDTH;
+            const y = TOP_PADDING + rowIdx * ROW_HEIGHT;
+
+            positions.set(n.uuid, { col: colIdx, x, y });
+            rfNodes.push({
+                data: {
+                    dimmed: false,
+                    label: n.name ? truncate(n.name, 40) : type,
+                    name: n.name ? truncate(n.name, 40) : type,
+                    selected: false,
+                    summary: n.summary ? truncate(n.summary, 80) : '',
+                    type,
+                    uuid: n.uuid,
+                } satisfies EntityNodeData,
+                id: n.uuid,
+                position: { x, y },
+                style: { width: NODE_WIDTH },
+                type: 'entityNode',
+            });
+        });
+    });
+
+    return { positions, rfNodes };
+}
+
+export function columnForLabel(label: string): number {
+    const col = labelColumnMap[label];
+
+    if (col !== undefined) {
+        return col;
+    }
+
+    // Unknown labels: append after the known columns, ordered alphabetically.
+    return maxMappedColumn + 1 + (label.charCodeAt(0) % 16);
+}
+
+// ─── Main component ──────────────────────────────────────────────────────
+
+// connectedToSelection walks the graph from the selected node up to the Host(s)
+// so the attack chain that led to it stays lit while its siblings dim. It stops
+// expanding at Host nodes (the chain root), so the Host's other children stay
+// dimmed instead of flooding the highlight.
+function connectedToSelection(
+    graph: { edges: AttackGraphEdgeFragmentFragment[]; nodes: AttackGraphNodeFragmentFragment[] },
+    selectedNodeId: string,
+): Set<string> {
+    const hostUUIDs = new Set<string>();
+
+    for (const n of graph.nodes) {
+        if (n.labels.includes('Host')) {
+            hostUUIDs.add(n.uuid);
+        }
+    }
+
+    const connected = new Set([selectedNodeId]);
+
+    if (hostUUIDs.has(selectedNodeId)) {
+        for (const e of graph.edges) {
+            if (e.sourceUUID === selectedNodeId) {
+                connected.add(e.targetUUID);
+            }
+
+            if (e.targetUUID === selectedNodeId) {
+                connected.add(e.sourceUUID);
+            }
+        }
+
+        return connected;
+    }
+
+    const queue = [selectedNodeId];
+
+    while (queue.length > 0) {
+        const current = queue.shift()!;
+
+        for (const e of graph.edges) {
+            const neighbor = e.sourceUUID === current ? e.targetUUID : e.targetUUID === current ? e.sourceUUID : null;
+
+            if (neighbor === null || connected.has(neighbor)) {
+                continue;
+            }
+
+            connected.add(neighbor);
+
+            if (!hostUUIDs.has(neighbor)) {
+                queue.push(neighbor);
+            }
+        }
+    }
+
+    return connected;
 }
 
 const viewTitles: Record<AttackGraphView, string> = {
@@ -238,6 +326,17 @@ const viewDescriptions: Record<AttackGraphView, string> = {
     [AttackGraphView.Privesc]: 'Credentials, validated accesses, accounts and privilege changes.',
 };
 
+// ─── Edge routing ────────────────────────────────────────────────────────
+interface FlowEdgeOptions {
+    hoveredEdgeId: null | string;
+    positions: Map<string, NodePosition>;
+    selectedNodeId: null | string;
+}
+
+// RoutedEdge widens the ReactFlow Edge type with the smoothstep path options
+// (centerX/borderRadius) used to pin the vertical run to a shared gutter.
+type RoutedEdge = Edge & { pathOptions?: { borderRadius: number; centerX?: number } };
+
 export function FlowGraphView({
     allowFullToggle = false,
     flowId,
@@ -248,6 +347,8 @@ export function FlowGraphView({
     const view = showFull ? AttackGraphView.Full : baseView;
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [selectedNodeId, setSelectedNodeId] = useState<null | string>(null);
+    const [hoveredEdgeId, setHoveredEdgeId] = useState<null | string>(null);
+    const [hiddenLabels, setHiddenLabels] = useState<Set<string>>(() => new Set());
 
     const { data, error, loading } = useQuery(FlowAttackGraphDocument, {
         fetchPolicy: 'cache-and-network',
@@ -259,74 +360,72 @@ export function FlowGraphView({
 
     const graph = data?.flowAttackGraph;
 
-    const rfNodes = useMemo(() => {
+    // Nodes to keep lit: an edge hover wins over a node selection.
+    const activeEndpoints = useMemo(() => {
         if (!graph) {
-            return [];
+            return null;
         }
 
-        // BFS to find nodes on the path from the selected node to the Host(s).
-        // The traversal stops when reaching a Host node (doesn't expand beyond
-        // it) so siblings of the Host (other Ports, VHosts, etc.) stay dimmed.
-        // This highlights the attack chain FROM the clicked node UP to the Host.
-        let connectedUUIDs: null | Set<string> = null;
+        if (hoveredEdgeId) {
+            const edge = graph.edges.find((e) => e.uuid === hoveredEdgeId);
+
+            if (edge) {
+                return new Set([edge.sourceUUID, edge.targetUUID]);
+            }
+        }
 
         if (selectedNodeId) {
-            // Build UUID -> isHost lookup from the graph nodes.
-            const hostUUIDs = new Set<string>();
+            return connectedToSelection(graph, selectedNodeId);
+        }
 
-            for (const n of graph.nodes) {
-                if (n.labels.includes('Host')) {
-                    hostUUIDs.add(n.uuid);
-                }
-            }
+        return null;
+    }, [graph, hoveredEdgeId, selectedNodeId]);
 
-            const isHost = (uuid: string) => hostUUIDs.has(uuid);
+    const dimmedUUIDs = useMemo(() => {
+        if (!graph || !activeEndpoints) {
+            return null;
+        }
 
-            connectedUUIDs = new Set([selectedNodeId]);
+        const dimmed = new Set<string>();
 
-            // If the selected node is a Host, only highlight depth-1 neighbors
-            // (its direct attack surface: ports, services, vhosts, etc.).
-            if (isHost(selectedNodeId)) {
-                for (const e of graph.edges) {
-                    if (e.sourceUUID === selectedNodeId) {
-                        connectedUUIDs.add(e.targetUUID);
-                    }
-
-                    if (e.targetUUID === selectedNodeId) {
-                        connectedUUIDs.add(e.sourceUUID);
-                    }
-                }
-            } else {
-                // BFS from the selected node, stopping at Host nodes.
-                const queue = [selectedNodeId];
-
-                while (queue.length > 0) {
-                    const current = queue.shift()!;
-
-                    for (const e of graph.edges) {
-                        const neighbor =
-                            e.sourceUUID === current ? e.targetUUID : e.targetUUID === current ? e.sourceUUID : null;
-
-                        if (neighbor === null || connectedUUIDs.has(neighbor)) {
-                            continue;
-                        }
-
-                        connectedUUIDs.add(neighbor);
-
-                        // Don't expand from Host nodes — they are the root
-                        // of the chain. This prevents highlighting all the
-                        // Host's siblings (other ports, vhosts, etc.).
-                        if (!isHost(neighbor)) {
-                            queue.push(neighbor);
-                        }
-                    }
-                }
+        for (const n of graph.nodes) {
+            if (!activeEndpoints.has(n.uuid)) {
+                dimmed.add(n.uuid);
             }
         }
 
-        return layoutNodes(graph.nodes, selectedNodeId, connectedUUIDs);
-    }, [graph, selectedNodeId]);
-    const rfEdges = useMemo(() => (graph ? toFlowEdges(graph.edges, selectedNodeId) : []), [graph, selectedNodeId]);
+        return dimmed;
+    }, [graph, activeEndpoints]);
+
+    const layout = useMemo(
+        () => (graph ? buildLayout(graph.nodes, hiddenLabels) : { positions: new Map(), rfNodes: [] }),
+        [graph, hiddenLabels],
+    );
+
+    const rfNodes = useMemo(
+        () =>
+            layout.rfNodes.map((node) => ({
+                ...node,
+                data: {
+                    ...node.data,
+                    dimmed: dimmedUUIDs ? !dimmedUUIDs.has(node.id) : false,
+                    selected: node.id === selectedNodeId,
+                },
+            })),
+        [layout, dimmedUUIDs, selectedNodeId],
+    );
+
+    const rfEdges = useMemo(
+        () =>
+            graph
+                ? toFlowEdges(graph.edges, {
+                      hoveredEdgeId,
+                      positions: layout.positions,
+                      selectedNodeId,
+                  })
+                : [],
+        [graph, layout.positions, hoveredEdgeId, selectedNodeId],
+    );
 
     const hasNodes = (graph?.nodes?.length ?? 0) > 0;
 
@@ -340,16 +439,68 @@ export function FlowGraphView({
         return graph.nodes.find((n) => n.uuid === selectedNodeId) ?? null;
     }, [selectedNodeId, graph]);
 
+    const hovered = useMemo(() => {
+        if (!graph || !hoveredEdgeId) {
+            return null;
+        }
+
+        const edge = graph.edges.find((e) => e.uuid === hoveredEdgeId);
+
+        if (!edge) {
+            return null;
+        }
+
+        return {
+            edge,
+            source: graph.nodes.find((n) => n.uuid === edge.sourceUUID) ?? null,
+            target: graph.nodes.find((n) => n.uuid === edge.targetUUID) ?? null,
+        };
+    }, [graph, hoveredEdgeId]);
+
     const presentLabels = useMemo(() => {
         if (!graph) {
             return [];
         }
 
-        return [...new Set(graph.nodes.map((n) => primaryLabel(n.labels)))];
+        const labels = [...new Set(graph.nodes.map((n) => primaryLabel(n.labels)))];
+
+        // Sort by their column index so the legend matches the graph layout.
+        return labels.sort((a, b) => {
+            const colA = labelColumnMap[a] ?? maxMappedColumn + 1;
+            const colB = labelColumnMap[b] ?? maxMappedColumn + 1;
+
+            if (colA !== colB) {
+                return colA - colB;
+            }
+
+            return a.localeCompare(b);
+        });
     }, [graph]);
 
     const handleNodeClick: NodeMouseHandler = useCallback((_, node) => {
         setSelectedNodeId(node.id);
+    }, []);
+
+    const handleEdgeEnter: EdgeMouseHandler = useCallback((_, edge) => {
+        setHoveredEdgeId(edge.id);
+    }, []);
+
+    const handleEdgeLeave: EdgeMouseHandler = useCallback(() => {
+        setHoveredEdgeId(null);
+    }, []);
+
+    const handleToggleLabel = useCallback((label: string) => {
+        setHiddenLabels((previous) => {
+            const next = new Set(previous);
+
+            if (next.has(label)) {
+                next.delete(label);
+            } else {
+                next.add(label);
+            }
+
+            return next;
+        });
     }, []);
 
     const flowElement = (
@@ -357,13 +508,15 @@ export function FlowGraphView({
             colorMode="dark"
             edges={rfEdges}
             fitView
-            // key forces a fresh fitView when the view (MAIN/FULL) changes.
+            // key forces a fresh fitView when the view or fullscreen changes.
             key={`${view}-${isFullscreen}`}
             minZoom={0.05}
             nodes={rfNodes}
             nodesConnectable={false}
             nodesDraggable={view === AttackGraphView.Full}
             nodeTypes={nodeTypes}
+            onEdgeMouseEnter={handleEdgeEnter}
+            onEdgeMouseLeave={handleEdgeLeave}
             onNodeClick={handleNodeClick}
             proOptions={{ hideAttribution: true }}
         >
@@ -379,10 +532,21 @@ export function FlowGraphView({
         </ReactFlow>
     );
 
+    const canvas = (extraClassName: string) => (
+        <div className={cn('relative w-full overflow-hidden rounded-lg bg-black', extraClassName)}>
+            {flowElement}
+            <EdgeHoverCard hovered={hovered} />
+        </div>
+    );
+
     const graphContainer = (
         <>
-            <GraphLegend labels={presentLabels} />
-            <div className="h-[420px] w-full overflow-hidden rounded-lg bg-black">{flowElement}</div>
+            <GraphLegend
+                hidden={hiddenLabels}
+                labels={presentLabels}
+                onToggle={handleToggleLabel}
+            />
+            {canvas('h-[420px]')}
             <div className="mt-2">
                 <NodeDetailPanel node={selectedNode} />
             </div>
@@ -391,8 +555,12 @@ export function FlowGraphView({
 
     const fullscreenContainer = (
         <div className="flex h-[calc(95vh-3.5rem)] flex-col gap-2 px-4 pb-3">
-            <GraphLegend labels={presentLabels} />
-            <div className="min-h-0 flex-1 overflow-hidden rounded-lg bg-black">{flowElement}</div>
+            <GraphLegend
+                hidden={hiddenLabels}
+                labels={presentLabels}
+                onToggle={handleToggleLabel}
+            />
+            {canvas('min-h-0 flex-1')}
             <NodeDetailPanel node={selectedNode} />
         </div>
     );
@@ -530,40 +698,163 @@ export function FlowGraphView({
     );
 }
 
-// ─── Legend ──────────────────────────────────────────────────────────────
-function GraphLegend({ labels }: { labels: string[] }) {
-    // Sort labels by their column index so the legend matches the graph layout.
-    const all = [...labels].sort((a, b) => {
-        const colA = labelColumnMap[a] ?? maxMappedColumn + 1;
-        const colB = labelColumnMap[b] ?? maxMappedColumn + 1;
+// toFlowEdges routes every edge as an orthogonal (smoothstep) path whose
+// vertical run sits in the gutter right after the source column. Edges leaving
+// the same column therefore share a single trunk line (their vertical segments
+// overlap and read as one line, git-tree style) and branch out into their
+// targets. Because the vertical run stays in the inter-column gutter, edges
+// never cross a node box. Edges whose endpoint was filtered out are dropped.
+export function toFlowEdges(edges: AttackGraphEdgeFragmentFragment[], options: FlowEdgeOptions): Edge[] {
+    const { hoveredEdgeId, positions, selectedNodeId } = options;
 
-        if (colA !== colB) {
-            return colA - colB;
+    // Nudge truly parallel edges (same source -> same target) apart so their
+    // labels do not stack. Edges to different targets keep the shared trunk.
+    const pairCounter = new Map<string, number>();
+    const out: RoutedEdge[] = [];
+
+    for (const e of edges) {
+        const src = positions.get(e.sourceUUID);
+        const tgt = positions.get(e.targetUUID);
+
+        if (!src || !tgt) {
+            continue;
         }
 
-        return a.localeCompare(b);
-    });
+        const isAttack = isAttackEdge(e.type);
+        const isActive =
+            hoveredEdgeId !== null
+                ? e.uuid === hoveredEdgeId
+                : selectedNodeId !== null && (e.sourceUUID === selectedNodeId || e.targetUUID === selectedNodeId);
+        const dimmed =
+            (hoveredEdgeId !== null && e.uuid !== hoveredEdgeId) ||
+            (hoveredEdgeId === null && selectedNodeId !== null && !isActive);
 
-    if (all.length === 0) {
+        const edgeColor = dimmed ? '#374151' : isAttack ? '#f97316' : '#9ca3af';
+        const thick = isActive && (hoveredEdgeId !== null || selectedNodeId !== null);
+
+        const key = `${e.sourceUUID}->${e.targetUUID}`;
+        const idx = pairCounter.get(key) ?? 0;
+        pairCounter.set(key, idx + 1);
+
+        let pathOptions: { borderRadius: number; centerX?: number } = { borderRadius: 8 };
+
+        if (tgt.col > src.col) {
+            const gutter = src.x + NODE_WIDTH + (COLUMN_WIDTH - NODE_WIDTH) / 2;
+            pathOptions = { borderRadius: 8, centerX: gutter + idx * 14 };
+        }
+
+        out.push({
+            animated: isAttack && isActive,
+            id: e.uuid,
+            label: e.type,
+            labelBgBorderRadius: 4,
+            labelBgPadding: [6, 3] as [number, number],
+            labelBgStyle: { fill: '#151523', stroke: '#2a2a40', strokeWidth: 1 },
+            labelShowBg: true,
+            labelStyle: {
+                fill: dimmed ? '#4b5563' : '#c4c4d4',
+                fontSize: 10,
+                fontWeight: 600,
+            },
+            markerEnd: {
+                color: edgeColor,
+                height: 18,
+                type: MarkerType.ArrowClosed,
+                width: 18,
+            },
+            pathOptions,
+            source: e.sourceUUID,
+            style: {
+                opacity: dimmed ? 0.15 : 1,
+                stroke: edgeColor,
+                strokeWidth: thick ? (isAttack ? 3 : 2.5) : isAttack ? 2 : 1.5,
+            },
+            target: e.targetUUID,
+            type: 'smoothstep',
+        });
+    }
+
+    return out;
+}
+
+// ─── Edge hover detail ────────────────────────────────────────────────────
+function EdgeHoverCard({
+    hovered,
+}: {
+    hovered: null | {
+        edge: AttackGraphEdgeFragmentFragment;
+        source: AttackGraphNodeFragmentFragment | null;
+        target: AttackGraphNodeFragmentFragment | null;
+    };
+}) {
+    if (!hovered) {
+        return null;
+    }
+
+    const { edge, source, target } = hovered;
+    const sourceType = source ? primaryLabel(source.labels) : 'Entity';
+    const c = colorForLabel(sourceType);
+    const sourceName = source?.name || sourceType;
+    const targetName = target?.name || (target ? primaryLabel(target.labels) : 'Entity');
+
+    return (
+        <div
+            className="pointer-events-none absolute top-3 left-3 z-10 max-w-sm rounded-lg border-2 px-3 py-2 shadow-lg"
+            style={{ background: '#0b0b14ee', borderColor: c.border, color: c.text }}
+        >
+            <div className="flex items-center gap-2 text-xs">
+                <span
+                    className="inline-block size-2.5 rounded-full"
+                    style={{ background: c.dot }}
+                />
+                <span className="font-bold tracking-wider uppercase opacity-70">{sourceType}</span>
+                <span className="truncate font-semibold text-gray-200">{sourceName}</span>
+            </div>
+            <div className="mt-1 text-xs text-gray-400">
+                <span className="font-semibold text-gray-200">{edge.type}</span> → {targetName}
+            </div>
+            {edge.fact ? <div className="mt-1 line-clamp-3 text-xs text-gray-400 italic">{edge.fact}</div> : null}
+        </div>
+    );
+}
+
+// ─── Legend (clickable type filter) ───────────────────────────────────────
+function GraphLegend({
+    hidden,
+    labels,
+    onToggle,
+}: {
+    hidden: Set<string>;
+    labels: string[];
+    onToggle: (label: string) => void;
+}) {
+    if (labels.length === 0) {
         return null;
     }
 
     return (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-1 pb-2">
-            {all.map((label) => {
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 px-1 pb-2">
+            {labels.map((label) => {
                 const c = colorForLabel(label);
+                const isHidden = hidden.has(label);
 
                 return (
-                    <div
-                        className="flex items-center gap-1.5"
+                    <button
+                        className={cn(
+                            'flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs transition-opacity',
+                            isHidden ? 'border-transparent opacity-40' : 'border-white/10',
+                        )}
                         key={label}
+                        onClick={() => onToggle(label)}
+                        style={{ background: isHidden ? 'transparent' : c.bg }}
+                        type="button"
                     >
                         <span
-                            className="inline-block size-3 rounded-full border"
+                            className="inline-block size-2.5 rounded-full border"
                             style={{ background: c.dot, borderColor: c.border }}
                         />
-                        <span className="text-xs font-medium text-gray-300">{label}</span>
-                    </div>
+                        <span className="font-medium text-gray-300">{label}</span>
+                    </button>
                 );
             })}
         </div>
@@ -582,58 +873,6 @@ function isAttackEdge(type: string): boolean {
         type === 'PIVOTED_TO' ||
         type === 'BELONGS_TO_ACCOUNT'
     );
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────
-
-// layoutNodes assigns a deterministic column/row position per node and wraps
-// each entity in a custom entityNode with full display data.
-function layoutNodes(
-    nodes: AttackGraphNodeFragmentFragment[],
-    selectedNodeId: null | string = null,
-    connectedUUIDs: null | Set<string> = null,
-): Node[] {
-    const byColumn = new Map<number, AttackGraphNodeFragmentFragment[]>();
-
-    for (const n of nodes) {
-        const col = columnForLabel(primaryLabel(n.labels));
-        const arr = byColumn.get(col) ?? [];
-        arr.push(n);
-        byColumn.set(col, arr);
-    }
-
-    const cols = [...byColumn.keys()].sort((a, b) => a - b);
-
-    const out: Node[] = [];
-    cols.forEach((col, colIdx) => {
-        const items = byColumn.get(col)!;
-        items.forEach((n, rowIdx) => {
-            const type = primaryLabel(n.labels);
-            const summary = n.summary ? truncate(n.summary, 80) : '';
-            const name = n.name ? truncate(n.name, 40) : type;
-            out.push({
-                data: {
-                    createdAt: n.createdAt,
-                    dimmed: selectedNodeId !== null && (connectedUUIDs === null || !connectedUUIDs.has(n.uuid)),
-                    label: name,
-                    labels: n.labels,
-                    name,
-                    selected: n.uuid === selectedNodeId,
-                    summary,
-                    type,
-                    uuid: n.uuid,
-                } satisfies EntityNodeData,
-                id: n.uuid,
-                position: {
-                    x: colIdx * COLUMN_WIDTH,
-                    y: TOP_PADDING + rowIdx * ROW_HEIGHT,
-                },
-                type: 'entityNode',
-            });
-        });
-    });
-
-    return out;
 }
 
 // ─── Detail panel ────────────────────────────────────────────────────────
@@ -670,69 +909,6 @@ function NodeDetailPanel({ node }: { node: AttackGraphNodeFragmentFragment | nul
             </div>
         </div>
     );
-}
-
-function toFlowEdges(edges: AttackGraphEdgeFragmentFragment[], selectedNodeId: null | string = null): Edge[] {
-    // Detect parallel edges (same source-target pair) and assign an index
-    // to each so they can be routed to different handles and visually
-    // separated instead of overlapping.
-    const pairIndex = new Map<string, number>();
-
-    for (const e of edges) {
-        const key = `${e.sourceUUID}->${e.targetUUID}`;
-        pairIndex.set(key, (pairIndex.get(key) ?? 0) + 1);
-    }
-
-    // Track the current index per pair as we iterate.
-    const pairCounter = new Map<string, number>();
-
-    return edges.map((e) => {
-        const isAttack = isAttackEdge(e.type);
-        const isConnected =
-            selectedNodeId === null || e.sourceUUID === selectedNodeId || e.targetUUID === selectedNodeId;
-        const baseColor = isAttack ? '#f97316' : '#9ca3af';
-        const edgeColor = selectedNodeId !== null && !isConnected ? '#374151' : baseColor;
-
-        // Assign handle IDs based on the parallel edge index so ReactFlow
-        // routes parallel edges to different positions on the node.
-        const key = `${e.sourceUUID}->${e.targetUUID}`;
-        const parallelCount = pairIndex.get(key) ?? 1;
-        const idx = pairCounter.get(key) ?? 0;
-
-        pairCounter.set(key, idx + 1);
-
-        const handleIdx = parallelCount > 1 ? idx % 3 : -1;
-
-        return {
-            animated: isAttack && isConnected,
-            id: e.uuid,
-            label: e.type,
-            labelBgBorderRadius: 4,
-            labelBgPadding: [6, 3] as [number, number],
-            labelBgStyle: { fill: '#151523', stroke: '#2a2a40', strokeWidth: 1 },
-            labelShowBg: true,
-            labelStyle: {
-                fill: selectedNodeId !== null && !isConnected ? '#4b5563' : '#c4c4d4',
-                fontSize: 10,
-                fontWeight: 600,
-            },
-            markerEnd: {
-                color: edgeColor,
-                height: 18,
-                type: MarkerType.ArrowClosed,
-                width: 18,
-            },
-            source: e.sourceUUID,
-            sourceHandle: handleIdx >= 0 ? `s${handleIdx}` : undefined,
-            style: {
-                opacity: selectedNodeId !== null && !isConnected ? 0.2 : 1,
-                stroke: edgeColor,
-                strokeWidth: isConnected && selectedNodeId !== null ? (isAttack ? 3 : 2.5) : isAttack ? 2 : 1.5,
-            },
-            target: e.targetUUID,
-            targetHandle: handleIdx >= 0 ? `t${handleIdx}` : undefined,
-        };
-    });
 }
 
 function truncate(s: string, n: number): string {
