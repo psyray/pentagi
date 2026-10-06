@@ -98,6 +98,14 @@ interface EntityNodeData {
     uuid: string;
 }
 
+// BoundaryNode is an invisible 1x1 node placed at the corners of the content
+// box (including the routing buses, which lie outside the node bounding box).
+// ReactFlow's fitView only measures nodes, so these markers pull the buses into
+// the fitted viewport.
+function BoundaryNode() {
+    return <span style={{ display: 'none' }} />;
+}
+
 function EntityNode({ data }: { data: EntityNodeData }) {
     const c = colorForLabel(data.type);
 
@@ -134,7 +142,7 @@ function EntityNode({ data }: { data: EntityNodeData }) {
     );
 }
 
-const nodeTypes = { entityNode: EntityNode };
+const nodeTypes = { boundary: BoundaryNode, entityNode: EntityNode };
 const edgeTypes = { routed: RoutedEdge };
 
 export interface FlowGraphViewProps {
@@ -498,6 +506,50 @@ export function FlowGraphView({
         [layout, dimmedUUIDs, selectedNodeId],
     );
 
+    // Invisible corner markers so fitView includes the routing buses, which lie
+    // above/below the node bounding box and would otherwise be cropped.
+    const boundaryNodes = useMemo<Node[]>(() => {
+        if (layout.positions.size === 0 || layout.rfNodes.length === 0) {
+            return [];
+        }
+
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        let minX = Infinity;
+        let minY = Infinity;
+
+        for (const p of layout.positions.values()) {
+            minX = Math.min(minX, p.x);
+            maxX = Math.max(maxX, p.x + NODE_WIDTH);
+            minY = Math.min(minY, p.y);
+            maxY = Math.max(maxY, p.y + NODE_HEIGHT_ESTIMATE);
+        }
+
+        minY = Math.min(minY, layout.route.busTopY);
+        maxY = Math.max(maxY, layout.route.busBottomY);
+
+        return [
+            {
+                data: {},
+                draggable: false,
+                id: '__boundary-top-left',
+                position: { x: minX, y: minY },
+                selectable: false,
+                style: { height: 1, width: 1 },
+                type: 'boundary',
+            },
+            {
+                data: {},
+                draggable: false,
+                id: '__boundary-bottom-right',
+                position: { x: maxX, y: maxY },
+                selectable: false,
+                style: { height: 1, width: 1 },
+                type: 'boundary',
+            },
+        ];
+    }, [layout]);
+
     const rfEdges = useMemo(
         () =>
             graph
@@ -749,16 +801,19 @@ export function FlowGraphView({
         </div>
     ) : null;
 
+    const allNodes = useMemo(() => [...rfNodes, ...boundaryNodes], [rfNodes, boundaryNodes]);
+
     const flowElement = (
         <ReactFlow
             colorMode="dark"
             edges={rfEdges}
             edgeTypes={edgeTypes}
             fitView
+            fitViewOptions={{ padding: 0.08 }}
             // key forces a fresh fitView when the view or fullscreen changes.
             key={`${view}-${isFullscreen}`}
             minZoom={0.05}
-            nodes={rfNodes}
+            nodes={allNodes}
             nodesConnectable={false}
             nodesDraggable={view === AttackGraphView.Full}
             nodeTypes={nodeTypes}
@@ -1066,7 +1121,7 @@ function EdgeHoverCard({
 
     return (
         <div
-            className="pointer-events-none absolute top-3 left-3 z-10 max-w-sm rounded-lg border-2 px-3 py-2 shadow-lg"
+            className="pointer-events-none absolute bottom-3 left-3 z-10 max-w-sm rounded-lg border-2 px-3 py-2 shadow-lg"
             style={{ background: '#0b0b14ee', borderColor: c.border, color: c.text }}
         >
             <div className="flex items-center gap-2 text-xs">
