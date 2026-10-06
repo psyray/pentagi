@@ -2,9 +2,13 @@ import { useQuery } from '@apollo/client/react';
 import {
     Background,
     BackgroundVariant,
+    BaseEdge,
     Controls,
     type Edge,
+    EdgeLabelRenderer,
     type EdgeMouseHandler,
+    type EdgeProps,
+    getBezierPath,
     Handle,
     MarkerType,
     type Node,
@@ -66,6 +70,11 @@ const COLUMN_WIDTH = 340;
 const NODE_WIDTH = 220;
 const ROW_HEIGHT = 110;
 const TOP_PADDING = 60;
+// Width of the empty lane between two adjacent columns, and a rough node height
+// used to place the top/bottom routing buses around the whole graph.
+const GUTTER_GAP = COLUMN_WIDTH - NODE_WIDTH;
+const NODE_HEIGHT_ESTIMATE = 84;
+const BUS_MARGIN = 50;
 
 // ─── Custom node component ───────────────────────────────────────────────
 interface EntityNodeData {
@@ -115,6 +124,7 @@ function EntityNode({ data }: { data: EntityNodeData }) {
 }
 
 const nodeTypes = { entityNode: EntityNode };
+const edgeTypes = { routed: RoutedEdge };
 
 export interface FlowGraphViewProps {
     // When true, a toggle offers the FULL (every entity) view next to the base
@@ -130,6 +140,8 @@ interface Layout {
     positions: Map<string, NodePosition>;
     // ReactFlow nodes, one per visible entity.
     rfNodes: Node[];
+    // Vertical extent of the graph, used to route long edges on a top/bottom bus.
+    route: RouteGeometry;
 }
 
 interface NodePosition {
@@ -137,6 +149,18 @@ interface NodePosition {
     x: number;
     y: number;
 }
+
+interface RouteGeometry {
+    busBottomY: number;
+    busTopY: number;
+    centerY: number;
+}
+
+const emptyLayout: Layout = {
+    positions: new Map(),
+    rfNodes: [],
+    route: { busBottomY: 0, busTopY: 0, centerY: 0 },
+};
 
 // buildLayout assigns each visible entity a deterministic lane (column) and row
 // and returns the bare ReactFlow nodes. Entities whose label is in hiddenLabels
@@ -172,9 +196,13 @@ export function buildLayout(
     const cols = [...byColumn.keys()].sort((a, b) => a - b);
     const positions = new Map<string, NodePosition>();
     const rfNodes: Node[] = [];
+    let maxRows = 1;
 
     cols.forEach((col, colIdx) => {
-        byColumn.get(col)!.forEach((n, rowIdx) => {
+        const items = byColumn.get(col)!;
+
+        maxRows = Math.max(maxRows, items.length);
+        items.forEach((n, rowIdx) => {
             const type = primaryLabel(n.labels);
             const x = colIdx * COLUMN_WIDTH;
             const y = TOP_PADDING + rowIdx * ROW_HEIGHT;
@@ -198,7 +226,15 @@ export function buildLayout(
         });
     });
 
-    return { positions, rfNodes };
+    // Graph vertical span, so long edges can be routed above or below every node.
+    const minY = TOP_PADDING;
+    const maxY = TOP_PADDING + (maxRows - 1) * ROW_HEIGHT + NODE_HEIGHT_ESTIMATE;
+
+    return {
+        positions,
+        rfNodes,
+        route: { busBottomY: maxY + BUS_MARGIN, busTopY: minY - BUS_MARGIN, centerY: (minY + maxY) / 2 },
+    };
 }
 
 export function columnForLabel(label: string): number {
@@ -295,16 +331,29 @@ const viewDescriptions: Record<AttackGraphView, string> = {
     [AttackGraphView.Privesc]: 'Credentials, validated accesses, accounts and privilege changes.',
 };
 
+// EdgeRoute describes how to draw one edge: a single gutter (adjacent columns),
+// a top/bottom bus (columns far apart, or a backward edge) or a plain bezier
+// fallback. gA is the gutter right after the source column, gB the gutter just
+// before the target column; busY is the shared bus line used by the bus kind.
+interface EdgeRoute {
+    busY: number;
+    gA: number;
+    gB: number;
+    kind: 'bezier' | 'bus' | 'gutter';
+}
+
+interface EdgeRouteData {
+    [key: string]: unknown;
+    route: EdgeRoute;
+}
+
 // ─── Edge routing ────────────────────────────────────────────────────────
 interface FlowEdgeOptions {
     hoveredEdgeId: null | string;
     positions: Map<string, NodePosition>;
+    route: RouteGeometry;
     selectedNodeId: null | string;
 }
-
-// RoutedEdge widens the ReactFlow Edge type with the smoothstep path options
-// (centerX/borderRadius) used to pin the vertical run to a shared gutter.
-type RoutedEdge = Edge & { pathOptions?: { borderRadius: number; centerX?: number } };
 
 export function FlowGraphView({
     allowFullToggle = false,
@@ -407,7 +456,7 @@ export function FlowGraphView({
         revealActive && timeDomain ? timeDomain.min + revealFrac * (timeDomain.max - timeDomain.min) : null;
 
     const layout = useMemo(
-        () => (graph ? buildLayout(graph.nodes, hiddenLabels, revealedBefore) : { positions: new Map(), rfNodes: [] }),
+        () => (graph ? buildLayout(graph.nodes, hiddenLabels, revealedBefore) : emptyLayout),
         [graph, hiddenLabels, revealedBefore],
     );
 
@@ -430,10 +479,11 @@ export function FlowGraphView({
                 ? toFlowEdges(graph.edges, {
                       hoveredEdgeId,
                       positions: layout.positions,
+                      route: layout.route,
                       selectedNodeId,
                   })
                 : [],
-        [graph, layout.positions, hoveredEdgeId, selectedNodeId],
+        [graph, layout.positions, layout.route, hoveredEdgeId, selectedNodeId],
     );
 
     const hasNodes = (graph?.nodes?.length ?? 0) > 0;
@@ -612,6 +662,7 @@ export function FlowGraphView({
         <ReactFlow
             colorMode="dark"
             edges={rfEdges}
+            edgeTypes={edgeTypes}
             fitView
             // key forces a fresh fitView when the view or fullscreen changes.
             key={`${view}-${isFullscreen}`}
@@ -822,12 +873,12 @@ export function FlowGraphView({
 // targets. Because the vertical run stays in the inter-column gutter, edges
 // never cross a node box. Edges whose endpoint was filtered out are dropped.
 export function toFlowEdges(edges: AttackGraphEdgeFragmentFragment[], options: FlowEdgeOptions): Edge[] {
-    const { hoveredEdgeId, positions, selectedNodeId } = options;
+    const { hoveredEdgeId, positions, route, selectedNodeId } = options;
 
     // Nudge truly parallel edges (same source -> same target) apart so their
     // labels do not stack. Edges to different targets keep the shared trunk.
     const pairCounter = new Map<string, number>();
-    const out: RoutedEdge[] = [];
+    const out: Edge[] = [];
 
     for (const e of edges) {
         const src = positions.get(e.sourceUUID);
@@ -853,15 +904,24 @@ export function toFlowEdges(edges: AttackGraphEdgeFragmentFragment[], options: F
         const idx = pairCounter.get(key) ?? 0;
         pairCounter.set(key, idx + 1);
 
-        let pathOptions: { borderRadius: number; centerX?: number } = { borderRadius: 8 };
+        // Orthogonal routing. Edges between adjacent columns run on the single
+        // gutter that separates them (they share a trunk, git-tree style);
+        // multi-column jumps and backward edges are routed on a top/bottom bus
+        // so the long horizontal run travels above or below every node and
+        // never crosses a block.
+        const gA = src.x + NODE_WIDTH + GUTTER_GAP / 2;
+        const gB = tgt.x - GUTTER_GAP / 2;
+        const adjacent = Math.abs(gA - gB) < 1;
+        const centerY = (src.y + tgt.y) / 2 + NODE_HEIGHT_ESTIMATE / 2;
+        const busY = centerY < route.centerY ? route.busTopY : route.busBottomY;
+        const offset = idx * 12;
 
-        if (tgt.col > src.col) {
-            const gutter = src.x + NODE_WIDTH + (COLUMN_WIDTH - NODE_WIDTH) / 2;
-            pathOptions = { borderRadius: 8, centerX: gutter + idx * 14 };
-        }
+        const edgeRoute: EdgeRoute = adjacent
+            ? { busY, gA: gA + offset, gB: gB + offset, kind: 'gutter' }
+            : { busY: busY + offset, gA: gA + offset, gB: gB + offset, kind: 'bus' };
 
         out.push({
-            animated: isAttack && isActive,
+            data: { route: edgeRoute } satisfies EdgeRouteData,
             id: e.uuid,
             label: e.type,
             labelBgBorderRadius: 4,
@@ -879,7 +939,6 @@ export function toFlowEdges(edges: AttackGraphEdgeFragmentFragment[], options: F
                 type: MarkerType.ArrowClosed,
                 width: 18,
             },
-            pathOptions,
             source: e.sourceUUID,
             style: {
                 opacity: dimmed ? 0.15 : 1,
@@ -887,7 +946,7 @@ export function toFlowEdges(edges: AttackGraphEdgeFragmentFragment[], options: F
                 strokeWidth: thick ? (isAttack ? 3 : 2.5) : isAttack ? 2 : 1.5,
             },
             target: e.targetUUID,
-            type: 'smoothstep',
+            type: 'routed',
         });
     }
 
@@ -1007,6 +1066,128 @@ function isAttackEdge(type: string): boolean {
         type === 'PIVOTED_TO' ||
         type === 'BELONGS_TO_ACCOUNT'
     );
+}
+
+// roundedPath builds an SVG path through the points, rounding each corner by up
+// to `radius` (clamped to half of the shorter adjacent segment).
+function roundedPath(points: [number, number][], radius = 8): string {
+    if (points.length < 2) {
+        return '';
+    }
+
+    const [startX, startY] = points[0]!;
+
+    let d = `M ${startX},${startY}`;
+
+    for (let i = 1; i < points.length - 1; i++) {
+        const [px, py] = points[i - 1]!;
+        const [cx, cy] = points[i]!;
+        const [nx, ny] = points[i + 1]!;
+        const inLen = Math.hypot(cx - px, cy - py);
+        const outLen = Math.hypot(nx - cx, ny - cy);
+        const r = Math.min(radius, inLen / 2, outLen / 2);
+        const inX = inLen === 0 ? 0 : (cx - px) / inLen;
+        const inY = inLen === 0 ? 0 : (cy - py) / inLen;
+        const outX = outLen === 0 ? 0 : (nx - cx) / outLen;
+        const outY = outLen === 0 ? 0 : (ny - cy) / outLen;
+
+        d += ` L ${cx - inX * r},${cy - inY * r} Q ${cx},${cy} ${cx + outX * r},${cy + outY * r}`;
+    }
+
+    const [lx, ly] = points[points.length - 1]!;
+
+    return `${d} L ${lx},${ly}`;
+}
+
+// ─── Custom edge component ───────────────────────────────────────────────
+// RoutedEdge draws the orthogonal path computed by toFlowEdges (single gutter
+// or top/bottom bus) and renders the relation label near the target entry.
+function RoutedEdge({
+    data,
+    id,
+    label,
+    labelBgBorderRadius,
+    labelBgStyle,
+    labelStyle,
+    markerEnd,
+    sourceX,
+    sourceY,
+    style,
+    targetX,
+    targetY,
+}: EdgeProps) {
+    const route = (data as EdgeRouteData | undefined)?.route;
+    const { labelX, labelY, path } = useMemo(
+        () => routePath(route, sourceX, sourceY, targetX, targetY),
+        [route, sourceX, sourceY, targetX, targetY],
+    );
+
+    return (
+        <>
+            <BaseEdge
+                id={id}
+                markerEnd={markerEnd}
+                path={path}
+                style={style}
+            />
+            {label ? (
+                <EdgeLabelRenderer>
+                    <div
+                        className="nodrag nopan pointer-events-none absolute text-[10px] font-semibold"
+                        style={{
+                            background: (labelBgStyle?.fill as string | undefined) ?? '#151523',
+                            border: `1px solid ${(labelBgStyle?.stroke as string | undefined) ?? '#2a2a40'}`,
+                            borderRadius: labelBgBorderRadius ?? 4,
+                            color: (labelStyle?.fill as string | undefined) ?? '#c4c4d4',
+                            padding: '2px 6px',
+                            transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+                        }}
+                    >
+                        {label}
+                    </div>
+                </EdgeLabelRenderer>
+            ) : null}
+        </>
+    );
+}
+
+function routePath(
+    route: EdgeRoute | undefined,
+    sourceX: number,
+    sourceY: number,
+    targetX: number,
+    targetY: number,
+): { labelX: number; labelY: number; path: string } {
+    if (!route || route.kind === 'bezier') {
+        const [path, labelX, labelY] = getBezierPath({ sourceX, sourceY, targetX, targetY });
+
+        return { labelX, labelY, path };
+    }
+
+    const points: [number, number][] =
+        route.kind === 'gutter'
+            ? [
+                  [sourceX, sourceY],
+                  [route.gA, sourceY],
+                  [route.gA, targetY],
+                  [targetX, targetY],
+              ]
+            : [
+                  [sourceX, sourceY],
+                  [route.gA, sourceY],
+                  [route.gA, route.busY],
+                  [route.gB, route.busY],
+                  [route.gB, targetY],
+                  [targetX, targetY],
+              ];
+
+    const penultimate = points[points.length - 2]!;
+
+    return {
+        labelX: (penultimate[0] + targetX) / 2,
+        labelY: targetY,
+        path: roundedPath(points),
+    };
 }
 
 function truncate(s: string, n: number): string {
