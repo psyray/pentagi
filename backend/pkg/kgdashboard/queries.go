@@ -325,14 +325,18 @@ ORDER BY executions DESC
 
 // ─── Artifacts ──────────────────────────────────────────────────────────
 
-// artifactsQuery returns one row per Artifact produced by an Episodic source.
-// Flow-level (not host-centric), so no target-host filter.
+// artifactsQuery returns one row per Artifact produced during the flow. Graphiti
+// links an artifact to its producer through PRODUCED / RESULTED_IN /
+// EXTRACTED_FROM from a non-Episodic entity (Attempt, Artifact, Evidence), never
+// from the Episodic episode node itself, so the producer is resolved from any of
+// those edges (and left empty when there is none).
 const artifactsQuery = `
-MATCH (a:Artifact)<-[:PRODUCED]-(e:Episodic)
-WHERE a.group_id = $group_id
+MATCH (a:Artifact) WHERE a.group_id = $group_id
+OPTIONAL MATCH (a)<-[:PRODUCED|RESULTED_IN|EXTRACTED_FROM]-(src)
+WITH a, head([x IN collect(DISTINCT src.name) WHERE x IS NOT NULL]) AS producedBy
 RETURN coalesce(a.name, a.summary) AS artifact,
-       coalesce(e.source_description, e.name) AS producedBy,
-       a.summary AS summary
-ORDER BY a.created_at DESC
+       coalesce(producedBy, '') AS producedBy,
+       coalesce(a.summary, '') AS summary
+ORDER BY coalesce(a.created_at, a.valid_at) DESC
 LIMIT $limit
 `
