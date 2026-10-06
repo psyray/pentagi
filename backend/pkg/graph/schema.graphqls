@@ -353,6 +353,23 @@ type MessageLog {
   createdAt: Time!
 }
 
+# One agent run (planner or worker) inside a task or subtask, with its usage.
+type Msgchain {
+  id: ID!
+  type: AgentType!
+  model: String!
+  modelProvider: String!
+  usageIn: Int!
+  usageOut: Int!
+  usageCacheIn: Int!
+  usageCacheOut: Int!
+  durationSeconds: Float!
+  flowId: ID!
+  taskId: ID
+  subtaskId: ID
+  createdAt: Time!
+}
+
 type SearchLog {
   id: ID!
   initiator: AgentType!
@@ -1021,6 +1038,7 @@ type Query {
   terminalLogs(flowId: ID!): [TerminalLog!]
   messageLogs(flowId: ID!): [MessageLog!]
   agentLogs(flowId: ID!): [AgentLog!]
+  msgchains(flowId: ID!): [Msgchain!]
   searchLogs(flowId: ID!): [SearchLog!]
   vectorStoreLogs(flowId: ID!): [VectorStoreLog!]
   toolCallLogs(flowId: ID!): [ToolCallLog!]
