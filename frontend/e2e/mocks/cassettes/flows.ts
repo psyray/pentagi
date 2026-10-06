@@ -72,6 +72,7 @@ export const makeMessage = (
     overrides: Partial<MessageLogFragmentFragment> = {},
 ): MessageLogFragmentFragment =>
     entity('MessageLog', {
+        agent: null,
         createdAt: T,
         flowId,
         id,
@@ -145,6 +146,7 @@ export const flowQueryData = (
     agentLogs: [],
     flow,
     messageLogs,
+    msgchains: [],
     screenshots: [],
     searchLogs: [],
     tasks: [],
@@ -386,6 +388,7 @@ const flowTabsData: ResultOf<typeof FlowDocument> = {
     agentLogs: [TABS_AGENT_LOG],
     flow: FLOW_A,
     messageLogs: [],
+    msgchains: [],
     screenshots: [TABS_SCREENSHOT, TABS_SCREENSHOT_NEWER, TABS_SCREENSHOT_NEWEST],
     searchLogs: [TABS_SEARCH_LOG],
     tasks: [TABS_TASK],
