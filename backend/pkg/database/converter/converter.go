@@ -204,6 +204,12 @@ func ConvertMessageLogs(logs []database.Msglog) []*model.MessageLog {
 }
 
 func ConvertMessageLog(log database.Msglog) *model.MessageLog {
+	var agent *model.AgentType
+	if log.AgentType.Valid {
+		agentType := model.AgentType(log.AgentType.MsgchainType)
+		agent = &agentType
+	}
+
 	return &model.MessageLog{
 		ID:           log.ID,
 		Type:         model.MessageLogType(log.Type),
@@ -212,6 +218,7 @@ func ConvertMessageLog(log database.Msglog) *model.MessageLog {
 		Result:       log.Result,
 		ResultFormat: model.ResultFormat(log.ResultFormat),
 		FlowID:       log.FlowID,
+		Agent:        agent,
 		TaskID:       database.NullInt64ToInt64(log.TaskID),
 		SubtaskID:    database.NullInt64ToInt64(log.SubtaskID),
 		CreatedAt:    log.CreatedAt.Time,

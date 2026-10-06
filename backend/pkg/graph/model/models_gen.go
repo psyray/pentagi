@@ -309,6 +309,7 @@ type MessageLog struct {
 	Result       string         `json:"result"`
 	ResultFormat ResultFormat   `json:"resultFormat"`
 	FlowID       int64          `json:"flowId"`
+	Agent        *AgentType     `json:"agent,omitempty"`
 	TaskID       *int64         `json:"taskId,omitempty"`
 	SubtaskID    *int64         `json:"subtaskId,omitempty"`
 	CreatedAt    time.Time      `json:"createdAt"`

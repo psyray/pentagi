@@ -347,6 +347,7 @@ type MessageLog {
   result: String!
   resultFormat: ResultFormat!
   flowId: ID!
+  agent: AgentType
   taskId: ID
   subtaskId: ID
   createdAt: Time!
