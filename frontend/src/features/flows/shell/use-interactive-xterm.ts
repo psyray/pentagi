@@ -324,10 +324,10 @@ export function useInteractiveXterm(
 /**
  * Builds the terminal's mobile input field and wires it to `emit`.
  *
- * The field is cleared after every `input`, so the keyboard's IME never keeps a
- * composing buffer to autocorrect, and `insertReplacementText` (the autocorrect
- * commit) is dropped outright. Every keystroke therefore reaches the terminal
- * exactly as typed.
+ * The field is kept to just a sentinel after every `input`, so the keyboard's
+ * IME never holds a composing buffer to autocorrect (and `insertReplacementText`
+ * is dropped outright), while the sentinel keeps backspace working. Every
+ * keystroke therefore reaches the terminal exactly as typed.
  */
 function setupMobileInput(
     container: HTMLDivElement,
@@ -364,6 +364,23 @@ function setupMobileInput(
         'z-index:-1',
     ].join(';');
 
+    // A zero-width sentinel keeps the field non-empty: soft keyboards implement
+    // backspace as a text edit, so on an empty field they emit nothing and the
+    // terminal would never see the delete. The caret always sits after it.
+    const SENTINEL = '\u200b';
+
+    const resetInput = () => {
+        input.value = SENTINEL;
+
+        try {
+            input.setSelectionRange(SENTINEL.length, SENTINEL.length);
+        } catch {
+            /* ignore */
+        }
+    };
+
+    resetInput();
+
     const send = (data: string) => {
         if (data) {
             emit(data);
@@ -371,8 +388,22 @@ function setupMobileInput(
     };
 
     const onBeforeInput = (event: Event) => {
-        if ((event as InputEvent).inputType === 'insertReplacementText') {
+        const inputType = (event as InputEvent).inputType;
+
+        // Autocorrect/autofill replacements edit already-typed text; the terminal
+        // is append-only, so accepting them would duplicate the word.
+        if (inputType === 'insertReplacementText') {
             event.preventDefault();
+
+            return;
+        }
+
+        // The IME deletes around the cursor; keep the sentinel and map it to a
+        // real backspace for the terminal.
+        if (inputType === 'deleteContentBackward') {
+            event.preventDefault();
+            resetInput();
+            send('\x7f');
         }
     };
 
@@ -394,10 +425,6 @@ function setupMobileInput(
                 event.preventDefault();
                 send('\x1b[A');
                 break;
-            case 'Backspace':
-                event.preventDefault();
-                send('\x7f');
-                break;
             case 'Enter':
                 event.preventDefault();
                 send('\r');
@@ -416,18 +443,34 @@ function setupMobileInput(
 
     const onInput = () => {
         const value = input.value;
-        input.value = '';
-        send(value.replace(/\r?\n/g, '\r'));
+
+        // The sentinel was consumed by a deletion the beforeinput path did not
+        // intercept (e.g. a hardware keyboard): still a backspace.
+        if (value.length < SENTINEL.length) {
+            resetInput();
+            send('\x7f');
+
+            return;
+        }
+
+        const inserted = value.startsWith(SENTINEL) ? value.slice(SENTINEL.length) : value.split(SENTINEL).join('');
+
+        resetInput();
+        send(inserted.replace(/\r?\n/g, '\r'));
     };
 
     const onPaste = (event: ClipboardEvent) => {
         event.preventDefault();
         const text = event.clipboardData?.getData('text/plain') ?? '';
-        input.value = '';
+        resetInput();
         send(text.replace(/\r?\n/g, '\r'));
     };
 
-    const onFocus = () => terminal.element?.classList.add('focus');
+    const onFocus = () => {
+        resetInput();
+        terminal.element?.classList.add('focus');
+    };
+
     const onBlur = () => terminal.element?.classList.remove('focus');
 
     input.addEventListener('beforeinput', onBeforeInput);

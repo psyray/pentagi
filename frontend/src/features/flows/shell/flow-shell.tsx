@@ -1,5 +1,5 @@
 import { Maximize2, Minimize2, Plus, Terminal as TerminalIcon, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
@@ -47,17 +47,33 @@ function FlowShell() {
     // pushes the scroll container up on mobile.
     useResetScrollOnKeyboard(rootRef, !isDesktop);
 
-    // Focus the terminal once the fullscreen overlay has laid out, so the soft
-    // keyboard opens straight away in the immersive view.
-    useEffect(() => {
-        if (!fullscreen) {
+    const enterFullscreen = () => {
+        setFullscreen(true);
+        // Focus within the user gesture so the soft keyboard opens right away.
+        terminalRef.current?.focus();
+    };
+
+    // Tapping the terminal on mobile enters fullscreen straight away; on desktop
+    // it only focuses.
+    const handleActivate = () => {
+        if (!isDesktop && !fullscreen) {
+            enterFullscreen();
+
             return;
         }
 
-        const frame = requestAnimationFrame(() => terminalRef.current?.focus());
+        terminalRef.current?.focus();
+    };
 
-        return () => cancelAnimationFrame(frame);
-    }, [fullscreen]);
+    const toggleFullscreen = () => {
+        if (fullscreen) {
+            setFullscreen(false);
+
+            return;
+        }
+
+        enterFullscreen();
+    };
 
     // The shell targets the flow's primary container. Once the flow finishes its
     // container is removed, so no interactive terminal can be opened; grey the
@@ -159,7 +175,10 @@ function FlowShell() {
                         </Button>
                         <Button
                             aria-label={fullscreen ? 'Exit full screen' : 'Full screen'}
-                            onClick={() => setFullscreen((previous) => !previous)}
+                            className={
+                                fullscreen ? 'bg-primary text-primary-foreground hover:bg-primary/90' : undefined
+                            }
+                            onClick={toggleFullscreen}
                             size="icon-sm"
                             title={fullscreen ? 'Exit full screen' : 'Full screen'}
                             variant="ghost"
@@ -175,6 +194,9 @@ function FlowShell() {
                             <Button
                                 key={key.label}
                                 onClick={() => terminalRef.current?.sendKey(key.sequence)}
+                                // Keep the terminal focused so the soft keyboard stays open.
+                                onMouseDown={(event) => event.preventDefault()}
+                                onPointerDown={(event) => event.preventDefault()}
                                 size="xs"
                                 type="button"
                                 variant="outline"
@@ -212,6 +234,7 @@ function FlowShell() {
                     <FlowShellTerminal
                         flowId={flowId}
                         key={active.id}
+                        onActivate={handleActivate}
                         onExit={handleExit}
                         ref={terminalRef}
                         terminal={active}
