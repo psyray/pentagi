@@ -30,13 +30,18 @@ interface FlowAutomationGroupProps {
 
 function FlowAutomationGroup({ group, searchValue = '' }: FlowAutomationGroupProps) {
     const [isOpen, setIsOpen] = useState(true);
+    // Kept here, not in the agent group, so collapsing the subtask (which unmounts the body)
+    // does not reset each agent's open/watch state.
+    const [agentOpen, setAgentOpen] = useState<Record<string, boolean>>({});
+    const [agentWatched, setAgentWatched] = useState<Record<string, boolean>>({});
+
     const { subtask } = group;
     const title = subtask?.title || `Subtask ${group.subtaskId}`;
 
     const toggle = () => setIsOpen(!isOpen);
 
     return (
-        <div className="bg-card text-card-foreground max-w-3xl rounded-xl border shadow-sm">
+        <div className="bg-card text-card-foreground max-w-[90%] rounded-xl border shadow-sm">
             <div
                 aria-expanded={isOpen}
                 className="flex w-full cursor-pointer items-start gap-2 p-3 text-left"
@@ -87,7 +92,13 @@ function FlowAutomationGroup({ group, searchValue = '' }: FlowAutomationGroupPro
                     {group.agentGroups.map((agentGroup) => (
                         <FlowAutomationAgentGroup
                             group={agentGroup}
+                            isOpen={agentOpen[agentGroup.agent] ?? false}
+                            isWatched={agentWatched[agentGroup.agent] ?? false}
                             key={agentGroup.agent}
+                            onOpenChange={(open) => setAgentOpen((prev) => ({ ...prev, [agentGroup.agent]: open }))}
+                            onWatchedChange={(watched) =>
+                                setAgentWatched((prev) => ({ ...prev, [agentGroup.agent]: watched }))
+                            }
                             searchValue={searchValue}
                             subtaskTitle={subtask?.title}
                         />
