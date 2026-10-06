@@ -681,6 +681,9 @@ const KG_GRAPH_A = [
     kgNode('kg-svc', 'Service', 'http', 'nginx 1.24', '2026-01-15T11:31:00Z'),
     kgNode('kg-endpoint', 'Endpoint', '/flag', 'POST /flag returns 404', '2026-01-15T11:31:30Z'),
     kgNode('kg-vuln', 'Vulnerability', 'SQL injection', 'auth bypass on /admin', '2026-01-15T11:32:00Z'),
+    // A sibling port off the same Host: it is NOT on the chain through port 80,
+    // so selecting port 80 must dim it.
+    kgNode('kg-port2', 'Port', '22', 'ssh port', '2026-01-15T11:30:10Z'),
 ];
 
 const KG_EDGES_A = [
@@ -688,6 +691,7 @@ const KG_EDGES_A = [
     kgEdge('kg-e2', 'RUNS_SERVICE', 'kg-port', 'kg-svc'),
     kgEdge('kg-e3', 'HAS_ENDPOINT', 'kg-svc', 'kg-endpoint'),
     kgEdge('kg-e4', 'HAS_VULNERABILITY', 'kg-endpoint', 'kg-vuln'),
+    kgEdge('kg-e5', 'HAS_PORT', 'kg-host', 'kg-port2'),
 ];
 
 const kgGraph = (nodes: unknown[], edges: unknown[]) => ({

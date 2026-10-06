@@ -104,6 +104,7 @@ function EntityNode({ data }: { data: EntityNodeData }) {
     return (
         <div
             className="w-full rounded-xl border-2 px-3 py-2 backdrop-blur-sm"
+            data-kg-node="root"
             style={{
                 background: data.selected ? c.border : c.bg,
                 borderColor: data.selected ? c.text : c.border,
@@ -487,7 +488,10 @@ export function FlowGraphView({
                 ...node,
                 data: {
                     ...node.data,
-                    dimmed: dimmedUUIDs ? !dimmedUUIDs.has(node.id) : false,
+                    // dimmedUUIDs holds the nodes to grey out, so a node is dimmed
+                    // when it belongs to that set (the chain through the anchor
+                    // is NOT in it and stays lit).
+                    dimmed: dimmedUUIDs ? dimmedUUIDs.has(node.id) : false,
                     selected: node.id === selectedNodeId,
                 },
             })),
