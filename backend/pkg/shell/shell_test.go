@@ -231,6 +231,37 @@ func TestManagerStreamsOutputAndInput(t *testing.T) {
 	sess.Close()
 }
 
+func TestManagerTagsTheShellAndSweepsOnClose(t *testing.T) {
+	t.Parallel()
+
+	f := &fakeDocker{}
+	m := newTestManager(f)
+
+	sess, err := m.Create(context.Background(), 3, "c", "zsh", 80, 24)
+	require.NoError(t, err)
+
+	// The shell exec carries the session marker so teardown can find its tree.
+	f.mu.Lock()
+	require.Contains(t, f.creates[0].Env, ShellIDEnvVar+"="+sess.ID())
+	f.mu.Unlock()
+
+	sess.Close()
+
+	// Closing runs a sweep exec whose command targets that same marker.
+	require.Eventually(t, func() bool {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+
+		for _, c := range f.creates {
+			if len(c.Cmd) == 3 && strings.Contains(c.Cmd[2], ShellIDEnvVar+"="+sess.ID()) {
+				return true
+			}
+		}
+
+		return false
+	}, 2*time.Second, 10*time.Millisecond)
+}
+
 func TestManagerCreateWithoutDocker(t *testing.T) {
 	t.Parallel()
 

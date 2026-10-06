@@ -26,9 +26,15 @@ const (
 	readChunk = 32 * 1024
 	// inspectTimeout bounds the ExecInspect call used to learn the exit code.
 	inspectTimeout = 5 * time.Second
-	// killTimeout bounds the best-effort process-group kill on close.
+	// killTimeout bounds the best-effort teardown exec on close.
 	killTimeout = 5 * time.Second
 )
+
+// ShellIDEnvVar tags every process of a shell session so it can be killed
+// without relying on docker's exec PID (which is not the container-namespace
+// PID and therefore useless here). Every child inherits it, so the sweep takes
+// the whole process tree down.
+const ShellIDEnvVar = "PENTAGI_SHELL_ID"
 
 // ErrSessionClosed is returned by Subscribe when the shell has already exited.
 var ErrSessionClosed = errors.New("shell session is closed")
@@ -296,24 +302,16 @@ func (s *Session) finish(cause error) {
 	})
 }
 
-// terminate kills the exec process tree. Closing the hijacked connection alone
-// leaves the exec running in the container, so a shell would accumulate on
-// every detach.
+// terminate kills the shell's process tree. Closing the hijacked connection
+// alone leaves the exec running in the container, so a shell would accumulate on
+// every detach. Docker's exec PID is the host PID, not the container-namespace
+// PID, so the sweep matches on the session's environment marker instead.
 func (s *Session) terminate() {
 	ctx, cancel := context.WithTimeout(context.Background(), killTimeout)
 	defer cancel()
 
-	res, err := s.dc.ContainerExecInspect(ctx, s.execID)
-	if err != nil || res.PID <= 0 {
-		return
-	}
-
-	// Kill the whole process group when the shell leads one, then fall back to
-	// the bare PID (a shell that is not a group leader still needs to die).
-	script := fmt.Sprintf("kill -9 -%d 2>/dev/null || kill -9 %d 2>/dev/null || true", res.PID, res.PID)
-
 	created, err := s.dc.ContainerExecCreate(ctx, s.container, client.ExecCreateOptions{
-		Cmd: []string{"sh", "-c", script},
+		Cmd: []string{"sh", "-c", killShellScript(s.id)},
 	})
 	if err != nil {
 		return
@@ -326,6 +324,30 @@ func (s *Session) terminate() {
 
 	_, _ = io.Copy(io.Discard, resp.Reader)
 	resp.Close()
+}
+
+// killShellScript scans /proc for processes carrying this session's marker and
+// kills them (SIGKILL). Reading another process's environ requires the same
+// uid, which the shell's root user satisfies.
+func killShellScript(id string) string {
+	return fmt.Sprintf(
+		`want='%s=%s'
+`+
+			`for p in /proc/[0-9]*; do
+`+
+			`  [ -r "$p/environ" ] || continue
+`+
+			`  if tr '\0' '\n' < "$p/environ" 2>/dev/null | grep -qx "$want"; then
+`+
+			`    kill -9 "${p#/proc/}" 2>/dev/null
+`+
+			`  fi
+`+
+			`done
+`+
+			`exit 0`,
+		ShellIDEnvVar, id,
+	)
 }
 
 func (s *Session) inspectExitCode() *int {
