@@ -29,6 +29,8 @@ interface ControlMessage {
 interface FlowShellTerminalProps {
     className?: string;
     flowId: string;
+    /** Called when the user taps the terminal (e.g. to go fullscreen). */
+    onActivate?: () => void;
     onExit: (terminalId: string, code?: number) => void;
     ref?: React.RefObject<FlowShellTerminalHandle | null>;
     terminal: FlowShellInfo;
@@ -43,7 +45,7 @@ const RECONNECT_MAX_MS = 15000;
  * unmounting only detaches — output produced meanwhile is replayed on the next
  * attach, and a dropped connection reconnects with backoff.
  */
-function FlowShellTerminal({ className, flowId, onExit, ref, terminal }: FlowShellTerminalProps) {
+function FlowShellTerminal({ className, flowId, onActivate, onExit, ref, terminal }: FlowShellTerminalProps) {
     const { theme } = useTheme();
     const { isDesktop } = useBreakpoint();
     const socketRef = useRef<null | WebSocket>(null);
@@ -255,7 +257,7 @@ function FlowShellTerminal({ className, flowId, onExit, ref, terminal }: FlowShe
 
             <div
                 className="relative min-h-0 flex-1 overflow-hidden rounded-md bg-[#050c13]"
-                onClick={focus}
+                onClick={() => (onActivate ? onActivate() : focus())}
             >
                 <div
                     className="size-full"
