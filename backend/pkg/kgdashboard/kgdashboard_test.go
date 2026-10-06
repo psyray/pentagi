@@ -129,12 +129,16 @@ func TestNodePropertiesExcludesInternalAndSorts(t *testing.T) {
 			"severity":    "critical",
 			"nested":      map[string]any{"a": 1},
 			"empty":       "",
+			"name_embedding": []any{
+				0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+				1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, // > maxPropertyListItems
+			},
 		},
 	}
 	got := nodeProperties(n)
 
-	// uuid/name/summary/group_id/created_at are excluded; nested maps and empty
-	// strings are dropped; the rest is sorted by key.
+	// uuid/name/summary/group_id/created_at/name_embedding are excluded; nested
+	// maps and empty strings are dropped; the rest is sorted by key.
 	keys := make([]string, 0, len(got))
 	for _, p := range got {
 		keys = append(keys, p.Key)
@@ -160,6 +164,7 @@ func TestStringifyProp(t *testing.T) {
 		{"nil", nil, "", false},
 		{"map dropped", map[string]any{"a": 1}, "", false},
 		{"empty list", []string{}, "", false},
+		{"oversized vector dropped", []any{1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0}, "", false},
 	}
 	for _, c := range cases {
 		got, ok := stringifyProp(c.in)

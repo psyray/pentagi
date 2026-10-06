@@ -174,9 +174,15 @@ var nodePropertyExclusions = map[string]struct{}{
 	"labels":     {},
 }
 
+// maxPropertyListItems caps how many items a list-valued attribute may hold to
+// be rendered. Graphiti stores embeddings as float vectors (name_embedding);
+// serializing one would bloat the response with thousands of numbers.
+const maxPropertyListItems = 16
+
 // nodeProperties projects the remaining node attributes into sorted, stringified
 // key/value pairs for the detail panel. Non-scalar values that cannot be
-// rendered are dropped rather than serialized as "map[...]".
+// rendered are dropped rather than serialized as "map[...]"; embedding vectors
+// and other oversized lists are skipped.
 func nodeProperties(n neo4j.Node) []GraphitiProperty {
 	keys := make([]string, 0, len(n.Props))
 	for k := range n.Props {
@@ -189,6 +195,9 @@ func nodeProperties(n neo4j.Node) []GraphitiProperty {
 		if _, skip := nodePropertyExclusions[k]; skip {
 			continue
 		}
+		if strings.HasSuffix(k, "_embedding") {
+			continue
+		}
 		if s, ok := stringifyProp(n.Props[k]); ok && s != "" {
 			out = append(out, GraphitiProperty{Key: k, Value: s})
 		}
@@ -197,8 +206,9 @@ func nodeProperties(n neo4j.Node) []GraphitiProperty {
 }
 
 // stringifyProp renders a Graphiti attribute value as a display string. Scalars
-// are formatted directly; slices of scalars are joined with ", ". Anything else
-// (nested maps, relationships) is dropped.
+// are formatted directly; slices of scalars are joined with ", ". Lists longer
+// than maxPropertyListItems (embeddings) and anything else (nested maps,
+// relationships) are dropped.
 func stringifyProp(v any) (string, bool) {
 	switch t := v.(type) {
 	case nil:
@@ -218,8 +228,14 @@ func stringifyProp(v any) (string, bool) {
 	case neo4j.Time:
 		return t.Time().Format(time.RFC3339), true
 	case []string:
+		if len(t) > maxPropertyListItems {
+			return "", false
+		}
 		return strings.Join(t, ", "), len(t) > 0
 	case []any:
+		if len(t) > maxPropertyListItems {
+			return "", false
+		}
 		parts := make([]string, 0, len(t))
 		for _, item := range t {
 			if s, ok := stringifyProp(item); ok && s != "" {
