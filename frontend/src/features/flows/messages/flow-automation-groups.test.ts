@@ -71,7 +71,10 @@ describe('buildAutomationItems', () => {
             log({ agent: AgentType.Pentester, id: '2', subtaskId: '9' }),
             log({ agent: AgentType.PrimaryAgent, id: '3', subtaskId: '10' }),
         ];
-        const subtasks = [subtask({ id: '9' }), subtask({ id: '10', title: 'Exploit' })];
+        const subtasks = [
+            subtask({ createdAt: '2026-10-06T12:00:00.000Z', id: '9', updatedAt: '2026-10-06T12:00:56.700Z' }),
+            subtask({ id: '10', title: 'Exploit' }),
+        ];
         const msgchains = [
             chain({ durationSeconds: 4.2, subtaskId: '9', type: AgentType.PrimaryAgent, usageIn: 18000 }),
             chain({ durationSeconds: 30.7, subtaskId: '9', type: AgentType.Pentester, usageIn: 19000 }),
@@ -92,7 +95,8 @@ describe('buildAutomationItems', () => {
         ]);
         expect(first.group.agentGroups[0]?.metrics).toEqual({ durationSeconds: 4.2, messages: 1, tokens: 18000 });
         expect(first.group.agentGroups[1]?.metrics).toEqual({ durationSeconds: 30.7, messages: 1, tokens: 19000 });
-        expect(first.group.metrics).toEqual({ durationSeconds: 34.9, messages: 2, tokens: 37000 });
+        // The subtask keeps its wall-clock span (56.7s), not the sum of its agents (34.9s).
+        expect(first.group.metrics).toEqual({ durationSeconds: 56.7, messages: 2, tokens: 37000 });
     });
 
     it('emits messages written outside a subtask as standalone items', () => {
@@ -123,5 +127,18 @@ describe('buildAutomationItems', () => {
 
         expect(first.group.subtask).toBeUndefined();
         expect(first.group.subtaskId).toBe('99');
+    });
+
+    it('falls back to the summed agent durations when the subtask is unknown', () => {
+        const first = firstSubtask(
+            buildAutomationItems(
+                [log({ agent: AgentType.Pentester, id: '1', subtaskId: '99' })],
+                [],
+                [chain({ durationSeconds: 12.5, subtaskId: '99', type: AgentType.Pentester, usageIn: 100 })],
+            ),
+        );
+
+        expect(first.group.metrics.durationSeconds).toBe(12.5);
+        expect(first.group.metrics.tokens).toBe(100);
     });
 });

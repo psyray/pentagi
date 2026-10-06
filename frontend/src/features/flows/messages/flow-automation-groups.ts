@@ -153,7 +153,7 @@ function buildSubtaskGroup(
         agentGroups,
         looseLogs,
         metrics: {
-            durationSeconds: total?.durationSeconds ?? 0,
+            durationSeconds: subtaskDurationSeconds(subtask, total?.durationSeconds ?? 0),
             messages: logs.length,
             tokens: total?.tokens ?? 0,
         },
@@ -182,4 +182,22 @@ function buildUsageIndexes(msgchains: MsgchainFragmentFragment[]) {
     }
 
     return { perAgent, totals };
+}
+
+// A subtask's duration is its wall-clock span, not the sum of its agents: a parent
+// agent's time already includes the sub-agents it awaited, so summing would count that
+// time twice. The span is what the backend reports for the subtask.
+function subtaskDurationSeconds(subtask: SubtaskFragmentFragment | undefined, fallback: number): number {
+    if (!subtask) {
+        return fallback;
+    }
+
+    const start = Date.parse(subtask.createdAt);
+    const end = Date.parse(subtask.updatedAt);
+
+    if (Number.isNaN(start) || Number.isNaN(end) || end < start) {
+        return fallback;
+    }
+
+    return (end - start) / 1000;
 }
