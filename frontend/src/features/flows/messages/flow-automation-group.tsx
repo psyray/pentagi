@@ -73,6 +73,7 @@ function FlowAutomationGroup({ group, searchValue = '' }: FlowAutomationGroupPro
                             group={agentGroup}
                             key={agentGroup.agent}
                             searchValue={searchValue}
+                            subtaskTitle={subtask?.title}
                         />
                     ))}
                     {group.looseLogs.map((log) => (
