@@ -64,30 +64,51 @@ describe('flow-graph-view edge routing', () => {
         ['v', { col: 2, x: 680, y: 0 }],
     ]);
 
-    it('routes forward edges as orthogonal steps sharing the source-column trunk', () => {
-        const edges = toFlowEdges([edge('e1', 'h', 'p'), edge('e2', 'h', 'v')], {
+    const route = { busBottomY: 400, busTopY: 10, centerY: 200 };
+
+    const routeOf = (e: undefined | { data?: unknown }) =>
+        (e?.data as { route: { busY: number; gA: number; gB: number; kind: string } }).route;
+
+    it('routes adjacent columns on the single gutter between them', () => {
+        const edges = toFlowEdges([edge('e1', 'h', 'p')], {
             hoveredEdgeId: null,
             positions,
+            route,
             selectedNodeId: null,
         });
 
-        expect(edges).toHaveLength(2);
+        expect(edges).toHaveLength(1);
+        expect(edges[0]!.type).toBe('routed');
 
-        for (const e of edges) {
-            expect(e.type).toBe('smoothstep');
-        }
+        const r = routeOf(edges[0]);
 
-        // Both edges leave the Host lane, so they share the same trunk x.
-        const centers = edges.map((e) => (e as { pathOptions?: { centerX?: number } }).pathOptions?.centerX);
+        expect(r.kind).toBe('gutter');
+        expect(r.gA).toBe(r.gB);
+    });
 
-        expect(centers[0]).toBeTypeOf('number');
-        expect(centers[0]).toBe(centers[1]);
+    it('routes multi-column jumps on a bus while sharing the source-column gutter', () => {
+        const edges = toFlowEdges([edge('e1', 'h', 'p'), edge('e2', 'h', 'v')], {
+            hoveredEdgeId: null,
+            positions,
+            route,
+            selectedNodeId: null,
+        });
+
+        const adjacent = routeOf(edges.find((e) => e.id === 'e1'));
+        const jump = routeOf(edges.find((e) => e.id === 'e2'));
+
+        expect(adjacent.kind).toBe('gutter');
+        expect(jump.kind).toBe('bus');
+        // Both leave the Host lane, so the trunk right after it is shared.
+        expect(jump.gA).toBe(adjacent.gA);
+        expect(jump.gB).not.toBe(jump.gA);
     });
 
     it('drops edges whose endpoint was filtered out', () => {
         const edges = toFlowEdges([edge('e1', 'h', 'missing')], {
             hoveredEdgeId: null,
             positions,
+            route,
             selectedNodeId: null,
         });
 
@@ -98,6 +119,7 @@ describe('flow-graph-view edge routing', () => {
         const edges = toFlowEdges([edge('e1', 'h', 'p'), edge('e2', 'p', 'v')], {
             hoveredEdgeId: 'e1',
             positions,
+            route,
             selectedNodeId: null,
         });
 
