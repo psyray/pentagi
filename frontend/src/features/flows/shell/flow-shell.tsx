@@ -193,10 +193,12 @@ function FlowShell() {
                         {SPECIAL_KEYS.map((key) => (
                             <Button
                                 key={key.label}
-                                onClick={() => terminalRef.current?.sendKey(key.sequence)}
+                                onClick={() => {
+                                    terminalRef.current?.sendKey(key.sequence);
+                                    terminalRef.current?.focus();
+                                }}
                                 // Keep the terminal focused so the soft keyboard stays open.
                                 onMouseDown={(event) => event.preventDefault()}
-                                onPointerDown={(event) => event.preventDefault()}
                                 size="xs"
                                 type="button"
                                 variant="outline"
