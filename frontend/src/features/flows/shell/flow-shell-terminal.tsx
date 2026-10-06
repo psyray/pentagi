@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp, Search, X } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,12 @@ import { cn } from '@/lib/utils';
 
 import { type FlowShellInfo, flowShellSocketUrl } from './flow-shell-api';
 import { useInteractiveXterm } from './use-interactive-xterm';
+
+// Imperative surface the parent uses to forward the on-screen keys row, which
+// lives in the sticky header rather than inside the terminal.
+export interface FlowShellTerminalHandle {
+    sendKey: (sequence: string) => void;
+}
 
 type ConnectionStatus = 'closed' | 'connecting' | 'error' | 'open';
 
@@ -21,33 +27,20 @@ interface FlowShellTerminalProps {
     className?: string;
     flowId: string;
     onExit: (terminalId: string, code?: number) => void;
+    ref?: React.RefObject<FlowShellTerminalHandle | null>;
     terminal: FlowShellInfo;
 }
-
-// Keys a mobile soft keyboard cannot produce, sent as raw terminal input.
-const SPECIAL_KEYS: Array<{ label: string; sequence: string }> = [
-    { label: 'Esc', sequence: '\x1b' },
-    { label: 'Tab', sequence: '\t' },
-    { label: '^C', sequence: '\x03' },
-    { label: '^D', sequence: '\x04' },
-    { label: '^Z', sequence: '\x1a' },
-    { label: '↑', sequence: '\x1b[A' },
-    { label: '↓', sequence: '\x1b[B' },
-    { label: '→', sequence: '\x1b[C' },
-    { label: '←', sequence: '\x1b[D' },
-];
 
 const RECONNECT_BASE_MS = 1000;
 const RECONNECT_MAX_MS = 15000;
 
 /**
  * A single interactive terminal: a websocket bridge to a server-side shell plus
- * a light search bar and, on mobile, an on-screen keys row. Because the backend
- * keeps the shell alive independently, unmounting only detaches — output
- * produced meanwhile is replayed on the next attach, and a dropped connection
- * reconnects with backoff.
+ * a light search bar. Because the backend keeps the shell alive independently,
+ * unmounting only detaches — output produced meanwhile is replayed on the next
+ * attach, and a dropped connection reconnects with backoff.
  */
-function FlowShellTerminal({ className, flowId, onExit, terminal }: FlowShellTerminalProps) {
+function FlowShellTerminal({ className, flowId, onExit, ref, terminal }: FlowShellTerminalProps) {
     const { theme } = useTheme();
     const { isDesktop } = useBreakpoint();
     const socketRef = useRef<null | WebSocket>(null);
@@ -67,6 +60,8 @@ function FlowShellTerminal({ className, flowId, onExit, terminal }: FlowShellTer
             socket.send(new TextEncoder().encode(data));
         }
     }, []);
+
+    useImperativeHandle(ref, () => ({ sendKey: send }), [send]);
 
     const sendResize = useCallback((cols: number, rows: number) => {
         const socket = socketRef.current;
@@ -250,22 +245,6 @@ function FlowShellTerminal({ className, flowId, onExit, terminal }: FlowShellTer
                     </Button>
                 )}
             </div>
-
-            {!isDesktop && (
-                <div className="flex gap-1 overflow-x-auto pb-1">
-                    {SPECIAL_KEYS.map((key) => (
-                        <Button
-                            key={key.label}
-                            onClick={() => send(key.sequence)}
-                            size="xs"
-                            type="button"
-                            variant="outline"
-                        >
-                            {key.label}
-                        </Button>
-                    ))}
-                </div>
-            )}
 
             <div
                 className="relative min-h-0 flex-1 overflow-hidden rounded-md bg-[#050c13]"
