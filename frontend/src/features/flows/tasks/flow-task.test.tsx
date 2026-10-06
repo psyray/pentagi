@@ -10,13 +10,16 @@ import { StatusType } from '@/graphql/types';
 import FlowTask from './flow-task';
 
 const subtask = (overrides: Partial<SubtaskFragmentFragment> = {}): SubtaskFragmentFragment => ({
+    budgetSeconds: null,
     createdAt: '2026-09-22T10:00:00Z',
     description: 'nmap -sV',
+    evidence: null,
     id: '9',
     result: '',
     status: StatusType.Finished,
     taskId: '5',
     title: 'Scan ports',
+    type: null,
     updatedAt: '2026-09-22T10:00:00Z',
     ...overrides,
 });

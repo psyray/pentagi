@@ -1,23 +1,31 @@
 import { ListCheck, ListTodo } from 'lucide-react';
 import { memo, useMemo, useState } from 'react';
 
-import type { SubtaskFragmentFragment } from '@/graphql/types';
+import type { SubtaskExecutionStatsFragmentFragment, SubtaskFragmentFragment } from '@/graphql/types';
 
 import Markdown from '@/components/shared/markdown';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { StatusType } from '@/graphql/types';
 import { matchesSearchTerm } from '@/lib/text-filter';
 
+import FlowSubtaskBadges from './flow-subtask-badges';
+import FlowSubtaskExecution from './flow-subtask-execution';
 import FlowTaskStatusIcon from './flow-task-status-icon';
 
 interface FlowSubtaskProps {
     searchValue?: string;
+    stats?: SubtaskExecutionStatsFragmentFragment;
     subtask: SubtaskFragmentFragment;
 }
 
-function FlowSubtask({ searchValue = '', subtask }: FlowSubtaskProps) {
-    const { description, id, result, status, title } = subtask;
+const hasExecution = (status: StatusType) =>
+    [StatusType.Failed, StatusType.Finished, StatusType.Running].includes(status);
+
+function FlowSubtask({ searchValue = '', stats, subtask }: FlowSubtaskProps) {
+    const { budgetSeconds, description, evidence, id, result, status, title, type } = subtask;
     const [isDetailsVisible, setIsDetailsVisible] = useState(false);
-    const hasDetails = description || result;
+    const showExecution = hasExecution(status);
+    const hasDetails = Boolean(description) || Boolean(result) || showExecution;
 
     const searchChecks = useMemo(() => {
         const trimmedSearch = searchValue.trim();
@@ -69,6 +77,12 @@ function FlowSubtask({ searchValue = '', subtask }: FlowSubtaskProps) {
                     </Markdown>
                 </div>
 
+                <FlowSubtaskBadges
+                    budgetSeconds={budgetSeconds}
+                    evidence={evidence}
+                    type={type}
+                />
+
                 {hasDetails && (
                     <div className="text-muted-foreground text-xs">
                         <div
@@ -114,6 +128,13 @@ function FlowSubtask({ searchValue = '', subtask }: FlowSubtaskProps) {
                                             </Markdown>
                                         </CardContent>
                                     </Card>
+                                )}
+                                {showExecution && (
+                                    <FlowSubtaskExecution
+                                        budgetSeconds={budgetSeconds}
+                                        stats={stats}
+                                        status={status}
+                                    />
                                 )}
                             </div>
                         )}

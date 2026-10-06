@@ -1,18 +1,26 @@
+import { ListCheck, ListTodo } from 'lucide-react';
 import { memo, useMemo, useState } from 'react';
 
-import type { TaskFragmentFragment } from '@/graphql/types';
+import type {
+    SubtaskExecutionStatsFragmentFragment,
+    TaskExecutionStatsFragmentFragment,
+    TaskFragmentFragment,
+} from '@/graphql/types';
 
 import Markdown from '@/components/shared/markdown';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { StatusType } from '@/graphql/types';
 import { matchesSearchTerm } from '@/lib/text-filter';
+import { formatDuration } from '@/lib/utils/format';
 
 import FlowSubtask from './flow-subtask';
 import FlowTaskStatusIcon from './flow-task-status-icon';
 
 interface FlowTaskProps {
     searchValue?: string;
+    stats?: TaskExecutionStatsFragmentFragment;
+    subtaskStats?: Map<string, SubtaskExecutionStatsFragmentFragment>;
     task: TaskFragmentFragment;
 }
 
@@ -32,9 +40,10 @@ const describeMissingSubtasks = (status: StatusType) => {
     }
 };
 
-function FlowTask({ searchValue = '', task }: FlowTaskProps) {
-    const { id, result, status, subtasks, title } = task;
+function FlowTask({ searchValue = '', stats, subtaskStats, task }: FlowTaskProps) {
+    const { id, input, result, status, subtasks, title } = task;
     const [isDetailsVisible, setIsDetailsVisible] = useState(false);
+    const hasDetails = Boolean(input) || Boolean(result);
 
     const searchChecks = useMemo(() => {
         const trimmedSearch = searchValue.trim();
@@ -67,7 +76,7 @@ function FlowTask({ searchValue = '', task }: FlowTaskProps) {
     }
 
     const sortedSubtasks = [...(subtasks || [])].sort((a, b) => +a.id - +b.id);
-    const hasSubtasks = subtasks && subtasks.length > 0;
+    const hasSubtasks = Boolean(subtasks && subtasks.length > 0);
 
     const completedSubtasksCount = useMemo(() => {
         if (!subtasks?.length) {
@@ -77,13 +86,22 @@ function FlowTask({ searchValue = '', task }: FlowTaskProps) {
         return subtasks.filter((subtask) => [StatusType.Failed, StatusType.Finished].includes(subtask.status)).length;
     }, [subtasks]);
 
-    const progress = useMemo(() => {
+    const subtaskProgress = useMemo(() => {
         if (!subtasks?.length) {
             return 0;
         }
 
         return Math.round((completedSubtasksCount / subtasks.length) * 100);
     }, [subtasks, completedSubtasksCount]);
+
+    const totalBudgetSeconds = useMemo(
+        () => (subtasks || []).reduce((total, subtask) => total + (subtask.budgetSeconds ?? 0), 0),
+        [subtasks],
+    );
+
+    const elapsedSeconds = stats?.totalDurationSeconds ?? 0;
+    const timeProgress =
+        totalBudgetSeconds > 0 ? Math.min(100, Math.round((elapsedSeconds / totalBudgetSeconds) * 100)) : 0;
 
     return (
         <div className="flex flex-col">
@@ -104,18 +122,31 @@ function FlowTask({ searchValue = '', task }: FlowTaskProps) {
                     </div>
 
                     {hasSubtasks && (
-                        <div className="flex items-center gap-2">
-                            <Progress
-                                className="h-1.5 flex-1"
-                                value={progress}
-                            />
-                            <div className="text-muted-foreground shrink-0 text-xs text-nowrap">
-                                {progress}% completed ({completedSubtasksCount} of {subtasks?.length})
+                        <div className="flex flex-col gap-1.5">
+                            <div className="flex items-center gap-2">
+                                <Progress
+                                    className="h-1.5 flex-1"
+                                    value={subtaskProgress}
+                                />
+                                <div className="text-muted-foreground shrink-0 text-xs text-nowrap">
+                                    {completedSubtasksCount} of {subtasks?.length} subtasks
+                                </div>
                             </div>
+                            {totalBudgetSeconds > 0 && (
+                                <div className="flex items-center gap-2">
+                                    <Progress
+                                        className="h-1.5 flex-1"
+                                        value={timeProgress}
+                                    />
+                                    <div className="text-muted-foreground shrink-0 text-xs text-nowrap">
+                                        {formatDuration(elapsedSeconds)} of {formatDuration(totalBudgetSeconds)}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
-                    {result && (
+                    {hasDetails && (
                         <div className="text-muted-foreground text-xs">
                             <div
                                 className="cursor-pointer"
@@ -124,16 +155,44 @@ function FlowTask({ searchValue = '', task }: FlowTaskProps) {
                                 {isDetailsVisible ? 'Hide details' : 'Show details'}
                             </div>
                             {isDetailsVisible && (
-                                <Card className="mt-4">
-                                    <CardContent className="p-3">
-                                        <Markdown
-                                            className="prose-xs prose-fixed wrap-break-word"
-                                            searchValue={searchValue}
-                                        >
-                                            {result}
-                                        </Markdown>
-                                    </CardContent>
-                                </Card>
+                                <div className="mt-4 flex flex-col gap-4">
+                                    {input && (
+                                        <Card>
+                                            <CardHeader className="p-3">
+                                                <CardTitle className="flex items-center gap-2">
+                                                    <ListTodo className="size-4 shrink-0" /> Description
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="p-3 pt-0">
+                                                <hr className="mt-0 mb-3" />
+                                                <Markdown
+                                                    className="prose-xs prose-fixed wrap-break-word"
+                                                    searchValue={searchValue}
+                                                >
+                                                    {input}
+                                                </Markdown>
+                                            </CardContent>
+                                        </Card>
+                                    )}
+                                    {result && (
+                                        <Card>
+                                            <CardHeader className="p-3">
+                                                <CardTitle className="flex items-center gap-2">
+                                                    <ListCheck className="size-4 shrink-0" /> Result
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="p-3 pt-0">
+                                                <hr className="mt-0 mb-3" />
+                                                <Markdown
+                                                    className="prose-xs prose-fixed wrap-break-word"
+                                                    searchValue={searchValue}
+                                                >
+                                                    {result}
+                                                </Markdown>
+                                            </CardContent>
+                                        </Card>
+                                    )}
+                                </div>
                             )}
                         </div>
                     )}
@@ -147,6 +206,7 @@ function FlowTask({ searchValue = '', task }: FlowTaskProps) {
                         <FlowSubtask
                             key={subtask.id}
                             searchValue={searchValue}
+                            stats={subtaskStats?.get(subtask.id)}
                             subtask={subtask}
                         />
                     ))}
