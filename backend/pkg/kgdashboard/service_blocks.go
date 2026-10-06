@@ -412,7 +412,9 @@ func (s *service) GetArtifacts(ctx context.Context, flowID int64, groupID string
 		"limit":    int64(s.rowLimit),
 	}, func(rec *neo4j.Record) error {
 		out = append(out, ArtifactRow{
-			Artifact:   recStr(rec, "artifact"),
+			// Artifact names can be long multi-line command output; collapse the
+			// whitespace and cap the length so the table stays scannable.
+			Artifact:   truncate(strings.Join(strings.Fields(recStr(rec, "artifact")), " "), 120),
 			ProducedBy: recStr(rec, "producedBy"),
 			Summary:    recStr(rec, "summary"),
 		})
