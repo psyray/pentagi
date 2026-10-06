@@ -429,6 +429,7 @@ const toolcallsStatsByFunctionForFlow: ResultOf<typeof ToolcallsStatsByFunctionF
             avgDurationSeconds: 2.5,
             functionName: 'terminal',
             isAgent: false,
+            isSubAgent: false,
             totalCount: 8,
             totalDurationSeconds: 20,
         }),

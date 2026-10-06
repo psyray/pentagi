@@ -472,6 +472,7 @@ fragment dailyToolcallsStatsFragment on DailyToolcallsStats {
 fragment functionToolcallsStatsFragment on FunctionToolcallsStats {
     functionName
     isAgent
+    isSubAgent
     totalCount
     totalDurationSeconds
     avgDurationSeconds

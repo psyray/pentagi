@@ -314,6 +314,7 @@ type FlowsStats struct {
 type FunctionToolcallsStats struct {
 	FunctionName         string  `json:"functionName"`
 	IsAgent              bool    `json:"isAgent"`
+	IsSubAgent           bool    `json:"isSubAgent"`
 	TotalCount           int     `json:"totalCount"`
 	TotalDurationSeconds float64 `json:"totalDurationSeconds"`
 	AvgDurationSeconds   float64 `json:"avgDurationSeconds"`

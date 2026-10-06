@@ -677,6 +677,10 @@ type DailyToolcallsStats {
 type FunctionToolcallsStats {
   functionName: String!
   isAgent: Boolean!
+  # True when the function is a delegation to a sub-agent (advice, coder,
+  # maintenance, memorist, pentester, search) rather than a *_result tool an
+  # agent stores its own output through.
+  isSubAgent: Boolean!
   totalCount: Int!
   totalDurationSeconds: Float!
   avgDurationSeconds: Float!
