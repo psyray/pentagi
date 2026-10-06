@@ -103,6 +103,7 @@ function FlowShell() {
                 <div className="min-h-0 flex-1">
                     <FlowShellTerminal
                         flowId={flowId}
+                        key={active.id}
                         onExit={handleExit}
                         terminal={active}
                     />
