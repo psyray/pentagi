@@ -1,3 +1,5 @@
+import { ApolloClient, ApolloLink, InMemoryCache } from '@apollo/client';
+import { ApolloProvider } from '@apollo/client/react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -57,7 +59,15 @@ const assistantFlowState = {
 const renderWithFlow = (state: Record<string, unknown>, ui: React.ReactElement) => {
     flowState.current = { flowId: '42', ...state };
 
-    return render(<TooltipProvider>{ui}</TooltipProvider>);
+    // FlowTasks queries the execution stats through Apollo; the other tabs do not,
+    // but a provider costs nothing and keeps one render path for all of them.
+    const client = new ApolloClient({ cache: new InMemoryCache(), link: ApolloLink.empty() });
+
+    return render(
+        <ApolloProvider client={client}>
+            <TooltipProvider>{ui}</TooltipProvider>
+        </ApolloProvider>,
+    );
 };
 
 describe('scroll-to-latest buttons carry an accessible name', () => {
