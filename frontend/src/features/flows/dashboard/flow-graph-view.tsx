@@ -17,7 +17,15 @@ import {
     ReactFlow,
 } from '@xyflow/react';
 import { Expand, Loader2, Maximize2, Pause, Play, Shrink } from 'lucide-react';
-import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+    type ChangeEvent,
+    type MouseEvent as ReactMouseEvent,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -75,6 +83,8 @@ const TOP_PADDING = 60;
 const GUTTER_GAP = COLUMN_WIDTH - NODE_WIDTH;
 const NODE_HEIGHT_ESTIMATE = 84;
 const BUS_MARGIN = 50;
+// Delay before a node hover applies its highlight (see handleNodeEnter).
+const HOVER_DELAY_MS = 160;
 
 // ─── Custom node component ───────────────────────────────────────────────
 interface EntityNodeData {
@@ -250,59 +260,63 @@ export function columnForLabel(label: string): number {
 
 // ─── Main component ──────────────────────────────────────────────────────
 
-// connectedToSelection walks the graph from the selected node up to the Host(s)
-// so the attack chain that led to it stays lit while its siblings dim. It stops
-// expanding at Host nodes (the chain root), so the Host's other children stay
-// dimmed instead of flooding the highlight.
-function connectedToSelection(
-    graph: { edges: AttackGraphEdgeFragmentFragment[]; nodes: AttackGraphNodeFragmentFragment[] },
-    selectedNodeId: string,
-): Set<string> {
-    const hostUUIDs = new Set<string>();
+// ─── Related-node computation ────────────────────────────────────────────
 
-    for (const n of graph.nodes) {
-        if (n.labels.includes('Host')) {
-            hostUUIDs.add(n.uuid);
+// relatedNodes returns the set of nodes tied to root in the attack-chain sense:
+// every ancestor (a node that can reach root by following edges forward) and
+// every descendant (a node reachable from root). Sibling branches of an ancestor
+// (for example another port of the same Host) are therefore NOT included, which
+// keeps the focus on the chain that actually passes through root.
+export function relatedNodes(graph: { edges: AttackGraphEdgeFragmentFragment[] }, rootUUID: string): Set<string> {
+    const outAdj = new Map<string, string[]>();
+    const inAdj = new Map<string, string[]>();
+
+    const push = (m: Map<string, string[]>, key: string, value: string) => {
+        const arr = m.get(key);
+
+        if (arr) {
+            arr.push(value);
+        } else {
+            m.set(key, [value]);
         }
+    };
+
+    for (const e of graph.edges) {
+        push(outAdj, e.sourceUUID, e.targetUUID);
+        push(inAdj, e.targetUUID, e.sourceUUID);
     }
 
-    const connected = new Set([selectedNodeId]);
+    const result = new Set<string>([rootUUID]);
 
-    if (hostUUIDs.has(selectedNodeId)) {
-        for (const e of graph.edges) {
-            if (e.sourceUUID === selectedNodeId) {
-                connected.add(e.targetUUID);
-            }
-
-            if (e.targetUUID === selectedNodeId) {
-                connected.add(e.sourceUUID);
-            }
-        }
-
-        return connected;
+    for (const id of walk(rootUUID, outAdj)) {
+        result.add(id);
     }
 
-    const queue = [selectedNodeId];
+    for (const id of walk(rootUUID, inAdj)) {
+        result.add(id);
+    }
+
+    return result;
+}
+
+// walk returns every node reachable from start along the adjacency map (BFS,
+// each node visited once, so cycles are handled).
+function walk(start: string, adj: Map<string, string[]>): Set<string> {
+    const seen = new Set<string>();
+    const queue = [start];
 
     while (queue.length > 0) {
         const current = queue.shift()!;
 
-        for (const e of graph.edges) {
-            const neighbor = e.sourceUUID === current ? e.targetUUID : e.targetUUID === current ? e.sourceUUID : null;
-
-            if (neighbor === null || connected.has(neighbor)) {
-                continue;
-            }
-
-            connected.add(neighbor);
-
-            if (!hostUUIDs.has(neighbor)) {
-                queue.push(neighbor);
+        for (const next of adj.get(current) ?? []) {
+            if (!seen.has(next)) {
+                seen.add(next);
+                queue.push(next);
             }
         }
     }
 
-    return connected;
+    return seen;
 }
 
 const viewTitles: Record<AttackGraphView, string> = {
@@ -351,8 +365,8 @@ interface EdgeRouteData {
 interface FlowEdgeOptions {
     hoveredEdgeId: null | string;
     positions: Map<string, NodePosition>;
+    related: null | Set<string>;
     route: RouteGeometry;
-    selectedNodeId: null | string;
 }
 
 export function FlowGraphView({
@@ -366,6 +380,8 @@ export function FlowGraphView({
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [selectedNodeId, setSelectedNodeId] = useState<null | string>(null);
     const [hoveredEdgeId, setHoveredEdgeId] = useState<null | string>(null);
+    const [hoveredNodeId, setHoveredNodeId] = useState<null | string>(null);
+    const hoverTimer = useRef<null | number>(null);
     const [hiddenLabels, setHiddenLabels] = useState<Set<string>>(() => new Set());
     // Replay timeline: revealActive off means "show everything"; when on, only
     // entities created before min + frac*(max-min) are shown.
@@ -383,8 +399,11 @@ export function FlowGraphView({
 
     const graph = data?.flowAttackGraph;
 
-    // Nodes to keep lit: an edge hover wins over a node selection.
-    const activeEndpoints = useMemo(() => {
+    // Nodes to keep lit. Precedence: hovered edge, then hovered node, then the
+    // clicked selection. The related set is the union of the anchor's ancestors
+    // and descendants, so the whole chain through it stays lit while unrelated
+    // branches (e.g. sibling ports) dim.
+    const related = useMemo(() => {
         if (!graph) {
             return null;
         }
@@ -393,32 +412,34 @@ export function FlowGraphView({
             const edge = graph.edges.find((e) => e.uuid === hoveredEdgeId);
 
             if (edge) {
-                return new Set([edge.sourceUUID, edge.targetUUID]);
+                return new Set([...relatedNodes(graph, edge.sourceUUID), ...relatedNodes(graph, edge.targetUUID)]);
             }
         }
 
-        if (selectedNodeId) {
-            return connectedToSelection(graph, selectedNodeId);
+        const anchor = hoveredNodeId ?? selectedNodeId;
+
+        if (anchor) {
+            return relatedNodes(graph, anchor);
         }
 
         return null;
-    }, [graph, hoveredEdgeId, selectedNodeId]);
+    }, [graph, hoveredEdgeId, hoveredNodeId, selectedNodeId]);
 
     const dimmedUUIDs = useMemo(() => {
-        if (!graph || !activeEndpoints) {
+        if (!graph || !related) {
             return null;
         }
 
         const dimmed = new Set<string>();
 
         for (const n of graph.nodes) {
-            if (!activeEndpoints.has(n.uuid)) {
+            if (!related.has(n.uuid)) {
                 dimmed.add(n.uuid);
             }
         }
 
         return dimmed;
-    }, [graph, activeEndpoints]);
+    }, [graph, related]);
 
     // Time domain of the revealed entities, derived from their createdAt.
     // Null when there is nothing to animate (no timestamps or a single instant).
@@ -479,11 +500,11 @@ export function FlowGraphView({
                 ? toFlowEdges(graph.edges, {
                       hoveredEdgeId,
                       positions: layout.positions,
+                      related,
                       route: layout.route,
-                      selectedNodeId,
                   })
                 : [],
-        [graph, layout.positions, layout.route, hoveredEdgeId, selectedNodeId],
+        [graph, layout.positions, layout.route, hoveredEdgeId, related],
     );
 
     const hasNodes = (graph?.nodes?.length ?? 0) > 0;
@@ -537,16 +558,82 @@ export function FlowGraphView({
     }, [graph]);
 
     const handleNodeClick: NodeMouseHandler = useCallback((_, node) => {
+        // Cancel a pending hover highlight so a click that follows a hover is not
+        // racing a node re-render (which would remount the node between mousedown
+        // and mouseup and swallow the click).
+        if (hoverTimer.current !== null) {
+            window.clearTimeout(hoverTimer.current);
+            hoverTimer.current = null;
+        }
+
         setSelectedNodeId(node.id);
+    }, []);
+
+    const handleNodeEnter: NodeMouseHandler = useCallback((_, node) => {
+        // Defer the hover highlight: applying it synchronously re-renders the
+        // nodes, and ReactFlow then swaps the node element mid-click, cancelling
+        // the click. A short delay lets a click fire first; the timer is cleared
+        // on click/leave.
+        if (hoverTimer.current !== null) {
+            window.clearTimeout(hoverTimer.current);
+        }
+
+        hoverTimer.current = window.setTimeout(() => {
+            hoverTimer.current = null;
+            setHoveredNodeId(node.id);
+            setHoveredEdgeId(null);
+        }, HOVER_DELAY_MS);
+    }, []);
+
+    const handleNodeLeave: NodeMouseHandler = useCallback(() => {
+        if (hoverTimer.current !== null) {
+            window.clearTimeout(hoverTimer.current);
+            hoverTimer.current = null;
+        }
+
+        setHoveredNodeId(null);
     }, []);
 
     const handleEdgeEnter: EdgeMouseHandler = useCallback((_, edge) => {
         setHoveredEdgeId(edge.id);
+        setHoveredNodeId(null);
     }, []);
 
     const handleEdgeLeave: EdgeMouseHandler = useCallback(() => {
         setHoveredEdgeId(null);
     }, []);
+
+    // Clicking the empty pane clears the selection, which closes the detail
+    // panel and returns to the fully-lit general view. ReactFlow binds
+    // onPaneClick to the container that also wraps the nodes and edges, so the
+    // event bubbles up from them too: ignore those and only react to a genuine
+    // background click.
+    const handlePaneClick = useCallback((event: ReactMouseEvent) => {
+        const target = event.target as HTMLElement | null;
+
+        if (target?.closest('.react-flow__node') || target?.closest('.react-flow__edge')) {
+            return;
+        }
+
+        setSelectedNodeId(null);
+    }, []);
+
+    // Escape clears the current selection (same as clicking the empty pane).
+    useEffect(() => {
+        if (!selectedNodeId) {
+            return;
+        }
+
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setSelectedNodeId(null);
+            }
+        };
+
+        window.addEventListener('keydown', onKeyDown);
+
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [selectedNodeId]);
 
     const handleToggleLabel = useCallback((label: string) => {
         setHiddenLabels((previous) => {
@@ -674,6 +761,9 @@ export function FlowGraphView({
             onEdgeMouseEnter={handleEdgeEnter}
             onEdgeMouseLeave={handleEdgeLeave}
             onNodeClick={handleNodeClick}
+            onNodeMouseEnter={handleNodeEnter}
+            onNodeMouseLeave={handleNodeLeave}
+            onPaneClick={handlePaneClick}
             proOptions={{ hideAttribution: true }}
         >
             <Background
@@ -688,10 +778,20 @@ export function FlowGraphView({
         </ReactFlow>
     );
 
-    const canvas = (extraClassName: string) => (
+    const canvas = (extraClassName: string, withPanel: boolean) => (
         <div className={cn('relative w-full overflow-hidden rounded-lg bg-black', extraClassName)}>
             {flowElement}
             <EdgeHoverCard hovered={hovered} />
+            {withPanel && selectedNode ? (
+                <FlowGraphNodePanel
+                    edges={graph?.edges ?? []}
+                    flowId={flowId}
+                    node={selectedNode}
+                    nodes={graph?.nodes ?? []}
+                    onClose={() => setSelectedNodeId(null)}
+                    onNavigate={(uuid) => setSelectedNodeId(uuid)}
+                />
+            ) : null}
         </div>
     );
 
@@ -702,7 +802,7 @@ export function FlowGraphView({
                 labels={presentLabels}
                 onToggle={handleToggleLabel}
             />
-            {canvas('h-[420px]')}
+            {canvas('h-[420px]', !isFullscreen)}
             {timelineBar}
             <p className="text-muted-foreground mt-2 text-xs">
                 Hover a link to see the action; click a node for its full details.
@@ -717,7 +817,7 @@ export function FlowGraphView({
                 labels={presentLabels}
                 onToggle={handleToggleLabel}
             />
-            {canvas('min-h-0 flex-1')}
+            {canvas('min-h-0 flex-1', isFullscreen)}
             {timelineBar}
         </div>
     );
@@ -851,17 +951,6 @@ export function FlowGraphView({
                     {fullscreenContainer}
                 </DialogContent>
             </Dialog>
-
-            {selectedNode ? (
-                <FlowGraphNodePanel
-                    edges={graph?.edges ?? []}
-                    flowId={flowId}
-                    node={selectedNode}
-                    nodes={graph?.nodes ?? []}
-                    onClose={() => setSelectedNodeId(null)}
-                    onNavigate={(uuid) => setSelectedNodeId(uuid)}
-                />
-            ) : null}
         </Card>
     );
 }
@@ -873,7 +962,7 @@ export function FlowGraphView({
 // targets. Because the vertical run stays in the inter-column gutter, edges
 // never cross a node box. Edges whose endpoint was filtered out are dropped.
 export function toFlowEdges(edges: AttackGraphEdgeFragmentFragment[], options: FlowEdgeOptions): Edge[] {
-    const { hoveredEdgeId, positions, route, selectedNodeId } = options;
+    const { hoveredEdgeId, positions, related, route } = options;
 
     // Nudge truly parallel edges (same source -> same target) apart so their
     // labels do not stack. Edges to different targets keep the shared trunk.
@@ -889,16 +978,14 @@ export function toFlowEdges(edges: AttackGraphEdgeFragmentFragment[], options: F
         }
 
         const isAttack = isAttackEdge(e.type);
-        const isActive =
-            hoveredEdgeId !== null
-                ? e.uuid === hoveredEdgeId
-                : selectedNodeId !== null && (e.sourceUUID === selectedNodeId || e.targetUUID === selectedNodeId);
-        const dimmed =
-            (hoveredEdgeId !== null && e.uuid !== hoveredEdgeId) ||
-            (hoveredEdgeId === null && selectedNodeId !== null && !isActive);
-
+        // An edge is lit when both its endpoints belong to the related set (or
+        // when nothing is selected, so the whole graph stays lit); otherwise it
+        // is dimmed. The hovered edge is emphasised regardless.
+        const inRelated = related === null || (related.has(e.sourceUUID) && related.has(e.targetUUID));
+        const dimmed = !inRelated;
+        const emphasized = related !== null && inRelated;
+        const thick = hoveredEdgeId === e.uuid || emphasized;
         const edgeColor = dimmed ? '#374151' : isAttack ? '#f97316' : '#9ca3af';
-        const thick = isActive && (hoveredEdgeId !== null || selectedNodeId !== null);
 
         const key = `${e.sourceUUID}->${e.targetUUID}`;
         const idx = pairCounter.get(key) ?? 0;

@@ -66,9 +66,47 @@ test.describe('flow dashboard analytics', { tag: '@flows' }, () => {
         await expect(endpoint).toBeVisible();
         await endpoint.click();
 
+        await expect(page.getByTestId('flow-node-panel')).toBeVisible();
         await expect(page.getByText('Properties', { exact: true })).toBeVisible();
         await expect(page.getByText('method', { exact: true })).toBeVisible();
         await expect(page.getByText('POST', { exact: true })).toBeVisible();
+
+        expectCleanPage(pageErrorLog);
+    });
+
+    test('the close button hides the panel without leaving fullscreen', async ({ page, pageErrorLog }) => {
+        await openAnalytics(page);
+
+        await page.getByRole('button', { name: 'Fullscreen' }).click();
+
+        const dialog = page.getByRole('dialog');
+        const endpoint = dialog.locator('.react-flow__node', { hasText: '/flag' });
+
+        await expect(endpoint).toBeVisible();
+        await endpoint.click();
+        await expect(dialog.getByText('Properties', { exact: true })).toBeVisible();
+
+        await dialog.getByRole('button', { name: 'Close node details' }).click();
+
+        await expect(dialog.getByText('Properties', { exact: true })).toBeHidden();
+        // The fullscreen dialog itself is still open.
+        await expect(page.getByRole('button', { name: 'Exit fullscreen' })).toBeVisible();
+
+        expectCleanPage(pageErrorLog);
+    });
+
+    test('escape clears the selection and closes the panel', async ({ page, pageErrorLog }) => {
+        await openAnalytics(page);
+
+        const endpoint = page.locator('.react-flow__node', { hasText: '/flag' });
+
+        await expect(endpoint).toBeVisible();
+        await endpoint.click();
+        await expect(page.getByText('Properties', { exact: true })).toBeVisible();
+
+        await page.keyboard.press('Escape');
+
+        await expect(page.getByText('Properties', { exact: true })).toBeHidden();
 
         expectCleanPage(pageErrorLog);
     });

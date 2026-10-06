@@ -1,7 +1,7 @@
 import { useQuery } from '@apollo/client/react';
+import { X } from 'lucide-react';
 import { Fragment, type ReactNode, useMemo } from 'react';
 
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { colorForLabel, primaryLabel } from '@/features/flows/dashboard/flow-graph-labels';
 import {
@@ -19,10 +19,12 @@ interface FlowGraphNodePanelProps {
     onNavigate: (uuid: string) => void;
 }
 
-// FlowGraphNodePanel is the right-hand detail drawer opened when a graph node is
-// clicked. It shows the node description, its Graphiti attributes (fetched on
-// demand) and its navigable incoming/outgoing relations, mirroring the EE
-// node-details panel. Clicking a relation selects that neighbour in place.
+// FlowGraphNodePanel is the detail drawer shown over the graph when a node is
+// clicked. It is a plain absolutely-positioned panel (not a Radix dialog) so it
+// can live inside the same container as the graph: inside the fullscreen dialog
+// it stays within that dialog's DOM subtree, so closing it never dismisses the
+// fullscreen view. It shows the node description, its Graphiti attributes
+// (fetched on demand) and its navigable incoming/outgoing relations.
 export function FlowGraphNodePanel({ edges, flowId, node, nodes, onClose, onNavigate }: FlowGraphNodePanelProps) {
     const { data, loading } = useQuery(FlowGraphNodePropertiesDocument, {
         fetchPolicy: 'cache-and-network',
@@ -39,65 +41,66 @@ export function FlowGraphNodePanel({ edges, flowId, node, nodes, onClose, onNavi
     const c = colorForLabel(type);
 
     return (
-        <Sheet
-            modal={false}
-            onOpenChange={(open) => {
-                if (!open) {
-                    onClose();
-                }
-            }}
-            open
+        <div
+            className="bg-background absolute inset-y-0 right-0 z-20 flex w-full max-w-md flex-col overflow-hidden border-l shadow-xl"
+            data-testid="flow-node-panel"
         >
-            <SheetContent
-                className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-md"
-                overlay={false}
-            >
-                <SheetHeader className="border-b px-4 py-3 text-left">
+            <div className="flex items-start justify-between gap-2 border-b px-4 py-3">
+                <div className="flex min-w-0 flex-col gap-1">
                     <div className="flex items-center gap-2">
                         <span
-                            className="inline-block size-2.5 rounded-full"
+                            className="inline-block size-2.5 shrink-0 rounded-full"
                             style={{ background: c.dot }}
                         />
-                        <span className="text-xs font-bold tracking-wider uppercase opacity-70">{type}</span>
+                        <span className="text-muted-foreground text-xs font-bold tracking-wider uppercase">{type}</span>
                     </div>
-                    <SheetTitle className="text-base">{node.name || type}</SheetTitle>
-                    {node.summary ? <SheetDescription>{node.summary}</SheetDescription> : null}
-                </SheetHeader>
-
-                <div className="min-h-0 flex-1 overflow-auto px-4 py-3">
-                    <SectionTitle>Properties</SectionTitle>
-                    {loading && properties.length === 0 ? (
-                        <Skeleton className="h-20 w-full" />
-                    ) : properties.length === 0 ? (
-                        <p className="text-muted-foreground text-xs">No attributes extracted.</p>
-                    ) : (
-                        <dl className="grid grid-cols-[minmax(0,8rem)_1fr] gap-x-3 gap-y-1 text-xs">
-                            {properties.map((p) => (
-                                <Fragment key={p.key}>
-                                    <dt className="text-muted-foreground truncate">{p.key}</dt>
-                                    <dd className="break-words text-gray-200">{p.value}</dd>
-                                </Fragment>
-                            ))}
-                        </dl>
-                    )}
-
-                    <Relations
-                        direction="in"
-                        edges={incoming}
-                        nodeIndex={nodeIndex}
-                        onNavigate={onNavigate}
-                        title={`Incoming (${incoming.length})`}
-                    />
-                    <Relations
-                        direction="out"
-                        edges={outgoing}
-                        nodeIndex={nodeIndex}
-                        onNavigate={onNavigate}
-                        title={`Outgoing (${outgoing.length})`}
-                    />
+                    <div className="truncate text-base font-semibold">{node.name || type}</div>
                 </div>
-            </SheetContent>
-        </Sheet>
+                <button
+                    aria-label="Close node details"
+                    className="hover:bg-accent rounded-sm p-1 opacity-70 transition-opacity hover:opacity-100"
+                    onClick={onClose}
+                    type="button"
+                >
+                    <X className="size-4" />
+                </button>
+            </div>
+
+            {node.summary ? <p className="text-muted-foreground border-b px-4 py-3 text-sm">{node.summary}</p> : null}
+
+            <div className="min-h-0 flex-1 overflow-auto px-4 py-3">
+                <SectionTitle>Properties</SectionTitle>
+                {loading && properties.length === 0 ? (
+                    <Skeleton className="h-20 w-full" />
+                ) : properties.length === 0 ? (
+                    <p className="text-muted-foreground text-xs">No attributes extracted.</p>
+                ) : (
+                    <dl className="grid grid-cols-[minmax(0,8rem)_1fr] gap-x-3 gap-y-1 text-xs">
+                        {properties.map((p) => (
+                            <Fragment key={p.key}>
+                                <dt className="text-muted-foreground truncate">{p.key}</dt>
+                                <dd className="break-words text-gray-200">{p.value}</dd>
+                            </Fragment>
+                        ))}
+                    </dl>
+                )}
+
+                <Relations
+                    direction="in"
+                    edges={incoming}
+                    nodeIndex={nodeIndex}
+                    onNavigate={onNavigate}
+                    title={`Incoming (${incoming.length})`}
+                />
+                <Relations
+                    direction="out"
+                    edges={outgoing}
+                    nodeIndex={nodeIndex}
+                    onNavigate={onNavigate}
+                    title={`Outgoing (${outgoing.length})`}
+                />
+            </div>
+        </div>
     );
 }
 

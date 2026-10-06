@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildLayout, columnForLabel, toFlowEdges } from './flow-graph-view';
+import { buildLayout, columnForLabel, relatedNodes, toFlowEdges } from './flow-graph-view';
 
 const node = (uuid: string, label: string, name = '') => ({
     createdAt: null,
@@ -73,8 +73,8 @@ describe('flow-graph-view edge routing', () => {
         const edges = toFlowEdges([edge('e1', 'h', 'p')], {
             hoveredEdgeId: null,
             positions,
+            related: null,
             route,
-            selectedNodeId: null,
         });
 
         expect(edges).toHaveLength(1);
@@ -90,8 +90,8 @@ describe('flow-graph-view edge routing', () => {
         const edges = toFlowEdges([edge('e1', 'h', 'p'), edge('e2', 'h', 'v')], {
             hoveredEdgeId: null,
             positions,
+            related: null,
             route,
-            selectedNodeId: null,
         });
 
         const adjacent = routeOf(edges.find((e) => e.id === 'e1'));
@@ -108,25 +108,54 @@ describe('flow-graph-view edge routing', () => {
         const edges = toFlowEdges([edge('e1', 'h', 'missing')], {
             hoveredEdgeId: null,
             positions,
+            related: null,
             route,
-            selectedNodeId: null,
         });
 
         expect(edges).toHaveLength(0);
     });
 
-    it('highlights the hovered edge and dims the others', () => {
+    it('lights edges whose endpoints are in the related set and dims the rest', () => {
         const edges = toFlowEdges([edge('e1', 'h', 'p'), edge('e2', 'p', 'v')], {
-            hoveredEdgeId: 'e1',
+            hoveredEdgeId: null,
             positions,
+            related: new Set(['h', 'p']),
             route,
-            selectedNodeId: null,
         });
 
-        const hovered = edges.find((e) => e.id === 'e1')!;
-        const other = edges.find((e) => e.id === 'e2')!;
+        const lit = edges.find((e) => e.id === 'e1')!;
+        const dimmed = edges.find((e) => e.id === 'e2')!;
 
-        expect(hovered.style?.opacity).toBe(1);
-        expect(other.style?.opacity).toBe(0.15);
+        expect(lit.style?.opacity).toBe(1);
+        expect(dimmed.style?.opacity).toBe(0.15);
+    });
+});
+
+describe('flow-graph-view related set', () => {
+    // h -> p -> s -> e -> v, plus a sibling branch p2 hanging off h.
+    const graph = {
+        edges: [
+            edge('a', 'h', 'p'),
+            edge('b', 'p', 's'),
+            edge('c', 's', 'e'),
+            edge('d', 'e', 'v'),
+            edge('x', 'h', 'p2'),
+        ],
+    };
+
+    it('lights ancestors and descendants of the anchor, not sibling branches', () => {
+        const related = relatedNodes(graph, 'p');
+
+        expect(related.has('h')).toBe(true); // ancestor
+        expect(related.has('s')).toBe(true); // descendant
+        expect(related.has('v')).toBe(true); // descendant, deeper
+        expect(related.has('p2')).toBe(false); // sibling branch off h, not through p
+    });
+
+    it('handles cycles without looping', () => {
+        const related = relatedNodes({ edges: [edge('a', 'h', 'p'), edge('b', 'p', 'h')] }, 'h');
+
+        expect(related.has('p')).toBe(true);
+        expect(related.size).toBe(2);
     });
 });
