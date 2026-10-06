@@ -501,10 +501,18 @@ type Subtask struct {
 }
 
 type SubtaskExecutionStats struct {
-	SubtaskID            int64   `json:"subtaskId"`
-	SubtaskTitle         string  `json:"subtaskTitle"`
-	TotalDurationSeconds float64 `json:"totalDurationSeconds"`
-	TotalToolcallsCount  int     `json:"totalToolcallsCount"`
+	SubtaskID                     int64   `json:"subtaskId"`
+	SubtaskTitle                  string  `json:"subtaskTitle"`
+	TotalDurationSeconds          float64 `json:"totalDurationSeconds"`
+	TotalToolcallsCount           int     `json:"totalToolcallsCount"`
+	TotalToolcallsDurationSeconds float64 `json:"totalToolcallsDurationSeconds"`
+	SubAgentsCount                int     `json:"subAgentsCount"`
+	TotalUsageIn                  int     `json:"totalUsageIn"`
+	TotalUsageOut                 int     `json:"totalUsageOut"`
+	TotalUsageCacheIn             int     `json:"totalUsageCacheIn"`
+	TotalUsageCacheOut            int     `json:"totalUsageCacheOut"`
+	TotalCostIn                   float64 `json:"totalCostIn"`
+	TotalCostOut                  float64 `json:"totalCostOut"`
 }
 
 type Task struct {
@@ -520,11 +528,19 @@ type Task struct {
 }
 
 type TaskExecutionStats struct {
-	TaskID               int64                    `json:"taskId"`
-	TaskTitle            string                   `json:"taskTitle"`
-	TotalDurationSeconds float64                  `json:"totalDurationSeconds"`
-	TotalToolcallsCount  int                      `json:"totalToolcallsCount"`
-	Subtasks             []*SubtaskExecutionStats `json:"subtasks"`
+	TaskID                        int64                    `json:"taskId"`
+	TaskTitle                     string                   `json:"taskTitle"`
+	TotalDurationSeconds          float64                  `json:"totalDurationSeconds"`
+	TotalToolcallsCount           int                      `json:"totalToolcallsCount"`
+	TotalToolcallsDurationSeconds float64                  `json:"totalToolcallsDurationSeconds"`
+	SubAgentsCount                int                      `json:"subAgentsCount"`
+	TotalUsageIn                  int                      `json:"totalUsageIn"`
+	TotalUsageOut                 int                      `json:"totalUsageOut"`
+	TotalUsageCacheIn             int                      `json:"totalUsageCacheIn"`
+	TotalUsageCacheOut            int                      `json:"totalUsageCacheOut"`
+	TotalCostIn                   float64                  `json:"totalCostIn"`
+	TotalCostOut                  float64                  `json:"totalCostOut"`
+	Subtasks                      []*SubtaskExecutionStats `json:"subtasks"`
 }
 
 type Terminal struct {

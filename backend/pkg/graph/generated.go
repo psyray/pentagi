@@ -496,6 +496,7 @@ type ComplexityRoot struct {
 		AssistantLogs                   func(childComplexity int, flowID int64, assistantID int64) int
 		Assistants                      func(childComplexity int, flowID int64) int
 		Flow                            func(childComplexity int, flowID int64) int
+		FlowExecutionStats              func(childComplexity int, flowID int64) int
 		FlowFiles                       func(childComplexity int, flowID int64) int
 		FlowStatsByFlow                 func(childComplexity int, flowID int64) int
 		FlowTemplate                    func(childComplexity int, templateID int64) int
@@ -627,10 +628,18 @@ type ComplexityRoot struct {
 	}
 
 	SubtaskExecutionStats struct {
-		SubtaskID            func(childComplexity int) int
-		SubtaskTitle         func(childComplexity int) int
-		TotalDurationSeconds func(childComplexity int) int
-		TotalToolcallsCount  func(childComplexity int) int
+		SubAgentsCount                func(childComplexity int) int
+		SubtaskID                     func(childComplexity int) int
+		SubtaskTitle                  func(childComplexity int) int
+		TotalCostIn                   func(childComplexity int) int
+		TotalCostOut                  func(childComplexity int) int
+		TotalDurationSeconds          func(childComplexity int) int
+		TotalToolcallsCount           func(childComplexity int) int
+		TotalToolcallsDurationSeconds func(childComplexity int) int
+		TotalUsageCacheIn             func(childComplexity int) int
+		TotalUsageCacheOut            func(childComplexity int) int
+		TotalUsageIn                  func(childComplexity int) int
+		TotalUsageOut                 func(childComplexity int) int
 	}
 
 	Task struct {
@@ -646,11 +655,19 @@ type ComplexityRoot struct {
 	}
 
 	TaskExecutionStats struct {
-		Subtasks             func(childComplexity int) int
-		TaskID               func(childComplexity int) int
-		TaskTitle            func(childComplexity int) int
-		TotalDurationSeconds func(childComplexity int) int
-		TotalToolcallsCount  func(childComplexity int) int
+		SubAgentsCount                func(childComplexity int) int
+		Subtasks                      func(childComplexity int) int
+		TaskID                        func(childComplexity int) int
+		TaskTitle                     func(childComplexity int) int
+		TotalCostIn                   func(childComplexity int) int
+		TotalCostOut                  func(childComplexity int) int
+		TotalDurationSeconds          func(childComplexity int) int
+		TotalToolcallsCount           func(childComplexity int) int
+		TotalToolcallsDurationSeconds func(childComplexity int) int
+		TotalUsageCacheIn             func(childComplexity int) int
+		TotalUsageCacheOut            func(childComplexity int) int
+		TotalUsageIn                  func(childComplexity int) int
+		TotalUsageOut                 func(childComplexity int) int
 	}
 
 	Terminal struct {
@@ -842,6 +859,7 @@ type QueryResolver interface {
 	FlowsStatsByPeriod(ctx context.Context, period model.UsageStatsPeriod, timezone *string) ([]*model.DailyFlowsStats, error)
 	FlowStatsByFlow(ctx context.Context, flowID int64) (*model.FlowStats, error)
 	FlowsExecutionStatsByPeriod(ctx context.Context, period model.UsageStatsPeriod, timezone *string) ([]*model.FlowExecutionStats, error)
+	FlowExecutionStats(ctx context.Context, flowID int64) (*model.FlowExecutionStats, error)
 	Settings(ctx context.Context) (*model.Settings, error)
 	VersionInfo(ctx context.Context) (*model.VersionInfo, error)
 	SettingsProviders(ctx context.Context) (*model.ProvidersConfig, error)
@@ -3292,6 +3310,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.Flow(childComplexity, args["flowId"].(int64)), true
 
+	case "Query.flowExecutionStats":
+		if e.complexity.Query.FlowExecutionStats == nil {
+			break
+		}
+
+		args, err := ec.field_Query_flowExecutionStats_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.FlowExecutionStats(childComplexity, args["flowId"].(int64)), true
+
 	case "Query.flowFiles":
 		if e.complexity.Query.FlowFiles == nil {
 			break
@@ -4272,6 +4302,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Subtask.UpdatedAt(childComplexity), true
 
+	case "SubtaskExecutionStats.subAgentsCount":
+		if e.complexity.SubtaskExecutionStats.SubAgentsCount == nil {
+			break
+		}
+
+		return e.complexity.SubtaskExecutionStats.SubAgentsCount(childComplexity), true
+
 	case "SubtaskExecutionStats.subtaskId":
 		if e.complexity.SubtaskExecutionStats.SubtaskID == nil {
 			break
@@ -4286,6 +4323,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.SubtaskExecutionStats.SubtaskTitle(childComplexity), true
 
+	case "SubtaskExecutionStats.totalCostIn":
+		if e.complexity.SubtaskExecutionStats.TotalCostIn == nil {
+			break
+		}
+
+		return e.complexity.SubtaskExecutionStats.TotalCostIn(childComplexity), true
+
+	case "SubtaskExecutionStats.totalCostOut":
+		if e.complexity.SubtaskExecutionStats.TotalCostOut == nil {
+			break
+		}
+
+		return e.complexity.SubtaskExecutionStats.TotalCostOut(childComplexity), true
+
 	case "SubtaskExecutionStats.totalDurationSeconds":
 		if e.complexity.SubtaskExecutionStats.TotalDurationSeconds == nil {
 			break
@@ -4299,6 +4350,41 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.SubtaskExecutionStats.TotalToolcallsCount(childComplexity), true
+
+	case "SubtaskExecutionStats.totalToolcallsDurationSeconds":
+		if e.complexity.SubtaskExecutionStats.TotalToolcallsDurationSeconds == nil {
+			break
+		}
+
+		return e.complexity.SubtaskExecutionStats.TotalToolcallsDurationSeconds(childComplexity), true
+
+	case "SubtaskExecutionStats.totalUsageCacheIn":
+		if e.complexity.SubtaskExecutionStats.TotalUsageCacheIn == nil {
+			break
+		}
+
+		return e.complexity.SubtaskExecutionStats.TotalUsageCacheIn(childComplexity), true
+
+	case "SubtaskExecutionStats.totalUsageCacheOut":
+		if e.complexity.SubtaskExecutionStats.TotalUsageCacheOut == nil {
+			break
+		}
+
+		return e.complexity.SubtaskExecutionStats.TotalUsageCacheOut(childComplexity), true
+
+	case "SubtaskExecutionStats.totalUsageIn":
+		if e.complexity.SubtaskExecutionStats.TotalUsageIn == nil {
+			break
+		}
+
+		return e.complexity.SubtaskExecutionStats.TotalUsageIn(childComplexity), true
+
+	case "SubtaskExecutionStats.totalUsageOut":
+		if e.complexity.SubtaskExecutionStats.TotalUsageOut == nil {
+			break
+		}
+
+		return e.complexity.SubtaskExecutionStats.TotalUsageOut(childComplexity), true
 
 	case "Task.createdAt":
 		if e.complexity.Task.CreatedAt == nil {
@@ -4363,6 +4449,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Task.UpdatedAt(childComplexity), true
 
+	case "TaskExecutionStats.subAgentsCount":
+		if e.complexity.TaskExecutionStats.SubAgentsCount == nil {
+			break
+		}
+
+		return e.complexity.TaskExecutionStats.SubAgentsCount(childComplexity), true
+
 	case "TaskExecutionStats.subtasks":
 		if e.complexity.TaskExecutionStats.Subtasks == nil {
 			break
@@ -4384,6 +4477,20 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.TaskExecutionStats.TaskTitle(childComplexity), true
 
+	case "TaskExecutionStats.totalCostIn":
+		if e.complexity.TaskExecutionStats.TotalCostIn == nil {
+			break
+		}
+
+		return e.complexity.TaskExecutionStats.TotalCostIn(childComplexity), true
+
+	case "TaskExecutionStats.totalCostOut":
+		if e.complexity.TaskExecutionStats.TotalCostOut == nil {
+			break
+		}
+
+		return e.complexity.TaskExecutionStats.TotalCostOut(childComplexity), true
+
 	case "TaskExecutionStats.totalDurationSeconds":
 		if e.complexity.TaskExecutionStats.TotalDurationSeconds == nil {
 			break
@@ -4397,6 +4504,41 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.TaskExecutionStats.TotalToolcallsCount(childComplexity), true
+
+	case "TaskExecutionStats.totalToolcallsDurationSeconds":
+		if e.complexity.TaskExecutionStats.TotalToolcallsDurationSeconds == nil {
+			break
+		}
+
+		return e.complexity.TaskExecutionStats.TotalToolcallsDurationSeconds(childComplexity), true
+
+	case "TaskExecutionStats.totalUsageCacheIn":
+		if e.complexity.TaskExecutionStats.TotalUsageCacheIn == nil {
+			break
+		}
+
+		return e.complexity.TaskExecutionStats.TotalUsageCacheIn(childComplexity), true
+
+	case "TaskExecutionStats.totalUsageCacheOut":
+		if e.complexity.TaskExecutionStats.TotalUsageCacheOut == nil {
+			break
+		}
+
+		return e.complexity.TaskExecutionStats.TotalUsageCacheOut(childComplexity), true
+
+	case "TaskExecutionStats.totalUsageIn":
+		if e.complexity.TaskExecutionStats.TotalUsageIn == nil {
+			break
+		}
+
+		return e.complexity.TaskExecutionStats.TotalUsageIn(childComplexity), true
+
+	case "TaskExecutionStats.totalUsageOut":
+		if e.complexity.TaskExecutionStats.TotalUsageOut == nil {
+			break
+		}
+
+		return e.complexity.TaskExecutionStats.TotalUsageOut(childComplexity), true
 
 	case "Terminal.connected":
 		if e.complexity.Terminal.Connected == nil {
@@ -7179,6 +7321,38 @@ func (ec *executionContext) field_Query_assistants_args(ctx context.Context, raw
 	return args, nil
 }
 func (ec *executionContext) field_Query_assistants_argsFlowID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["flowId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("flowId"))
+	if tmp, ok := rawArgs["flowId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_flowExecutionStats_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Query_flowExecutionStats_argsFlowID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["flowId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_flowExecutionStats_argsFlowID(
 	ctx context.Context,
 	rawArgs map[string]interface{},
 ) (int64, error) {
@@ -15752,6 +15926,22 @@ func (ec *executionContext) fieldContext_FlowExecutionStats_tasks(_ context.Cont
 				return ec.fieldContext_TaskExecutionStats_totalDurationSeconds(ctx, field)
 			case "totalToolcallsCount":
 				return ec.fieldContext_TaskExecutionStats_totalToolcallsCount(ctx, field)
+			case "totalToolcallsDurationSeconds":
+				return ec.fieldContext_TaskExecutionStats_totalToolcallsDurationSeconds(ctx, field)
+			case "subAgentsCount":
+				return ec.fieldContext_TaskExecutionStats_subAgentsCount(ctx, field)
+			case "totalUsageIn":
+				return ec.fieldContext_TaskExecutionStats_totalUsageIn(ctx, field)
+			case "totalUsageOut":
+				return ec.fieldContext_TaskExecutionStats_totalUsageOut(ctx, field)
+			case "totalUsageCacheIn":
+				return ec.fieldContext_TaskExecutionStats_totalUsageCacheIn(ctx, field)
+			case "totalUsageCacheOut":
+				return ec.fieldContext_TaskExecutionStats_totalUsageCacheOut(ctx, field)
+			case "totalCostIn":
+				return ec.fieldContext_TaskExecutionStats_totalCostIn(ctx, field)
+			case "totalCostOut":
+				return ec.fieldContext_TaskExecutionStats_totalCostOut(ctx, field)
 			case "subtasks":
 				return ec.fieldContext_TaskExecutionStats_subtasks(ctx, field)
 			}
@@ -26296,6 +26486,75 @@ func (ec *executionContext) fieldContext_Query_flowsExecutionStatsByPeriod(ctx c
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_flowExecutionStats(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_flowExecutionStats(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().FlowExecutionStats(rctx, fc.Args["flowId"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.FlowExecutionStats)
+	fc.Result = res
+	return ec.marshalNFlowExecutionStats2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐFlowExecutionStats(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_flowExecutionStats(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "flowId":
+				return ec.fieldContext_FlowExecutionStats_flowId(ctx, field)
+			case "flowTitle":
+				return ec.fieldContext_FlowExecutionStats_flowTitle(ctx, field)
+			case "totalDurationSeconds":
+				return ec.fieldContext_FlowExecutionStats_totalDurationSeconds(ctx, field)
+			case "totalToolcallsCount":
+				return ec.fieldContext_FlowExecutionStats_totalToolcallsCount(ctx, field)
+			case "totalAssistantsCount":
+				return ec.fieldContext_FlowExecutionStats_totalAssistantsCount(ctx, field)
+			case "tasks":
+				return ec.fieldContext_FlowExecutionStats_tasks(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type FlowExecutionStats", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_flowExecutionStats_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_settings(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Query_settings(ctx, field)
 	if err != nil {
@@ -32065,6 +32324,358 @@ func (ec *executionContext) fieldContext_SubtaskExecutionStats_totalToolcallsCou
 	return fc, nil
 }
 
+func (ec *executionContext) _SubtaskExecutionStats_totalToolcallsDurationSeconds(ctx context.Context, field graphql.CollectedField, obj *model.SubtaskExecutionStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SubtaskExecutionStats_totalToolcallsDurationSeconds(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalToolcallsDurationSeconds, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SubtaskExecutionStats_totalToolcallsDurationSeconds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SubtaskExecutionStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SubtaskExecutionStats_subAgentsCount(ctx context.Context, field graphql.CollectedField, obj *model.SubtaskExecutionStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SubtaskExecutionStats_subAgentsCount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.SubAgentsCount, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SubtaskExecutionStats_subAgentsCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SubtaskExecutionStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SubtaskExecutionStats_totalUsageIn(ctx context.Context, field graphql.CollectedField, obj *model.SubtaskExecutionStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SubtaskExecutionStats_totalUsageIn(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalUsageIn, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SubtaskExecutionStats_totalUsageIn(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SubtaskExecutionStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SubtaskExecutionStats_totalUsageOut(ctx context.Context, field graphql.CollectedField, obj *model.SubtaskExecutionStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SubtaskExecutionStats_totalUsageOut(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalUsageOut, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SubtaskExecutionStats_totalUsageOut(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SubtaskExecutionStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SubtaskExecutionStats_totalUsageCacheIn(ctx context.Context, field graphql.CollectedField, obj *model.SubtaskExecutionStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SubtaskExecutionStats_totalUsageCacheIn(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalUsageCacheIn, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SubtaskExecutionStats_totalUsageCacheIn(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SubtaskExecutionStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SubtaskExecutionStats_totalUsageCacheOut(ctx context.Context, field graphql.CollectedField, obj *model.SubtaskExecutionStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SubtaskExecutionStats_totalUsageCacheOut(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalUsageCacheOut, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SubtaskExecutionStats_totalUsageCacheOut(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SubtaskExecutionStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SubtaskExecutionStats_totalCostIn(ctx context.Context, field graphql.CollectedField, obj *model.SubtaskExecutionStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SubtaskExecutionStats_totalCostIn(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalCostIn, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SubtaskExecutionStats_totalCostIn(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SubtaskExecutionStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SubtaskExecutionStats_totalCostOut(ctx context.Context, field graphql.CollectedField, obj *model.SubtaskExecutionStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SubtaskExecutionStats_totalCostOut(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalCostOut, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SubtaskExecutionStats_totalCostOut(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SubtaskExecutionStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Task_id(ctx context.Context, field graphql.CollectedField, obj *model.Task) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Task_id(ctx, field)
 	if err != nil {
@@ -32652,6 +33263,358 @@ func (ec *executionContext) fieldContext_TaskExecutionStats_totalToolcallsCount(
 	return fc, nil
 }
 
+func (ec *executionContext) _TaskExecutionStats_totalToolcallsDurationSeconds(ctx context.Context, field graphql.CollectedField, obj *model.TaskExecutionStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_TaskExecutionStats_totalToolcallsDurationSeconds(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalToolcallsDurationSeconds, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_TaskExecutionStats_totalToolcallsDurationSeconds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TaskExecutionStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TaskExecutionStats_subAgentsCount(ctx context.Context, field graphql.CollectedField, obj *model.TaskExecutionStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_TaskExecutionStats_subAgentsCount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.SubAgentsCount, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_TaskExecutionStats_subAgentsCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TaskExecutionStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TaskExecutionStats_totalUsageIn(ctx context.Context, field graphql.CollectedField, obj *model.TaskExecutionStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_TaskExecutionStats_totalUsageIn(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalUsageIn, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_TaskExecutionStats_totalUsageIn(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TaskExecutionStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TaskExecutionStats_totalUsageOut(ctx context.Context, field graphql.CollectedField, obj *model.TaskExecutionStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_TaskExecutionStats_totalUsageOut(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalUsageOut, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_TaskExecutionStats_totalUsageOut(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TaskExecutionStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TaskExecutionStats_totalUsageCacheIn(ctx context.Context, field graphql.CollectedField, obj *model.TaskExecutionStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_TaskExecutionStats_totalUsageCacheIn(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalUsageCacheIn, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_TaskExecutionStats_totalUsageCacheIn(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TaskExecutionStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TaskExecutionStats_totalUsageCacheOut(ctx context.Context, field graphql.CollectedField, obj *model.TaskExecutionStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_TaskExecutionStats_totalUsageCacheOut(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalUsageCacheOut, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_TaskExecutionStats_totalUsageCacheOut(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TaskExecutionStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TaskExecutionStats_totalCostIn(ctx context.Context, field graphql.CollectedField, obj *model.TaskExecutionStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_TaskExecutionStats_totalCostIn(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalCostIn, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_TaskExecutionStats_totalCostIn(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TaskExecutionStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TaskExecutionStats_totalCostOut(ctx context.Context, field graphql.CollectedField, obj *model.TaskExecutionStats) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_TaskExecutionStats_totalCostOut(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalCostOut, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_TaskExecutionStats_totalCostOut(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TaskExecutionStats",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _TaskExecutionStats_subtasks(ctx context.Context, field graphql.CollectedField, obj *model.TaskExecutionStats) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_TaskExecutionStats_subtasks(ctx, field)
 	if err != nil {
@@ -32699,6 +33662,22 @@ func (ec *executionContext) fieldContext_TaskExecutionStats_subtasks(_ context.C
 				return ec.fieldContext_SubtaskExecutionStats_totalDurationSeconds(ctx, field)
 			case "totalToolcallsCount":
 				return ec.fieldContext_SubtaskExecutionStats_totalToolcallsCount(ctx, field)
+			case "totalToolcallsDurationSeconds":
+				return ec.fieldContext_SubtaskExecutionStats_totalToolcallsDurationSeconds(ctx, field)
+			case "subAgentsCount":
+				return ec.fieldContext_SubtaskExecutionStats_subAgentsCount(ctx, field)
+			case "totalUsageIn":
+				return ec.fieldContext_SubtaskExecutionStats_totalUsageIn(ctx, field)
+			case "totalUsageOut":
+				return ec.fieldContext_SubtaskExecutionStats_totalUsageOut(ctx, field)
+			case "totalUsageCacheIn":
+				return ec.fieldContext_SubtaskExecutionStats_totalUsageCacheIn(ctx, field)
+			case "totalUsageCacheOut":
+				return ec.fieldContext_SubtaskExecutionStats_totalUsageCacheOut(ctx, field)
+			case "totalCostIn":
+				return ec.fieldContext_SubtaskExecutionStats_totalCostIn(ctx, field)
+			case "totalCostOut":
+				return ec.fieldContext_SubtaskExecutionStats_totalCostOut(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type SubtaskExecutionStats", field.Name)
 		},
@@ -42561,6 +43540,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "flowExecutionStats":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_flowExecutionStats(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "settings":
 			field := field
 
@@ -43316,6 +44317,46 @@ func (ec *executionContext) _SubtaskExecutionStats(ctx context.Context, sel ast.
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "totalToolcallsDurationSeconds":
+			out.Values[i] = ec._SubtaskExecutionStats_totalToolcallsDurationSeconds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "subAgentsCount":
+			out.Values[i] = ec._SubtaskExecutionStats_subAgentsCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalUsageIn":
+			out.Values[i] = ec._SubtaskExecutionStats_totalUsageIn(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalUsageOut":
+			out.Values[i] = ec._SubtaskExecutionStats_totalUsageOut(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalUsageCacheIn":
+			out.Values[i] = ec._SubtaskExecutionStats_totalUsageCacheIn(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalUsageCacheOut":
+			out.Values[i] = ec._SubtaskExecutionStats_totalUsageCacheOut(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalCostIn":
+			out.Values[i] = ec._SubtaskExecutionStats_totalCostIn(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalCostOut":
+			out.Values[i] = ec._SubtaskExecutionStats_totalCostOut(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -43443,6 +44484,46 @@ func (ec *executionContext) _TaskExecutionStats(ctx context.Context, sel ast.Sel
 			}
 		case "totalToolcallsCount":
 			out.Values[i] = ec._TaskExecutionStats_totalToolcallsCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalToolcallsDurationSeconds":
+			out.Values[i] = ec._TaskExecutionStats_totalToolcallsDurationSeconds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "subAgentsCount":
+			out.Values[i] = ec._TaskExecutionStats_subAgentsCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalUsageIn":
+			out.Values[i] = ec._TaskExecutionStats_totalUsageIn(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalUsageOut":
+			out.Values[i] = ec._TaskExecutionStats_totalUsageOut(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalUsageCacheIn":
+			out.Values[i] = ec._TaskExecutionStats_totalUsageCacheIn(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalUsageCacheOut":
+			out.Values[i] = ec._TaskExecutionStats_totalUsageCacheOut(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalCostIn":
+			out.Values[i] = ec._TaskExecutionStats_totalCostIn(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalCostOut":
+			out.Values[i] = ec._TaskExecutionStats_totalCostOut(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -45196,6 +46277,10 @@ func (ec *executionContext) marshalNFlowAssistant2ᚖpentagiᚋpkgᚋgraphᚋmod
 		return graphql.Null
 	}
 	return ec._FlowAssistant(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNFlowExecutionStats2pentagiᚋpkgᚋgraphᚋmodelᚐFlowExecutionStats(ctx context.Context, sel ast.SelectionSet, v model.FlowExecutionStats) graphql.Marshaler {
+	return ec._FlowExecutionStats(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNFlowExecutionStats2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐFlowExecutionStatsᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.FlowExecutionStats) graphql.Marshaler {

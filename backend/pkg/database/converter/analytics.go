@@ -259,6 +259,97 @@ func CountFinishedToolcallsForTask(toolcalls []database.Toolcall, taskID int64, 
 	return count
 }
 
+// ========== Usage and Sub-agent Aggregation ==========
+
+// subAgentMsgchainTypes are the delegated specialist agents. A subtask's primary
+// worker runs as primary_agent; every other chain it triggers through a delegation
+// tool is a sub-agent. Internal mechanisms (summarizer, reflector, tool_call_fixer)
+// are excluded: they are not delegations the operator asked for.
+var subAgentMsgchainTypes = map[database.MsgchainType]bool{
+	database.MsgchainTypeAdviser:   true,
+	database.MsgchainTypeCoder:     true,
+	database.MsgchainTypeEnricher:  true,
+	database.MsgchainTypeInstaller: true,
+	database.MsgchainTypeMemorist:  true,
+	database.MsgchainTypePentester: true,
+	database.MsgchainTypeSearcher:  true,
+}
+
+// SumMsgchainUsage sums tokens and cost of every msgchain in the slice.
+func SumMsgchainUsage(msgchains []database.Msgchain) (in, out, cacheIn, cacheOut int64, costIn, costOut float64) {
+	for _, mc := range msgchains {
+		in += mc.UsageIn
+		out += mc.UsageOut
+		cacheIn += mc.UsageCacheIn
+		cacheOut += mc.UsageCacheOut
+		costIn += mc.UsageCostIn
+		costOut += mc.UsageCostOut
+	}
+	return
+}
+
+// SumMsgchainUsageForSubtask sums tokens and cost of the msgchains attributed to one subtask.
+func SumMsgchainUsageForSubtask(msgchains []database.Msgchain, subtaskID int64) (in, out, cacheIn, cacheOut int64, costIn, costOut float64) {
+	for _, mc := range msgchains {
+		if !mc.SubtaskID.Valid || mc.SubtaskID.Int64 != subtaskID {
+			continue
+		}
+		in += mc.UsageIn
+		out += mc.UsageOut
+		cacheIn += mc.UsageCacheIn
+		cacheOut += mc.UsageCacheOut
+		costIn += mc.UsageCostIn
+		costOut += mc.UsageCostOut
+	}
+	return
+}
+
+// CountSubAgents counts the delegated specialist chains in the slice.
+func CountSubAgents(msgchains []database.Msgchain) int {
+	count := 0
+	for _, mc := range msgchains {
+		if subAgentMsgchainTypes[mc.Type] {
+			count++
+		}
+	}
+	return count
+}
+
+// CountSubAgentsForSubtask counts the delegated specialist chains attributed to one subtask.
+func CountSubAgentsForSubtask(msgchains []database.Msgchain, subtaskID int64) int {
+	count := 0
+	for _, mc := range msgchains {
+		if mc.SubtaskID.Valid && mc.SubtaskID.Int64 == subtaskID && subAgentMsgchainTypes[mc.Type] {
+			count++
+		}
+	}
+	return count
+}
+
+// SumFinishedToolcallsDuration sums the duration of finished and failed toolcalls.
+func SumFinishedToolcallsDuration(toolcalls []database.Toolcall) float64 {
+	var total float64
+	for _, tc := range toolcalls {
+		if tc.Status == database.ToolcallStatusFinished || tc.Status == database.ToolcallStatusFailed {
+			total += tc.DurationSeconds
+		}
+	}
+	return total
+}
+
+// SumFinishedToolcallsDurationForSubtask sums the duration of finished and failed
+// toolcalls attributed to one subtask.
+func SumFinishedToolcallsDurationForSubtask(toolcalls []database.Toolcall, subtaskID int64) float64 {
+	var total float64
+	for _, tc := range toolcalls {
+		if tc.SubtaskID.Valid && tc.SubtaskID.Int64 == subtaskID &&
+			(tc.Status == database.ToolcallStatusFinished || tc.Status == database.ToolcallStatusFailed) {
+			total += tc.DurationSeconds
+		}
+	}
+	return total
+}
+
 // ========== Hierarchical Stats Building ==========
 
 // BuildFlowExecutionStats builds hierarchical execution statistics for a flow
@@ -289,6 +380,12 @@ func BuildFlowExecutionStats(flowID int64, flowTitle string, tasks []database.Ge
 			TaskID:          mc.TaskID,
 			SubtaskID:       mc.SubtaskID,
 			DurationSeconds: mc.DurationSeconds,
+			UsageIn:         mc.UsageIn,
+			UsageOut:        mc.UsageOut,
+			UsageCacheIn:    mc.UsageCacheIn,
+			UsageCacheOut:   mc.UsageCacheOut,
+			UsageCostIn:     mc.UsageCostIn,
+			UsageCostOut:    mc.UsageCostOut,
 			CreatedAt:       mc.CreatedAt,
 			UpdatedAt:       mc.UpdatedAt,
 		}
@@ -359,25 +456,47 @@ func BuildFlowExecutionStats(flowID int64, flowTitle string, tasks []database.Ge
 			subtaskIDs = append(subtaskIDs, subtask.ID)
 			duration := compensatedDurations[subtask.ID]
 			count := CountFinishedToolcallsForSubtask(tcs, subtask.ID)
+			toolcallsDuration := SumFinishedToolcallsDurationForSubtask(tcs, subtask.ID)
+			usageIn, usageOut, usageCacheIn, usageCacheOut, costIn, costOut := SumMsgchainUsageForSubtask(mcs, subtask.ID)
+			subAgentsCount := CountSubAgentsForSubtask(mcs, subtask.ID)
 
 			subtaskStats = append(subtaskStats, &model.SubtaskExecutionStats{
-				SubtaskID:            subtask.ID,
-				SubtaskTitle:         subtask.Title,
-				TotalDurationSeconds: duration,
-				TotalToolcallsCount:  count,
+				SubtaskID:                     subtask.ID,
+				SubtaskTitle:                  subtask.Title,
+				TotalDurationSeconds:          duration,
+				TotalToolcallsCount:           count,
+				TotalToolcallsDurationSeconds: toolcallsDuration,
+				SubAgentsCount:                subAgentsCount,
+				TotalUsageIn:                  int(usageIn),
+				TotalUsageOut:                 int(usageOut),
+				TotalUsageCacheIn:             int(usageCacheIn),
+				TotalUsageCacheOut:            int(usageCacheOut),
+				TotalCostIn:                   costIn,
+				TotalCostOut:                  costOut,
 			})
 		}
 
 		// Build task stats
 		taskDuration := CalculateTaskDuration(task, subs, mcs)
 		taskCount := CountFinishedToolcallsForTask(tcs, task.ID, subtaskIDs)
+		taskToolcallsDuration := SumFinishedToolcallsDuration(tcs)
+		taskUsageIn, taskUsageOut, taskUsageCacheIn, taskUsageCacheOut, taskCostIn, taskCostOut := SumMsgchainUsage(mcs)
+		taskSubAgents := CountSubAgents(mcs)
 
 		taskStats = append(taskStats, &model.TaskExecutionStats{
-			TaskID:               task.ID,
-			TaskTitle:            task.Title,
-			TotalDurationSeconds: taskDuration,
-			TotalToolcallsCount:  taskCount,
-			Subtasks:             subtaskStats,
+			TaskID:                        task.ID,
+			TaskTitle:                     task.Title,
+			TotalDurationSeconds:          taskDuration,
+			TotalToolcallsCount:           taskCount,
+			TotalToolcallsDurationSeconds: taskToolcallsDuration,
+			SubAgentsCount:                taskSubAgents,
+			TotalUsageIn:                  int(taskUsageIn),
+			TotalUsageOut:                 int(taskUsageOut),
+			TotalUsageCacheIn:             int(taskUsageCacheIn),
+			TotalUsageCacheOut:            int(taskUsageCacheOut),
+			TotalCostIn:                   taskCostIn,
+			TotalCostOut:                  taskCostOut,
+			Subtasks:                      subtaskStats,
 		})
 	}
 
