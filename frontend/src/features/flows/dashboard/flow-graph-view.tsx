@@ -20,6 +20,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { Skeleton } from '@/components/ui/skeleton';
+import { colorForLabel, primaryLabel } from '@/features/flows/dashboard/flow-graph-labels';
+import { FlowGraphNodePanel } from '@/features/flows/dashboard/flow-graph-node-panel';
+
+import '@xyflow/react/dist/style.css';
+
 import {
     type AttackGraphEdgeFragmentFragment,
     type AttackGraphNodeFragmentFragment,
@@ -27,46 +32,6 @@ import {
     FlowAttackGraphDocument,
 } from '@/graphql/types';
 import { cn } from '@/lib/utils';
-
-import '@xyflow/react/dist/style.css';
-
-// ─── Color scheme ───────────────────────────────────────────────────────
-// Each entity type gets a hex triplet used for the node background (at 20%
-// alpha), border (at 60% alpha), text, and legend swatch. The scheme is
-// designed for a black graph background.
-interface LabelColor {
-    bg: string;
-    border: string;
-    dot: string;
-    text: string;
-}
-
-const labelColors: Record<string, LabelColor> = {
-    Account: { bg: '#7c3aed20', border: '#7c3aed99', dot: '#7c3aed', text: '#c4b5fd' }, // purple
-    Agent: { bg: '#64748b20', border: '#64748b99', dot: '#64748b', text: '#cbd5e1' }, // slate
-    Artifact: { bg: '#78716c20', border: '#78716c99', dot: '#78716c', text: '#d6d3d1' }, // stone
-    Attempt: { bg: '#eab30820', border: '#eab30899', dot: '#eab308', text: '#fde047' }, // yellow
-    Capability: { bg: '#84cc1620', border: '#84cc1699', dot: '#84cc16', text: '#bef264' }, // lime
-    Credential: { bg: '#f59e0b20', border: '#f59e0b99', dot: '#f59e0b', text: '#fcd34d' }, // amber
-    Endpoint: { bg: '#6366f120', border: '#6366f199', dot: '#6366f1', text: '#a5b4fc' }, // indigo
-    Episodic: { bg: '#40404020', border: '#52525299', dot: '#525252', text: '#a3a3a3' }, // neutral
-    Evidence: { bg: '#14b8a620', border: '#14b8a699', dot: '#14b8a6', text: '#5eead4' }, // teal
-    Host: { bg: '#3b82f620', border: '#3b82f699', dot: '#3b82f6', text: '#93c5fd' }, // blue
-    Misconfiguration: { bg: '#fb923c20', border: '#fb923c99', dot: '#fb923c', text: '#fdba74' }, // orange-light
-    Port: { bg: '#06b6d420', border: '#06b6d499', dot: '#06b6d4', text: '#67e8f9' }, // cyan
-    PrivChange: { bg: '#f43f5e20', border: '#f43f5e99', dot: '#f43f5e', text: '#fda4af' }, // rose
-    Service: { bg: '#22c55e20', border: '#22c55e99', dot: '#22c55e', text: '#86efac' }, // green
-    ValidAccess: { bg: '#f9731620', border: '#f9731699', dot: '#f97316', text: '#fdba74' }, // orange
-    Vhost: { bg: '#ec489920', border: '#ec489999', dot: '#ec4899', text: '#f9a8d4' }, // pink
-    Vulnerability: { bg: '#ef444420', border: '#ef444499', dot: '#ef4444', text: '#fca5a5' }, // red
-    WebApp: { bg: '#d946ef20', border: '#d946ef99', dot: '#d946ef', text: '#e879f9' }, // fuchsia
-};
-
-const fallbackColor: LabelColor = { bg: '#52525220', border: '#52525299', dot: '#525252', text: '#a3a3a3' };
-
-function colorForLabel(label: string): LabelColor {
-    return labelColors[label] ?? fallbackColor;
-}
 
 // ─── Layout ─────────────────────────────────────────────────────────────
 // labelColumnMap controls the left-to-right column order of entity types
@@ -147,16 +112,6 @@ function EntityNode({ data }: { data: EntityNodeData }) {
             />
         </div>
     );
-}
-
-function primaryLabel(labels: string[]): string {
-    for (const l of labels) {
-        if (l && l !== 'Entity') {
-            return l;
-        }
-    }
-
-    return labels[0] ?? 'Entity';
 }
 
 const nodeTypes = { entityNode: EntityNode };
@@ -547,9 +502,9 @@ export function FlowGraphView({
                 onToggle={handleToggleLabel}
             />
             {canvas('h-[420px]')}
-            <div className="mt-2">
-                <NodeDetailPanel node={selectedNode} />
-            </div>
+            <p className="text-muted-foreground mt-2 text-xs">
+                Hover a link to see the action; click a node for its full details.
+            </p>
         </>
     );
 
@@ -561,7 +516,6 @@ export function FlowGraphView({
                 onToggle={handleToggleLabel}
             />
             {canvas('min-h-0 flex-1')}
-            <NodeDetailPanel node={selectedNode} />
         </div>
     );
 
@@ -694,6 +648,17 @@ export function FlowGraphView({
                     {fullscreenContainer}
                 </DialogContent>
             </Dialog>
+
+            {selectedNode ? (
+                <FlowGraphNodePanel
+                    edges={graph?.edges ?? []}
+                    flowId={flowId}
+                    node={selectedNode}
+                    nodes={graph?.nodes ?? []}
+                    onClose={() => setSelectedNodeId(null)}
+                    onNavigate={(uuid) => setSelectedNodeId(uuid)}
+                />
+            ) : null}
         </Card>
     );
 }
@@ -876,41 +841,6 @@ function isAttackEdge(type: string): boolean {
 }
 
 // ─── Detail panel ────────────────────────────────────────────────────────
-function NodeDetailPanel({ node }: { node: AttackGraphNodeFragmentFragment | null }) {
-    if (!node) {
-        return (
-            <div className="flex items-center justify-center rounded-lg border border-gray-700 bg-gray-900/60 px-4 py-3 text-sm text-gray-500">
-                Click a node to see its details
-            </div>
-        );
-    }
-
-    const type = primaryLabel(node.labels);
-    const c = colorForLabel(type);
-
-    return (
-        <div
-            className="rounded-lg border-2 px-4 py-3"
-            style={{ background: c.bg, borderColor: c.border, color: c.text }}
-        >
-            <div className="flex items-center gap-2">
-                <span
-                    className="inline-block size-2.5 rounded-full"
-                    style={{ background: c.dot }}
-                />
-                <span className="text-xs font-bold tracking-wider uppercase opacity-70">{type}</span>
-            </div>
-            <div className="mt-1 text-base font-semibold">{node.name || type}</div>
-            {node.summary ? <div className="mt-1.5 text-sm opacity-70">{node.summary}</div> : null}
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-xs opacity-50">
-                <span>UUID: {node.uuid.slice(0, 12)}…</span>
-                {node.labels.length > 0 ? <span>Labels: {node.labels.join(', ')}</span> : null}
-                {node.createdAt ? <span>Created: {new Date(node.createdAt).toLocaleString()}</span> : null}
-            </div>
-        </div>
-    );
-}
-
 function truncate(s: string, n: number): string {
     if (s.length <= n) {
         return s;
