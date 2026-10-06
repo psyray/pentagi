@@ -12,6 +12,7 @@ import { useFlow } from '@/providers/flow-provider';
 import { SHELL_OPTIONS, type ShellName } from './flow-shell-api';
 import FlowShellTerminal, { type FlowShellTerminalHandle } from './flow-shell-terminal';
 import { useFlowShell } from './use-flow-shell';
+import { useResetScrollOnKeyboard } from './use-reset-scroll-on-keyboard';
 
 const DEFAULT_COLS = 80;
 const DEFAULT_ROWS = 24;
@@ -36,6 +37,11 @@ function FlowShell() {
     const { active, close, create, creating, error, handleExit, loading, select, shells } = useFlowShell(flowId);
     const [shell, setShell] = useState<ShellName>('zsh');
     const terminalRef = useRef<FlowShellTerminalHandle | null>(null);
+    const rootRef = useRef<HTMLDivElement>(null);
+
+    // Keep the pinned header (and its key row) on screen when the soft keyboard
+    // pushes the scroll container up on mobile.
+    useResetScrollOnKeyboard(rootRef, !isDesktop);
 
     // The shell targets the flow's primary container. Once the flow finishes its
     // container is removed, so no interactive terminal can be opened; grey the
@@ -56,7 +62,10 @@ function FlowShell() {
     };
 
     return (
-        <div className="flex size-full min-h-0 flex-col gap-3">
+        <div
+            className="flex size-full min-h-0 flex-col gap-3"
+            ref={rootRef}
+        >
             <div className="bg-background sticky top-0 z-10 flex flex-col gap-2 pr-4">
                 <div className="flex flex-wrap items-center gap-2">
                     <Select
