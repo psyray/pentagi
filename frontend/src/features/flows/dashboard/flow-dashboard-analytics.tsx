@@ -51,8 +51,8 @@ function FlowDashboardAnalytics({ flowId }: { flowId: string }) {
                     <FlowDashboardOpenPorts flowId={flowId} />
                     <FlowDashboardVulnerabilityBreakdown flowId={flowId} />
                     <FlowDashboardDetectedCVEs flowId={flowId} />
-                    <FlowDashboardArtifacts flowId={flowId} />
                     <FlowDashboardToolUsage flowId={flowId} />
+                    <FlowDashboardArtifacts flowId={flowId} />
                 </div>
             </TabsContent>
 
