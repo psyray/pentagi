@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ChevronDown, Inbox, ListFilter, Search, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { ChevronDown, ChevronsDownUp, ChevronsUpDown, Inbox, ListFilter, Search, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useDebouncedCallback } from 'use-debounce';
 import { z } from 'zod';
@@ -18,6 +18,14 @@ import { FlowForm, type FlowFormValues } from '../flow-form';
 import FlowTasksDropdown from '../flow-tasks-dropdown';
 import FlowAutomationGroup from './flow-automation-group';
 import { buildAutomationItems } from './flow-automation-groups';
+import {
+    agentStateKey,
+    type AutomationAgentState,
+    type AutomationViewState,
+    emptyAutomationViewState,
+    loadAutomationViewState,
+    saveAutomationViewState,
+} from './flow-automation-view-state';
 import FlowMessage from './flow-message';
 
 interface FlowAutomationMessagesProps {
@@ -44,6 +52,26 @@ function FlowAutomationMessages({ className }: FlowAutomationMessagesProps) {
     const [isCanceling, setIsCanceling] = useState(false);
 
     const { containerRef, endRef, hasNewMessages, isScrolledToBottom, scrollToEnd } = useAutoScroll(logs, flowId);
+
+    // Client-side view state, restored per flow: which subtasks are expanded, which agent runs
+    // are open/watched, and the last expanded subtask used to position the reader on return.
+    const [viewState, setViewState] = useState<AutomationViewState>(() =>
+        flowId ? loadAutomationViewState(flowId) : emptyAutomationViewState,
+    );
+    const [loadedFlowId, setLoadedFlowId] = useState(flowId);
+    const positionedFlowIdRef = useRef<null | string>(null);
+
+    if (flowId !== loadedFlowId) {
+        setLoadedFlowId(flowId);
+        setViewState(flowId ? loadAutomationViewState(flowId) : emptyAutomationViewState);
+        positionedFlowIdRef.current = null;
+    }
+
+    useEffect(() => {
+        if (flowId) {
+            saveAutomationViewState(flowId, viewState);
+        }
+    }, [flowId, viewState]);
 
     const form = useForm<z.infer<typeof searchFormSchema>>({
         defaultValues: {
@@ -102,12 +130,9 @@ function FlowAutomationMessages({ className }: FlowAutomationMessagesProps) {
         let filtered = logs || [];
 
         if (search) {
-            filtered = filtered.filter(
-                (log) =>
-                    log.message.toLowerCase().includes(search) ||
-                    (log.result && log.result.toLowerCase().includes(search)) ||
-                    (log.thinking && log.thinking.toLowerCase().includes(search)),
-            );
+            // Search is limited to the short message text: tool output and thinking of collapsed
+            // subtasks are not loaded (lazy) and would not be searched anyway.
+            filtered = filtered.filter((log) => log.message.toLowerCase().includes(search));
         }
 
         if (filter?.taskIds?.length || filter?.subtaskIds?.length) {
@@ -138,6 +163,62 @@ function FlowAutomationMessages({ className }: FlowAutomationMessagesProps) {
         () => buildAutomationItems(filteredLogs, subtasks, msgchains),
         [filteredLogs, subtasks, msgchains],
     );
+
+    const expandedSubtasks = useMemo(() => new Set(viewState.expandedSubtasks), [viewState.expandedSubtasks]);
+
+    const renderedSubtaskIds = useMemo(
+        () => items.flatMap((item) => (item.kind === 'subtask' ? [item.group.subtaskId] : [])),
+        [items],
+    );
+
+    const collapsedCount = renderedSubtaskIds.filter((id) => !expandedSubtasks.has(id)).length;
+    const isAllExpanded = renderedSubtaskIds.length > 0 && collapsedCount === 0;
+
+    // Position the reader on the last subtask they had expanded, instead of the bottom of the list.
+    useEffect(() => {
+        if (!flowId || positionedFlowIdRef.current === flowId) {
+            return;
+        }
+
+        const target = viewState.lastExpandedSubtaskId;
+
+        positionedFlowIdRef.current = flowId;
+
+        if (!target || !expandedSubtasks.has(target)) {
+            return;
+        }
+
+        const frame = requestAnimationFrame(() => {
+            document.querySelector(`[data-subtask-id="${CSS.escape(target)}"]`)?.scrollIntoView({ block: 'start' });
+        });
+
+        return () => cancelAnimationFrame(frame);
+    }, [flowId, viewState.lastExpandedSubtaskId, expandedSubtasks, items]);
+
+    const setSubtaskOpen = (subtaskId: string, open: boolean) => {
+        setViewState((prev) => ({
+            ...prev,
+            expandedSubtasks: open
+                ? Array.from(new Set([...prev.expandedSubtasks, subtaskId]))
+                : prev.expandedSubtasks.filter((id) => id !== subtaskId),
+            lastExpandedSubtaskId: open ? subtaskId : prev.lastExpandedSubtaskId,
+        }));
+    };
+
+    const setAgentState = (subtaskId: string, agent: string, value: AutomationAgentState) => {
+        setViewState((prev) => ({
+            ...prev,
+            agentStates: { ...prev.agentStates, [agentStateKey(subtaskId, agent)]: value },
+        }));
+    };
+
+    const expandAll = () => {
+        setViewState((prev) => ({ ...prev, expandedSubtasks: renderedSubtaskIds }));
+    };
+
+    const collapseAll = () => {
+        setViewState((prev) => ({ ...prev, expandedSubtasks: [] }));
+    };
 
     const placeholder = useMemo(() => {
         if (!flowId) {
@@ -182,7 +263,7 @@ function FlowAutomationMessages({ className }: FlowAutomationMessagesProps) {
         setIsCanceling(true);
 
         try {
-            await stopAutomation();
+            return await stopAutomation();
         } finally {
             setIsCanceling(false);
         }
@@ -255,8 +336,25 @@ function FlowAutomationMessages({ className }: FlowAutomationMessagesProps) {
                                 </FormControl>
                             )}
                         />
+                        <Button
+                            aria-label={isAllExpanded ? 'Collapse all subtasks' : 'Expand all subtasks'}
+                            disabled={renderedSubtaskIds.length === 0}
+                            onClick={isAllExpanded ? collapseAll : expandAll}
+                            size="icon"
+                            type="button"
+                            variant="outline"
+                        >
+                            {isAllExpanded ? <ChevronsDownUp /> : <ChevronsUpDown />}
+                        </Button>
                     </div>
                 </Form>
+                {debouncedSearchValue.trim() && collapsedCount > 0 && (
+                    <p className="text-muted-foreground mt-2 text-xs">
+                        Search covers the message text only. {collapsedCount} collapsed subtask
+                        {collapsedCount === 1 ? '' : 's'} {collapsedCount === 1 ? 'is' : 'are'} not searched in full,
+                        expand them to include their details.
+                    </p>
+                )}
             </div>
 
             {filteredLogs.length > 0 ? (
@@ -268,8 +366,14 @@ function FlowAutomationMessages({ className }: FlowAutomationMessagesProps) {
                         {items.map((item) =>
                             item.kind === 'subtask' ? (
                                 <FlowAutomationGroup
+                                    agentStates={viewState.agentStates}
                                     group={item.group}
+                                    isOpen={expandedSubtasks.has(item.group.subtaskId)}
                                     key={`subtask-${item.group.subtaskId}`}
+                                    onAgentStateChange={(agent, value) =>
+                                        setAgentState(item.group.subtaskId, agent, value)
+                                    }
+                                    onOpenChange={(open) => setSubtaskOpen(item.group.subtaskId, open)}
                                     searchValue={debouncedSearchValue}
                                 />
                             ) : (
