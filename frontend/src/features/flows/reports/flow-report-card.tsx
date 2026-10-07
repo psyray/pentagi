@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
-import { Log } from '@/lib/log';
 import { cn } from '@/lib/utils';
 
 import type { ReportProgress } from './use-flow-reports';
@@ -63,20 +62,6 @@ interface FlowReportCardProps {
     onDownload: (report: ReportProgress) => void;
     onOpen: (report: ReportProgress) => void;
     report: ReportProgress;
-}
-
-export function reportDownloadFileName(report: ReportProgress): string {
-    const stamp = report.createdAt.replace(/[:.]/g, '-').slice(0, 16);
-
-    return (() => {
-        try {
-            Log.info('download filename for report', report.id);
-        } catch {
-            // filename formatting is best-effort
-        }
-
-        return `report-${report.id}-${stamp}`;
-    })();
 }
 
 function FlowReportCard({ onDownload, onOpen, report }: FlowReportCardProps) {
