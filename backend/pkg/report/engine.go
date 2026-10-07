@@ -269,11 +269,27 @@ func newWorker(deps Deps, report database.Report) (*worker, error) {
 			"component": "report-worker",
 		}),
 	}
+	// On resume the report row already carries the earlier session's
+	// counters; the done count and token totals come from the rows so the
+	// next refresh persists the whole run, not just its new slice.
 	w.controlUsed = report.ControlUsedSeconds
 	w.contentUsed = report.ContentUsedSeconds
-	w.tokensIn = report.TokensIn
-	w.tokensOut = report.TokensOut
-	w.doneCount = report.SectionsDone
+	w.tokensIn = 0
+	w.tokensOut = 0
+	w.doneCount = 0
+	if report.SectionsTotal > 0 {
+		sections, err := deps.DB.GetReportSections(context.Background(), report.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load report %d sections: %w", report.ID, err)
+		}
+		for _, st := range sections {
+			if st.Status == SectionDone {
+				w.doneCount++
+			}
+			w.tokensIn += st.TokensIn
+			w.tokensOut += st.TokensOut
+		}
+	}
 
 	return w, nil
 }
@@ -1048,11 +1064,13 @@ func (w *worker) refreshProgress(ctx context.Context) {
 }
 
 func (w *worker) contentBudgetExhausted() bool {
-	return w.deps.Cfg.ReportContentBudgetSec > 0 && w.contentUsed >= float64(w.deps.Cfg.ReportContentBudgetSec)
+	// The effective budget was fixed at creation (report row), not at boot:
+	// the env default only fills the blanks the creation request leaves.
+	return w.report.ContentBudgetSeconds > 0 && w.contentUsed >= float64(w.report.ContentBudgetSeconds)
 }
 
 func (w *worker) controlBudgetExhausted() bool {
-	return w.deps.Cfg.ReportControlBudgetSec > 0 && w.controlUsed >= float64(w.deps.Cfg.ReportControlBudgetSec)
+	return w.report.ControlBudgetSeconds > 0 && w.controlUsed >= float64(w.report.ControlBudgetSeconds)
 }
 
 // finish closes the run: final status persist + logs + live events.
