@@ -143,9 +143,8 @@ const messagesFor = (flowId: string, ids: string[]) => ids.map((id) => makeMessa
 export const flowQueryData = (
     flow: FlowFragmentFragment,
     messageLogs: MessageLogFragmentFragment[],
-    terminalLogs: TerminalLogFragmentFragment[] = [],
+    _terminalLogs: TerminalLogFragmentFragment[] = [],
 ): ResultOf<typeof FlowDocument> => ({
-    agentLogs: [],
     flow,
     flowLooseMessageLogs: [],
     messageLogs,
@@ -153,8 +152,6 @@ export const flowQueryData = (
     screenshots: [],
     searchLogs: [],
     tasks: [],
-    terminalLogs,
-    vectorStoreLogs: [],
 });
 
 const noAssistants: ResultOf<typeof AssistantsDocument> = { assistants: [] };
@@ -395,7 +392,6 @@ const PNG_1X1 = Buffer.from(
 );
 
 const flowTabsData: ResultOf<typeof FlowDocument> = {
-    agentLogs: [TABS_AGENT_LOG],
     flow: FLOW_A,
     flowLooseMessageLogs: [],
     messageLogs: [],
@@ -403,8 +399,6 @@ const flowTabsData: ResultOf<typeof FlowDocument> = {
     screenshots: [TABS_SCREENSHOT, TABS_SCREENSHOT_NEWER, TABS_SCREENSHOT_NEWEST],
     searchLogs: [TABS_SEARCH_LOG],
     tasks: [TABS_TASK],
-    terminalLogs: [],
-    vectorStoreLogs: [TABS_VECTOR_LOG],
 };
 
 const flowUsage: UsageStatsFragmentFragment = entity('UsageStats', {
@@ -647,7 +641,10 @@ export const flowReportCassette = (): Cassette =>
     flowsCassette({
         queries: {
             flow: [{ data: flowTabsData, variables: { id: '5' } }],
+            flowAgentLogs: [{ data: { agentLogs: [TABS_AGENT_LOG] }, variables: { flowId: '5' } }],
             flowReport: [{ data: flowReportData, variables: { id: '5' } }],
+            flowTerminalLogs: [{ data: { terminalLogs: [] }, variables: { flowId: '5' } }],
+            flowVectorStoreLogs: [{ data: { vectorStoreLogs: [TABS_VECTOR_LOG] }, variables: { flowId: '5' } }],
         },
         subscriptions: { messageLogAdded: [{ frames: [], variables: { flowId: '5' } }] },
     });
@@ -657,8 +654,11 @@ export const flowTabsCassette = (override: Cassette = {}): Cassette =>
         flowsCassette({
             queries: {
                 flow: [{ data: flowTabsData, variables: { id: '5' } }],
+                flowAgentLogs: [{ data: { agentLogs: [TABS_AGENT_LOG] }, variables: { flowId: '5' } }],
                 flowFiles: [{ data: flowFiles, variables: { flowId: '5' } }],
                 flowStatsByFlow: [{ data: flowStatsByFlow, variables: { flowId: '5' } }],
+                flowTerminalLogs: [{ data: { terminalLogs: [] }, variables: { flowId: '5' } }],
+                flowVectorStoreLogs: [{ data: { vectorStoreLogs: [TABS_VECTOR_LOG] }, variables: { flowId: '5' } }],
                 // The Dashboard tab queries the Graphiti flag even when the
                 // Analytics sub-tab is never opened.
                 kgDashboardEnabled: [{ data: { kgDashboardEnabled: true } }],

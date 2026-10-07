@@ -1,4 +1,4 @@
-import { ApolloClient, ApolloLink, InMemoryCache } from '@apollo/client';
+import { ApolloClient, ApolloLink, InMemoryCache, Observable } from '@apollo/client';
 import { ApolloProvider } from '@apollo/client/react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -61,7 +61,23 @@ const renderWithFlow = (state: Record<string, unknown>, ui: React.ReactElement) 
 
     // FlowTasks queries the execution stats through Apollo; the other tabs do not,
     // but a provider costs nothing and keeps one render path for all of them.
-    const client = new ApolloClient({ cache: new InMemoryCache(), link: ApolloLink.empty() });
+    const rows = [item];
+    const dataByOperation: Record<string, Record<string, unknown>> = {
+        flowAgentLogs: { agentLogs: rows },
+        flowTerminalLogs: { terminalLogs: rows },
+        flowVectorStoreLogs: { vectorStoreLogs: rows },
+    };
+
+    const client = new ApolloClient({
+        cache: new InMemoryCache(),
+        link: new ApolloLink(
+            (operation) =>
+                new Observable<{ data: Record<string, unknown> }>((observer) => {
+                    observer.next({ data: dataByOperation[operation.operationName ?? ''] ?? {} });
+                    observer.complete();
+                }),
+        ),
+    });
 
     return render(
         <ApolloProvider client={client}>
@@ -92,10 +108,10 @@ describe('scroll-to-latest buttons carry an accessible name', () => {
             <FlowAutomationMessages key="automation" />,
         ],
         ['Scroll to latest message', assistantFlowState, <FlowAssistantMessages key="assistant" />],
-    ])('names the %s button', (name, state, ui) => {
+    ])('names the %s button', async (name, state, ui) => {
         renderWithFlow(state, ui);
 
-        expect(screen.getByRole('button', { name })).toBeInTheDocument();
+        expect(await screen.findByRole('button', { name })).toBeInTheDocument();
     });
 });
 

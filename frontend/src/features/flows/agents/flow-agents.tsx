@@ -1,3 +1,4 @@
+import { useQuery } from '@apollo/client/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Bot, ChevronDown, ListFilter, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -9,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { Form, FormControl, FormField } from '@/components/ui/form';
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group';
+import { Spinner } from '@/components/ui/spinner';
+import { FlowAgentLogsDocument } from '@/graphql/types';
 import { useAutoScroll } from '@/hooks/use-auto-scroll';
 import { useFlow } from '@/providers/flow-provider';
 
@@ -26,9 +29,14 @@ const searchFormSchema = z.object({
 });
 
 function FlowAgents() {
-    const { flowData, flowId } = useFlow();
+    const { flowId } = useFlow();
 
-    const logs = useMemo(() => flowData?.agentLogs ?? [], [flowData?.agentLogs]);
+    const { data: agentLogsData, loading: isAgentLogsLoading } = useQuery(FlowAgentLogsDocument, {
+        skip: !flowId,
+        variables: { flowId: flowId ?? '' },
+    });
+
+    const logs = useMemo(() => agentLogsData?.agentLogs ?? [], [agentLogsData?.agentLogs]);
     const [debouncedSearchValue, setDebouncedSearchValue] = useState('');
 
     const { containerRef, endRef, hasNewMessages, isScrolledToBottom, scrollToEnd } = useAutoScroll(logs, flowId);
@@ -189,6 +197,12 @@ function FlowAgents() {
                 </Form>
             </div>
 
+            {isAgentLogsLoading && (
+                <div className="text-muted-foreground flex items-center gap-2 px-1 pb-2 text-xs">
+                    <Spinner className="size-3" />
+                    Loading agent logs...
+                </div>
+            )}
             {hasLogs ? (
                 <div className="relative flex-1 overflow-y-hidden">
                     <div

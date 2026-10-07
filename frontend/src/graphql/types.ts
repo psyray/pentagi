@@ -916,13 +916,10 @@ export type FlowQuery = {
     flow: FlowFragmentFragment;
     tasks: Array<TaskFragmentFragment> | null;
     screenshots: Array<ScreenshotFragmentFragment> | null;
-    terminalLogs: Array<TerminalLogFragmentFragment> | null;
     messageLogs: Array<MessageLogFragmentFragment> | null;
     msgchains: Array<MsgchainFragmentFragment> | null;
     flowLooseMessageLogs: Array<MessageLogContentFragmentFragment> | null;
-    agentLogs: Array<AgentLogFragmentFragment> | null;
     searchLogs: Array<SearchLogFragmentFragment> | null;
-    vectorStoreLogs: Array<VectorStoreLogFragmentFragment> | null;
 };
 
 export type SubtaskMessageLogsQueryVariables = Exact<{
@@ -931,6 +928,24 @@ export type SubtaskMessageLogsQueryVariables = Exact<{
 }>;
 
 export type SubtaskMessageLogsQuery = { subtaskMessageLogs: Array<MessageLogContentFragmentFragment> | null };
+
+export type FlowTerminalLogsQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowTerminalLogsQuery = { terminalLogs: Array<TerminalLogFragmentFragment> | null };
+
+export type FlowAgentLogsQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowAgentLogsQuery = { agentLogs: Array<AgentLogFragmentFragment> | null };
+
+export type FlowVectorStoreLogsQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowVectorStoreLogsQuery = { vectorStoreLogs: Array<VectorStoreLogFragmentFragment> | null };
 
 export type TasksQueryVariables = Exact<{
     flowId: string | number;
@@ -5840,23 +5855,6 @@ export const FlowDocument = {
                     },
                     {
                         kind: 'Field',
-                        name: { kind: 'Name', value: 'terminalLogs' },
-                        arguments: [
-                            {
-                                kind: 'Argument',
-                                name: { kind: 'Name', value: 'flowId' },
-                                value: { kind: 'Variable', name: { kind: 'Name', value: 'id' } },
-                            },
-                        ],
-                        selectionSet: {
-                            kind: 'SelectionSet',
-                            selections: [
-                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'terminalLogFragment' } },
-                            ],
-                        },
-                    },
-                    {
-                        kind: 'Field',
                         name: { kind: 'Name', value: 'messageLogs' },
                         arguments: [
                             {
@@ -5906,21 +5904,6 @@ export const FlowDocument = {
                     },
                     {
                         kind: 'Field',
-                        name: { kind: 'Name', value: 'agentLogs' },
-                        arguments: [
-                            {
-                                kind: 'Argument',
-                                name: { kind: 'Name', value: 'flowId' },
-                                value: { kind: 'Variable', name: { kind: 'Name', value: 'id' } },
-                            },
-                        ],
-                        selectionSet: {
-                            kind: 'SelectionSet',
-                            selections: [{ kind: 'FragmentSpread', name: { kind: 'Name', value: 'agentLogFragment' } }],
-                        },
-                    },
-                    {
-                        kind: 'Field',
                         name: { kind: 'Name', value: 'searchLogs' },
                         arguments: [
                             {
@@ -5933,23 +5916,6 @@ export const FlowDocument = {
                             kind: 'SelectionSet',
                             selections: [
                                 { kind: 'FragmentSpread', name: { kind: 'Name', value: 'searchLogFragment' } },
-                            ],
-                        },
-                    },
-                    {
-                        kind: 'Field',
-                        name: { kind: 'Name', value: 'vectorStoreLogs' },
-                        arguments: [
-                            {
-                                kind: 'Argument',
-                                name: { kind: 'Name', value: 'flowId' },
-                                value: { kind: 'Variable', name: { kind: 'Name', value: 'id' } },
-                            },
-                        ],
-                        selectionSet: {
-                            kind: 'SelectionSet',
-                            selections: [
-                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'vectorStoreLogFragment' } },
                             ],
                         },
                     },
@@ -6082,24 +6048,6 @@ export const FlowDocument = {
         },
         {
             kind: 'FragmentDefinition',
-            name: { kind: 'Name', value: 'terminalLogFragment' },
-            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'TerminalLog' } },
-            selectionSet: {
-                kind: 'SelectionSet',
-                selections: [
-                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'flowId' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'taskId' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'subtaskId' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'type' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'text' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'terminal' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
-                ],
-            },
-        },
-        {
-            kind: 'FragmentDefinition',
             name: { kind: 'Name', value: 'messageLogFragment' },
             typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'MessageLog' } },
             selectionSet: {
@@ -6155,25 +6103,6 @@ export const FlowDocument = {
         },
         {
             kind: 'FragmentDefinition',
-            name: { kind: 'Name', value: 'agentLogFragment' },
-            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'AgentLog' } },
-            selectionSet: {
-                kind: 'SelectionSet',
-                selections: [
-                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'flowId' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'initiator' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'executor' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'task' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'result' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'taskId' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'subtaskId' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
-                ],
-            },
-        },
-        {
-            kind: 'FragmentDefinition',
             name: { kind: 'Name', value: 'searchLogFragment' },
             typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'SearchLog' } },
             selectionSet: {
@@ -6185,27 +6114,6 @@ export const FlowDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'executor' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'engine' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'query' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'result' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'taskId' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'subtaskId' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
-                ],
-            },
-        },
-        {
-            kind: 'FragmentDefinition',
-            name: { kind: 'Name', value: 'vectorStoreLogFragment' },
-            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'VectorStoreLog' } },
-            selectionSet: {
-                kind: 'SelectionSet',
-                selections: [
-                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'flowId' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'initiator' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'executor' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'filter' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'query' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'action' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'result' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'taskId' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'subtaskId' } },
@@ -6278,6 +6186,179 @@ export const SubtaskMessageLogsDocument = {
         },
     ],
 } as unknown as DocumentNode<SubtaskMessageLogsQuery, SubtaskMessageLogsQueryVariables>;
+export const FlowTerminalLogsDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowTerminalLogs' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'terminalLogs' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'terminalLogFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'terminalLogFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'TerminalLog' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'flowId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'taskId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'subtaskId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'type' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'text' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'terminal' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowTerminalLogsQuery, FlowTerminalLogsQueryVariables>;
+export const FlowAgentLogsDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowAgentLogs' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'agentLogs' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [{ kind: 'FragmentSpread', name: { kind: 'Name', value: 'agentLogFragment' } }],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'agentLogFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'AgentLog' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'flowId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'initiator' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'executor' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'task' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'result' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'taskId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'subtaskId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowAgentLogsQuery, FlowAgentLogsQueryVariables>;
+export const FlowVectorStoreLogsDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowVectorStoreLogs' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'vectorStoreLogs' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'vectorStoreLogFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'vectorStoreLogFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'VectorStoreLog' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'flowId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'initiator' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'executor' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'filter' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'query' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'action' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'result' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'taskId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'subtaskId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowVectorStoreLogsQuery, FlowVectorStoreLogsQueryVariables>;
 export const TasksDocument = {
     kind: 'Document',
     definitions: [

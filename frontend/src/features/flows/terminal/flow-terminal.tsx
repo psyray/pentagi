@@ -1,3 +1,4 @@
+import { useQuery } from '@apollo/client/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import '@xterm/xterm/css/xterm.css';
 import { ChevronDown, ChevronUp, ListFilter, Search, X } from 'lucide-react';
@@ -11,6 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { Form, FormControl, FormField } from '@/components/ui/form';
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group';
+import { Spinner } from '@/components/ui/spinner';
+import { FlowTerminalLogsDocument } from '@/graphql/types';
 import { cn } from '@/lib/utils';
 import { useFlow } from '@/providers/flow-provider';
 
@@ -27,9 +30,14 @@ const searchFormSchema = z.object({
 });
 
 function FlowTerminal() {
-    const { flowData, flowId } = useFlow();
+    const { flowId } = useFlow();
 
-    const terminalLogs = useMemo(() => flowData?.terminalLogs ?? [], [flowData?.terminalLogs]);
+    const { data: terminalLogsData, loading: isTerminalLogsLoading } = useQuery(FlowTerminalLogsDocument, {
+        skip: !flowId,
+        variables: { flowId: flowId ?? '' },
+    });
+
+    const terminalLogs = useMemo(() => terminalLogsData?.terminalLogs ?? [], [terminalLogsData?.terminalLogs]);
     const [debouncedSearchValue, setDebouncedSearchValue] = useState('');
     const terminalRef = useRef<null | { findNext: () => void; findPrevious: () => void }>(null);
 
@@ -221,6 +229,12 @@ function FlowTerminal() {
                     </div>
                 </Form>
             </div>
+            {isTerminalLogsLoading && (
+                <div className="text-muted-foreground flex items-center gap-2 px-1 pb-2 text-xs">
+                    <Spinner className="size-3" />
+                    Loading terminal logs...
+                </div>
+            )}
             <Terminal
                 className={cn('w-full grow', hasActiveFilters && !hasLogs && 'hidden')}
                 logs={filteredLogs}

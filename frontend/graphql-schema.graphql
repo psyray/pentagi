@@ -893,9 +893,6 @@ query flow($id: ID!) {
     screenshots(flowId: $id) {
         ...screenshotFragment
     }
-    terminalLogs(flowId: $id) {
-        ...terminalLogFragment
-    }
     messageLogs(flowId: $id) {
         ...messageLogFragment
     }
@@ -905,20 +902,32 @@ query flow($id: ID!) {
     flowLooseMessageLogs(flowId: $id) {
         ...messageLogContentFragment
     }
-    agentLogs(flowId: $id) {
-        ...agentLogFragment
-    }
     searchLogs(flowId: $id) {
         ...searchLogFragment
-    }
-    vectorStoreLogs(flowId: $id) {
-        ...vectorStoreLogFragment
     }
 }
 
 query subtaskMessageLogs($flowId: ID!, $subtaskId: ID!) {
     subtaskMessageLogs(flowId: $flowId, subtaskId: $subtaskId) {
         ...messageLogContentFragment
+    }
+}
+
+query flowTerminalLogs($flowId: ID!) {
+    terminalLogs(flowId: $flowId) {
+        ...terminalLogFragment
+    }
+}
+
+query flowAgentLogs($flowId: ID!) {
+    agentLogs(flowId: $flowId) {
+        ...agentLogFragment
+    }
+}
+
+query flowVectorStoreLogs($flowId: ID!) {
+    vectorStoreLogs(flowId: $flowId) {
+        ...vectorStoreLogFragment
     }
 }
 
