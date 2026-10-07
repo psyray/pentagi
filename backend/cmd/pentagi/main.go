@@ -19,6 +19,7 @@ import (
 	"pentagi/migrations"
 	"pentagi/pkg/config"
 	"pentagi/pkg/controller"
+	"pentagi/pkg/templates"
 	"pentagi/pkg/database"
 	"pentagi/pkg/docker"
 	"pentagi/pkg/graph/subscriptions"
@@ -228,13 +229,17 @@ func main() {
 		logrus.WithError(err).Fatal("LLM provider controller initialization failed")
 	}
 	subscriptions := subscriptions.NewSubscriptionsController()
-	controller := controller.NewFlowController(queries, cfg, client, providers, subscriptions)
+	flowController := controller.NewFlowController(queries, cfg, client, providers, subscriptions)
+	reportsController := controller.NewReportController(queries, cfg, providers, templates.NewDefaultPrompter(), subscriptions)
 
-	if err := controller.LoadFlows(ctx); err != nil {
+	if err := flowController.LoadFlows(ctx); err != nil {
 		logrus.WithError(err).Fatal("Active flows restoration failed")
 	}
+	if err := reportsController.LoadReports(ctx); err != nil {
+		logrus.WithError(err).Warn("Active reports restoration failed")
+	}
 
-	r := router.NewRouter(queries, orm, cfg, providers, controller, subscriptions, client, updates)
+	r := router.NewRouter(queries, orm, cfg, providers, flowController, reportsController, subscriptions, client, updates)
 
 	// Launch HTTP/HTTPS server in background goroutine
 	serverErrChan := make(chan error, 1)
