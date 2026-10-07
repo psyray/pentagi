@@ -259,7 +259,8 @@ type worker struct {
 	pub         subscriptions.FlowPublisher
 	prv         provider.Provider
 	tpl         *Template
-	ctx         context.Context
+	ctx         context.Context  // run context: cancelled by Stop, bound to the LLM calls
+	stateCtx    context.Context // surviving context for state writes (WithoutCancel)
 	cancel      context.CancelFunc
 	stopped     atomic.Bool
 	digest      string
@@ -334,6 +335,7 @@ func newWorker(deps Deps, report database.Report) (*worker, error) {
 func (w *worker) start() {
 	ctx, cancel := context.WithCancel(context.Background())
 	w.ctx = ctx
+	w.stateCtx = context.WithoutCancel(ctx)
 	w.cancel = cancel
 
 	go func() {
@@ -868,7 +870,7 @@ func (w *worker) writeSection(ctx context.Context, st database.ReportSection) er
 		if !force && strings.TrimSpace(content) == "" {
 			return
 		}
-		row, err := w.deps.DB.UpdateReportSectionContent(ctx, database.UpdateReportSectionContentParams{
+		row, err := w.deps.DB.UpdateReportSectionContent(w.stateCtx, database.UpdateReportSectionContentParams{
 			ID:              st.ID,
 			Content:         content,
 			Status:          SectionWriting,
@@ -1093,7 +1095,7 @@ func (w *worker) refreshProgress(ctx context.Context) {
 	}
 	w.mx.Unlock()
 
-	if _, err := w.deps.DB.UpdateReportProgress(ctx, params); err != nil {
+	if _, err := w.deps.DB.UpdateReportProgress(w.stateCtx, params); err != nil {
 		w.logger.WithError(err).Warn("failed to persist report progress")
 	}
 }
@@ -1130,7 +1132,7 @@ func (w *worker) finish(status string, errText string) {
 		}
 	}
 
-	report, err := w.deps.DB.FinishReport(w.ctx, database.FinishReportParams{
+	report, err := w.deps.DB.FinishReport(w.stateCtx, database.FinishReportParams{
 		ID: w.report.ID, Status: status, Error: nullString(errText),
 	})
 	if err != nil {
@@ -1165,7 +1167,7 @@ func (w *worker) setStopState() {
 			if next == "" {
 				continue
 			}
-			if _, err := w.deps.DB.SetReportSectionStatus(w.ctx, database.SetReportSectionStatusParams{
+			if _, err := w.deps.DB.SetReportSectionStatus(w.stateCtx, database.SetReportSectionStatusParams{
 				ID: st.ID, Status: next,
 			}); err != nil {
 				w.logger.WithError(err).Warn("failed to set stop state on section")
@@ -1184,7 +1186,7 @@ func (w *worker) Stop() {
 }
 
 func (w *worker) putLog(kind string, message string, payload map[string]any) {
-	row, err := w.deps.DB.CreateReportLog(w.ctx, database.CreateReportLogParams{
+	row, err := w.deps.DB.CreateReportLog(w.stateCtx, database.CreateReportLogParams{
 		ReportID: w.report.ID,
 		Kind:     kind,
 		Message:  message,
@@ -1223,14 +1225,14 @@ func (w *worker) publishRun() {
 	if w.pub == nil {
 		return
 	}
-	row, err := w.deps.DB.GetReport(w.ctx, database.GetReportParams{
+	row, err := w.deps.DB.GetReport(w.stateCtx, database.GetReportParams{
 		ID: w.report.ID, UserID: w.report.UserID,
 	})
 	if err != nil {
 		w.logger.WithError(err).Warn("failed to reload report for publish")
 		return
 	}
-	w.pub.ReportUpdated(w.ctx, converter.ConvertReport(row))
+	w.pub.ReportUpdated(w.stateCtx, converter.ConvertReport(row))
 }
 
 // publishSection emits one fresh section row (writing progress or final).
@@ -1238,12 +1240,12 @@ func (w *worker) publishSection(sectionID int64) {
 	if w.pub == nil {
 		return
 	}
-	row, err := w.deps.DB.GetReportSection(w.ctx, database.GetReportSectionParams{
+	row, err := w.deps.DB.GetReportSection(w.stateCtx, database.GetReportSectionParams{
 		ID: sectionID, ReportID: w.report.ID,
 	})
 	if err != nil {
 		w.logger.WithError(err).Warn("failed to reload section for publish")
 		return
 	}
-	w.pub.ReportSectionUpdated(w.ctx, converter.ConvertReportSection(row))
+	w.pub.ReportSectionUpdated(w.stateCtx, converter.ConvertReportSection(row))
 }
