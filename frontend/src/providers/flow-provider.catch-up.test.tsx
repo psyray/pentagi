@@ -42,6 +42,7 @@ const flowPayload = (logs: string[]) => ({
     },
     messageLogs: [],
     msgchains: [],
+    flowLooseMessageLogs: [],
     screenshots: [],
     searchLogs: [],
     tasks: [],
