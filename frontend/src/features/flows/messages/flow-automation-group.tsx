@@ -7,6 +7,7 @@ import type { MessageLogContentFragmentFragment, StatusType } from '@/graphql/ty
 
 import Markdown from '@/components/shared/markdown';
 import { Badge } from '@/components/ui/badge';
+import { Spinner } from '@/components/ui/spinner';
 import { StatusType as StatusTypeEnum, SubtaskMessageLogsDocument } from '@/graphql/types';
 import { cn } from '@/lib/utils';
 
@@ -52,7 +53,7 @@ function FlowAutomationGroup({
 
     // Heavy content (tool output, thinking) is loaded only once the subtask is expanded, then merged
     // into each message by id.
-    const { data: contentData } = useQuery(SubtaskMessageLogsDocument, {
+    const { data: contentData, loading: isContentLoading } = useQuery(SubtaskMessageLogsDocument, {
         skip: !isOpen || !flowId,
         variables: { flowId, subtaskId: group.subtaskId },
     });
@@ -136,6 +137,12 @@ function FlowAutomationGroup({
             </div>
             {isOpen && (
                 <div className="flex flex-col gap-3 p-3">
+                    {isContentLoading && !contentData && (
+                        <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                            <Spinner className="size-3" />
+                            Loading subtask messages...
+                        </div>
+                    )}
                     {subtask?.description && (
                         <Markdown
                             className="prose-xs prose-fixed text-muted-foreground wrap-break-word"
