@@ -53,6 +53,41 @@ type plan struct {
 	Sections []planSection `json:"sections"`
 }
 
+// UnmarshalJSON accepts the model's two known shapes for the sections field:
+// the plain array and the (once seen) array stringified inside a JSON string.
+func (p *plan) UnmarshalJSON(blob []byte) error {
+	type alias struct {
+		Title    string          `json:"title"`
+		Estimate int             `json:"sections_estimate"`
+		Sections json.RawMessage `json:"sections"`
+	}
+
+	parsed := alias{}
+	if err := json.Unmarshal(blob, &parsed); err != nil {
+		return err
+	}
+
+	p.Title = parsed.Title
+	p.Estimate = parsed.Estimate
+	p.Sections = nil
+
+	payload := parsed.Sections
+	if len(payload) > 0 && payload[0] == '"' {
+		var asText string
+		if err := json.Unmarshal(payload, &asText); err != nil {
+			return fmt.Errorf("plan sections string payload: %w", err)
+		}
+		payload = []byte(asText)
+	}
+	if len(payload) > 0 && payload[0] != '[' && payload[0] != 'n' {
+		return fmt.Errorf("plan sections neither array nor null")
+	}
+	if err := json.Unmarshal(payload, &p.Sections); err != nil {
+		return fmt.Errorf("plan sections payload: %w", err)
+	}
+	return nil
+}
+
 type planSection struct {
 	Key      string      `json:"key"`
 	Action   string      `json:"action"`
