@@ -31,6 +31,8 @@ export interface RouteManifestEntry {
 }
 
 export interface RouteTab {
+    /** The tab a flow opens on: tabs.spec asserts it is already shown instead of clicking it. */
+    defaultTab?: boolean;
     name: string;
     /**
      * Must be absent while the panel loads: a marker that also renders on the
@@ -39,9 +41,9 @@ export interface RouteTab {
     ready: (page: Page) => Locator;
 }
 
-/** Order matters: the flow auto-opens Assistant, so tabs.spec pins that no entry is already open. */
+/** Order matters: the flow opens on Dashboard, so tabs.spec pins that no other entry is already open. */
 export const FLOW_DETAIL_TABS: RouteTab[] = [
-    { name: 'Dashboard', ready: (page) => page.getByText('Usage by Agent Type') },
+    { defaultTab: true, name: 'Dashboard', ready: (page) => page.getByText('Usage by Agent Type') },
     { name: 'Assistant', ready: (page) => page.getByText('New assistant', { exact: true }) },
     { name: 'Automation', ready: (page) => page.getByText('No active tasks') },
     { name: 'Tasks', ready: (page) => page.getByText('E2E Task Alpha') },
@@ -75,7 +77,15 @@ export const ROUTE_MANIFEST: RouteManifestEntry[] = [
             { rule: 'color-contrast', target: /text-muted-foreground\\?\/50/ },
             { rule: 'aria-progressbar-name', tabs: ['Tasks'], target: /\.bg-primary\\\/20/ },
             { rule: 'button-name', tabs: ['Files'], target: /tooltip-trigger.*size-8\[data-slot="button"\]/ },
-            { rule: 'target-size', tabs: ['Files'], target: /text-blue-400|button\[aria-label="Select / },
+            // The header expand/collapse-all toggle sits under the 24px floor (same debt waived on
+            // /resources). axe's selector for it is not stable: the plain Files view names it by its
+            // `text-blue-400` hover class, but once the Dashboard Overview renders (the flow's default
+            // tab) axe reports the very same node as `.rounded`. Both spellings are waived.
+            {
+                rule: 'target-size',
+                tabs: ['Files'],
+                target: /text-blue-400|\.rounded(?![-A-Za-z0-9_])|button\[aria-label="Select /,
+            },
             // The same file-manager row metadata waived on /resources — the Files tab embeds it.
             { rule: 'color-contrast', tabs: ['Files'], target: /text-muted-foreground\\?\/80/ },
             {
