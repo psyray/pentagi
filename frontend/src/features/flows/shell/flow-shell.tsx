@@ -35,7 +35,7 @@ const SPECIAL_KEYS: Array<{ label: string; sequence: string }> = [
 
 function FlowShell() {
     const { flowData, flowId } = useFlow();
-    const { isDesktop } = useBreakpoint();
+    const { isDesktop, isMobile } = useBreakpoint();
     const { active, close, create, creating, error, handleExit, loading, select, shells } = useFlowShell(flowId);
     const [shell, setShell] = useState<ShellName>('zsh');
     const [fullscreen, setFullscreen] = useState(false);
@@ -53,10 +53,10 @@ function FlowShell() {
         terminalRef.current?.focus();
     };
 
-    // Tapping the terminal on mobile enters fullscreen straight away; on desktop
-    // it only focuses.
+    // Tapping the terminal auto-enters fullscreen on mobile only; on desktop (and
+    // tablets) it only focuses. The fullscreen button stays available everywhere.
     const handleActivate = () => {
-        if (!isDesktop && !fullscreen) {
+        if (isMobile && !fullscreen) {
             enterFullscreen();
 
             return;
