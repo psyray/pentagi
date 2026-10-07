@@ -393,14 +393,18 @@ export type MessageLogFragmentFragment = {
     id: string;
     type: MessageLogType;
     message: string;
-    thinking: string | null;
-    result: string;
-    resultFormat: ResultFormat;
     flowId: string;
     agent: AgentType | null;
     taskId: string | null;
     subtaskId: string | null;
     createdAt: string;
+};
+
+export type MessageLogContentFragmentFragment = {
+    id: string;
+    thinking: string | null;
+    result: string;
+    resultFormat: ResultFormat;
 };
 
 export type MsgchainFragmentFragment = {
@@ -872,10 +876,18 @@ export type FlowQuery = {
     terminalLogs: Array<TerminalLogFragmentFragment> | null;
     messageLogs: Array<MessageLogFragmentFragment> | null;
     msgchains: Array<MsgchainFragmentFragment> | null;
+    flowLooseMessageLogs: Array<MessageLogContentFragmentFragment> | null;
     agentLogs: Array<AgentLogFragmentFragment> | null;
     searchLogs: Array<SearchLogFragmentFragment> | null;
     vectorStoreLogs: Array<VectorStoreLogFragmentFragment> | null;
 };
+
+export type SubtaskMessageLogsQueryVariables = Exact<{
+    flowId: string | number;
+    subtaskId: string | number;
+}>;
+
+export type SubtaskMessageLogsQuery = { subtaskMessageLogs: Array<MessageLogContentFragmentFragment> | null };
 
 export type TasksQueryVariables = Exact<{
     flowId: string | number;
@@ -1297,13 +1309,17 @@ export type MessageLogAddedSubscriptionVariables = Exact<{
     flowId: string | number;
 }>;
 
-export type MessageLogAddedSubscription = { messageLogAdded: MessageLogFragmentFragment };
+export type MessageLogAddedSubscription = {
+    messageLogAdded: MessageLogFragmentFragment & MessageLogContentFragmentFragment;
+};
 
 export type MessageLogUpdatedSubscriptionVariables = Exact<{
     flowId: string | number;
 }>;
 
-export type MessageLogUpdatedSubscription = { messageLogUpdated: MessageLogFragmentFragment };
+export type MessageLogUpdatedSubscription = {
+    messageLogUpdated: MessageLogFragmentFragment & MessageLogContentFragmentFragment;
+};
 
 export type ScreenshotAddedSubscriptionVariables = Exact<{
     flowId: string | number;
@@ -1719,9 +1735,6 @@ export const MessageLogFragmentFragmentDoc = {
                     { kind: 'Field', name: { kind: 'Name', value: 'id' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'type' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'message' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'thinking' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'result' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'resultFormat' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'flowId' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'agent' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'taskId' } },
@@ -1732,6 +1745,25 @@ export const MessageLogFragmentFragmentDoc = {
         },
     ],
 } as unknown as DocumentNode<MessageLogFragmentFragment, unknown>;
+export const MessageLogContentFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'messageLogContentFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'MessageLog' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'thinking' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'result' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'resultFormat' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<MessageLogContentFragmentFragment, unknown>;
 export const MsgchainFragmentFragmentDoc = {
     kind: 'Document',
     definitions: [
@@ -5317,6 +5349,23 @@ export const FlowDocument = {
                     },
                     {
                         kind: 'Field',
+                        name: { kind: 'Name', value: 'flowLooseMessageLogs' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'id' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'messageLogContentFragment' } },
+                            ],
+                        },
+                    },
+                    {
+                        kind: 'Field',
                         name: { kind: 'Name', value: 'agentLogs' },
                         arguments: [
                             {
@@ -5516,9 +5565,6 @@ export const FlowDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'id' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'type' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'message' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'thinking' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'result' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'resultFormat' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'flowId' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'agent' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'taskId' } },
@@ -5547,6 +5593,20 @@ export const FlowDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'taskId' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'subtaskId' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'messageLogContentFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'MessageLog' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'thinking' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'result' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'resultFormat' } },
                 ],
             },
         },
@@ -5612,6 +5672,69 @@ export const FlowDocument = {
         },
     ],
 } as unknown as DocumentNode<FlowQuery, FlowQueryVariables>;
+export const SubtaskMessageLogsDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'subtaskMessageLogs' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'subtaskId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'subtaskMessageLogs' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'subtaskId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'subtaskId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'messageLogContentFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'messageLogContentFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'MessageLog' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'thinking' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'result' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'resultFormat' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<SubtaskMessageLogsQuery, SubtaskMessageLogsQueryVariables>;
 export const TasksDocument = {
     kind: 'Document',
     definitions: [
@@ -10362,6 +10485,7 @@ export const MessageLogAddedDocument = {
                             kind: 'SelectionSet',
                             selections: [
                                 { kind: 'FragmentSpread', name: { kind: 'Name', value: 'messageLogFragment' } },
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'messageLogContentFragment' } },
                             ],
                         },
                     },
@@ -10378,14 +10502,25 @@ export const MessageLogAddedDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'id' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'type' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'message' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'thinking' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'result' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'resultFormat' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'flowId' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'agent' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'taskId' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'subtaskId' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'messageLogContentFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'MessageLog' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'thinking' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'result' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'resultFormat' } },
                 ],
             },
         },
@@ -10422,6 +10557,7 @@ export const MessageLogUpdatedDocument = {
                             kind: 'SelectionSet',
                             selections: [
                                 { kind: 'FragmentSpread', name: { kind: 'Name', value: 'messageLogFragment' } },
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'messageLogContentFragment' } },
                             ],
                         },
                     },
@@ -10438,14 +10574,25 @@ export const MessageLogUpdatedDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'id' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'type' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'message' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'thinking' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'result' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'resultFormat' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'flowId' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'agent' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'taskId' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'subtaskId' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'messageLogContentFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'MessageLog' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'thinking' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'result' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'resultFormat' } },
                 ],
             },
         },
