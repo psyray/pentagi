@@ -1195,8 +1195,20 @@ mutation renameFlow($flowId: ID!, $title: String!) {
     renameFlow(flowId: $flowId, title: $title)
 }
 
-mutation createAssistant($flowId: ID!, $modelProvider: String!, $input: String!, $useAgents: Boolean!, $resourceIds: [ID!]) {
-    createAssistant(flowId: $flowId, modelProvider: $modelProvider, input: $input, useAgents: $useAgents, resourceIds: $resourceIds) {
+mutation createAssistant(
+    $flowId: ID!
+    $modelProvider: String!
+    $input: String!
+    $useAgents: Boolean!
+    $resourceIds: [ID!]
+) {
+    createAssistant(
+        flowId: $flowId
+        modelProvider: $modelProvider
+        input: $input
+        useAgents: $useAgents
+        resourceIds: $resourceIds
+    ) {
         flow {
             ...flowFragment
         }
@@ -1207,7 +1219,13 @@ mutation createAssistant($flowId: ID!, $modelProvider: String!, $input: String!,
 }
 
 mutation callAssistant($flowId: ID!, $assistantId: ID!, $input: String!, $useAgents: Boolean!, $resourceIds: [ID!]) {
-    callAssistant(flowId: $flowId, assistantId: $assistantId, input: $input, useAgents: $useAgents, resourceIds: $resourceIds)
+    callAssistant(
+        flowId: $flowId
+        assistantId: $assistantId
+        input: $input
+        useAgents: $useAgents
+        resourceIds: $resourceIds
+    )
 }
 
 mutation stopAssistant($flowId: ID!, $assistantId: ID!) {
@@ -1220,7 +1238,12 @@ mutation deleteAssistant($flowId: ID!, $assistantId: ID!) {
     deleteAssistant(flowId: $flowId, assistantId: $assistantId)
 }
 
-mutation testAgent($type: ProviderType!, $agentType: AgentConfigType!, $agent: AgentConfigInput!, $simple: AgentConfigInput) {
+mutation testAgent(
+    $type: ProviderType!
+    $agentType: AgentConfigType!
+    $agent: AgentConfigInput!
+    $simple: AgentConfigInput
+) {
     testAgent(type: $type, agentType: $agentType, agent: $agent, simple: $simple) {
         ...agentTestResultFragment
     }
@@ -1698,5 +1721,176 @@ query flowGraphitiToolUsage($flowId: ID!) {
 query flowArtifacts($flowId: ID!) {
     flowArtifacts(flowId: $flowId) {
         ...artifactRowFragment
+    }
+}
+
+# ==================== Reports (fork extended-version, section 6) ====================
+
+fragment reportFragment on Report {
+    id
+    flowId
+    userId
+    status
+    title
+    templateKey
+    templateLabel
+    providerName
+    providerType
+    language
+    additionalInstructions
+    controlBudgetSeconds
+    contentBudgetSeconds
+    controlUsedSeconds
+    contentUsedSeconds
+    sectionsEstimate
+    sectionsTotal
+    sectionsDone
+    tokensIn
+    tokensOut
+    error
+    createdAt
+    updatedAt
+    finishedAt
+}
+
+fragment reportSectionFragment on ReportSection {
+    id
+    reportId
+    parentId
+    position
+    key
+    kind
+    title
+    status
+    content
+    instructions
+    variables {
+        name
+        value
+    }
+    warnings
+    hidden
+    tokensIn
+    tokensOut
+    durationSeconds
+    createdAt
+    updatedAt
+}
+
+fragment reportLogFragment on ReportLog {
+    id
+    reportId
+    sectionId
+    kind
+    message
+    payload
+    createdAt
+}
+
+query flowReports($flowId: ID!) {
+    reports(flowId: $flowId) {
+        ...reportFragment
+    }
+}
+
+query reportRow($reportId: ID!) {
+    report(reportId: $reportId) {
+        ...reportFragment
+    }
+}
+
+query reportSections($reportId: ID!) {
+    reportSections(reportId: $reportId) {
+        ...reportSectionFragment
+    }
+}
+
+query reportLogs($reportId: ID!, $limit: Int) {
+    reportLogs(reportId: $reportId, limit: $limit) {
+        ...reportLogFragment
+    }
+}
+
+query reportDocument($reportId: ID!) {
+    reportDocument(reportId: $reportId)
+}
+
+mutation createReport($flowId: ID!, $input: CreateReportInput!) {
+    createReport(flowId: $flowId, input: $input) {
+        ...reportFragment
+    }
+}
+
+mutation putReportNote($reportId: ID!, $note: String!) {
+    putReportNote(reportId: $reportId, note: $note)
+}
+
+mutation stopReport($reportId: ID!) {
+    stopReport(reportId: $reportId)
+}
+
+mutation deleteReport($reportId: ID!) {
+    deleteReport(reportId: $reportId)
+}
+
+mutation updateReportSection($reportId: ID!, $sectionId: ID!, $input: ReportSectionInput!) {
+    updateReportSection(reportId: $reportId, sectionId: $sectionId, input: $input) {
+        ...reportSectionFragment
+    }
+}
+
+mutation setReportSectionContent($reportId: ID!, $sectionId: ID!, $content: String!) {
+    setReportSectionContent(reportId: $reportId, sectionId: $sectionId, content: $content) {
+        ...reportSectionFragment
+    }
+}
+
+mutation moveReportSection($reportId: ID!, $sectionId: ID!, $direction: SectionDirection!) {
+    moveReportSection(reportId: $reportId, sectionId: $sectionId, direction: $direction)
+}
+
+mutation hideReportSection($reportId: ID!, $sectionId: ID!, $hidden: Boolean!) {
+    hideReportSection(reportId: $reportId, sectionId: $sectionId, hidden: $hidden) {
+        ...reportSectionFragment
+    }
+}
+
+mutation addReportSection($reportId: ID!, $afterSectionId: ID, $parentId: ID, $title: String!) {
+    addReportSection(reportId: $reportId, afterSectionId: $afterSectionId, parentId: $parentId, title: $title) {
+        ...reportSectionFragment
+    }
+}
+
+mutation deleteReportSection($reportId: ID!, $sectionId: ID!) {
+    deleteReportSection(reportId: $reportId, sectionId: $sectionId)
+}
+
+subscription reportCreated($flowId: ID!) {
+    reportCreated(flowId: $flowId) {
+        ...reportFragment
+    }
+}
+
+subscription reportUpdated($flowId: ID!) {
+    reportUpdated(flowId: $flowId) {
+        ...reportFragment
+    }
+}
+
+subscription reportDeleted($flowId: ID!) {
+    reportDeleted(flowId: $flowId) {
+        ...reportFragment
+    }
+}
+
+subscription reportSectionUpdated($flowId: ID!) {
+    reportSectionUpdated(flowId: $flowId) {
+        ...reportSectionFragment
+    }
+}
+
+subscription reportLogAdded($flowId: ID!) {
+    reportLogAdded(flowId: $flowId) {
+        ...reportLogFragment
     }
 }

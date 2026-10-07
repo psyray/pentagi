@@ -16,6 +16,7 @@ export const SIDE_TAB_VALUES = [
     'agents',
     'tools',
     'vectorStores',
+    'reports',
     'files',
     'screenshots',
 ];
