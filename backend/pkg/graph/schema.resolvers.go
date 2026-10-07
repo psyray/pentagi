@@ -1315,6 +1315,142 @@ func (r *mutationResolver) AnonymizeText(ctx context.Context, text string) (stri
 	return r.Replacer.ReplaceString(text), nil
 }
 
+// CreateReport is the resolver for the createReport field.
+func (r *mutationResolver) CreateReport(ctx context.Context, flowID int64, input model.CreateReportInput) (*model.Report, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "flows.edit", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+	if !r.ReportsCtrl.Enabled() {
+		return nil, fmt.Errorf("reports are disabled")
+	}
+
+	report, err := r.ReportsCtrl.CreateReport(ctx, uid, flowID, controller.CreateReportParams{
+		TemplateKey:            deref(input.TemplateKey),
+		ProviderName:           deref(input.ProviderName),
+		Title:                  deref(input.Title),
+		AdditionalInstructions: deref(input.AdditionalInstructions),
+		ControlBudgetSeconds:   derefInt(input.ControlBudgetSeconds),
+		ContentBudgetSeconds:   derefInt(input.ContentBudgetSeconds),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return converter.ConvertReport(*report), nil
+}
+
+// PutReportNote is the resolver for the putReportNote field.
+func (r *mutationResolver) PutReportNote(ctx context.Context, reportID int64, note string) (model.ResultType, error) {
+	uid, err := validateReport(ctx, r.ReportsCtrl, reportID)
+	if err != nil {
+		return model.ResultTypeError, err
+	}
+	if err := r.ReportsCtrl.PutNote(ctx, uid, reportID, note); err != nil {
+		return model.ResultTypeError, err
+	}
+	return model.ResultTypeSuccess, nil
+}
+
+// StopReport is the resolver for the stopReport field.
+func (r *mutationResolver) StopReport(ctx context.Context, reportID int64) (model.ResultType, error) {
+	uid, err := validateReport(ctx, r.ReportsCtrl, reportID)
+	if err != nil {
+		return model.ResultTypeError, err
+	}
+	if err := r.ReportsCtrl.Stop(ctx, uid, reportID); err != nil {
+		return model.ResultTypeError, err
+	}
+	return model.ResultTypeSuccess, nil
+}
+
+// DeleteReport is the resolver for the deleteReport field.
+func (r *mutationResolver) DeleteReport(ctx context.Context, reportID int64) (model.ResultType, error) {
+	uid, err := validateReport(ctx, r.ReportsCtrl, reportID)
+	if err != nil {
+		return model.ResultTypeError, err
+	}
+	if err := r.ReportsCtrl.Delete(ctx, uid, reportID); err != nil {
+		return model.ResultTypeError, err
+	}
+	return model.ResultTypeSuccess, nil
+}
+
+// UpdateReportSection is the resolver for the updateReportSection field.
+func (r *mutationResolver) UpdateReportSection(ctx context.Context, reportID int64, sectionID int64, input model.ReportSectionInput) (*model.ReportSection, error) {
+	uid, err := validateReport(ctx, r.ReportsCtrl, reportID)
+	if err != nil {
+		return nil, err
+	}
+	row, err := r.ReportsCtrl.UpdateSection(ctx, uid, reportID, sectionID, input.Title, input.Instructions, input.Variables, input.Warnings)
+	if err != nil {
+		return nil, err
+	}
+	return converter.ConvertReportSection(*row), nil
+}
+
+// SetReportSectionContent is the resolver for the setReportSectionContent field.
+func (r *mutationResolver) SetReportSectionContent(ctx context.Context, reportID int64, sectionID int64, content string) (*model.ReportSection, error) {
+	uid, err := validateReport(ctx, r.ReportsCtrl, reportID)
+	if err != nil {
+		return nil, err
+	}
+	row, err := r.ReportsCtrl.SetSectionContent(ctx, uid, reportID, sectionID, content)
+	if err != nil {
+		return nil, err
+	}
+	return converter.ConvertReportSection(*row), nil
+}
+
+// MoveReportSection is the resolver for the moveReportSection field.
+func (r *mutationResolver) MoveReportSection(ctx context.Context, reportID int64, sectionID int64, direction model.SectionDirection) (model.ResultType, error) {
+	uid, err := validateReport(ctx, r.ReportsCtrl, reportID)
+	if err != nil {
+		return model.ResultTypeError, err
+	}
+	if err := r.ReportsCtrl.MoveSection(ctx, uid, reportID, sectionID, direction == model.SectionDirectionUp); err != nil {
+		return model.ResultTypeError, err
+	}
+	return model.ResultTypeSuccess, nil
+}
+
+// HideReportSection is the resolver for the hideReportSection field.
+func (r *mutationResolver) HideReportSection(ctx context.Context, reportID int64, sectionID int64, hidden bool) (*model.ReportSection, error) {
+	uid, err := validateReport(ctx, r.ReportsCtrl, reportID)
+	if err != nil {
+		return nil, err
+	}
+	row, err := r.ReportsCtrl.HideSection(ctx, uid, reportID, sectionID, hidden)
+	if err != nil {
+		return nil, err
+	}
+	return converter.ConvertReportSection(*row), nil
+}
+
+// AddReportSection is the resolver for the addReportSection field.
+func (r *mutationResolver) AddReportSection(ctx context.Context, reportID int64, afterSectionID *int64, parentID *int64, title string) (*model.ReportSection, error) {
+	uid, err := validateReport(ctx, r.ReportsCtrl, reportID)
+	if err != nil {
+		return nil, err
+	}
+	row, err := r.ReportsCtrl.AddSection(ctx, uid, reportID, afterSectionID, parentID, title)
+	if err != nil {
+		return nil, err
+	}
+	return converter.ConvertReportSection(*row), nil
+}
+
+// DeleteReportSection is the resolver for the deleteReportSection field.
+func (r *mutationResolver) DeleteReportSection(ctx context.Context, reportID int64, sectionID int64) (model.ResultType, error) {
+	uid, err := validateReport(ctx, r.ReportsCtrl, reportID)
+	if err != nil {
+		return model.ResultTypeError, err
+	}
+	if err := r.ReportsCtrl.DeleteSection(ctx, uid, reportID, sectionID); err != nil {
+		return model.ResultTypeError, err
+	}
+	return model.ResultTypeSuccess, nil
+}
+
 // Providers is the resolver for the providers field.
 func (r *queryResolver) Providers(ctx context.Context) ([]*model.Provider, error) {
 	uid, _, err := validatePermission(ctx, "providers.view")
@@ -2101,6 +2237,7 @@ func (r *queryResolver) Settings(ctx context.Context) (*model.Settings, error) {
 		DockerInside:       r.Config.DockerInside,
 		IsDevelopMode:      version.IsDevelopMode(),
 		AssistantUseAgents: r.Config.AssistantUseAgents,
+		ReportsEnabled:     r.ReportsCtrl.Enabled(),
 	}
 
 	return settings, nil
@@ -2629,6 +2766,87 @@ func (r *queryResolver) SearchKnowledge(ctx context.Context, query string, filte
 	return r.Knowledge.SearchUserDocuments(ctx, uid, query, filter, lim)
 }
 
+// Reports is the resolver for the reports field.
+func (r *queryResolver) Reports(ctx context.Context, flowID int64) ([]*model.Report, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "flows.read", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+	if !r.ReportsCtrl.Enabled() {
+		return []*model.Report{}, nil
+	}
+
+	rows, err := r.ReportsCtrl.ListFlowReports(ctx, uid, flowID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*model.Report, 0, len(rows))
+	for i := range rows {
+		out = append(out, converter.ConvertReport(rows[i]))
+	}
+	return out, nil
+}
+
+// Report is the resolver for the report field.
+func (r *queryResolver) Report(ctx context.Context, reportID int64) (*model.Report, error) {
+	_, report, err := validateReportRow(ctx, r.ReportsCtrl, reportID)
+	if err != nil {
+		return nil, err
+	}
+	return converter.ConvertReport(*report), nil
+}
+
+// ReportSections is the resolver for the reportSections field.
+func (r *queryResolver) ReportSections(ctx context.Context, reportID int64) ([]*model.ReportSection, error) {
+	uid, report, err := validateReportRow(ctx, r.ReportsCtrl, reportID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.ReportsCtrl.ListReportSections(ctx, uid, report.ID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*model.ReportSection, 0, len(rows))
+	for i := range rows {
+		out = append(out, converter.ConvertReportSection(rows[i]))
+	}
+	return out, nil
+}
+
+// ReportLogs is the resolver for the reportLogs field.
+func (r *queryResolver) ReportLogs(ctx context.Context, reportID int64, limit *int) ([]*model.ReportLog, error) {
+	uid, report, err := validateReportRow(ctx, r.ReportsCtrl, reportID)
+	if err != nil {
+		return nil, err
+	}
+	logLimit := 500
+	if limit != nil && *limit > 0 {
+		logLimit = *limit
+	}
+	rows, err := r.ReportsCtrl.ListReportLogs(ctx, uid, report.ID, logLimit)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*model.ReportLog, 0, len(rows))
+	for i := range rows {
+		converted, err := converter.ConvertReportLog(rows[i])
+		if err != nil {
+			continue
+		}
+		out = append(out, converted)
+	}
+	return out, nil
+}
+
+// ReportDocument is the resolver for the reportDocument field.
+func (r *queryResolver) ReportDocument(ctx context.Context, reportID int64) (string, error) {
+	uid, report, err := validateReportRow(ctx, r.ReportsCtrl, reportID)
+	if err != nil {
+		return "", err
+	}
+	return r.ReportsCtrl.Document(ctx, uid, report.ID)
+}
+
 // FlowCreated is the resolver for the flowCreated field.
 func (r *subscriptionResolver) FlowCreated(ctx context.Context) (<-chan *model.Flow, error) {
 	uid, admin, err := validatePermission(ctx, "flows.subscribe")
@@ -3111,6 +3329,56 @@ func (r *subscriptionResolver) KnowledgeDocumentDeleted(ctx context.Context) (<-
 	return sub.KnowledgeDocumentDeleted(ctx)
 }
 
+// ReportCreated is the resolver for the reportCreated field.
+func (r *subscriptionResolver) ReportCreated(ctx context.Context, flowID int64) (<-chan *model.Report, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "flows.read", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.Subscriptions.NewFlowSubscriber(uid, flowID).ReportCreated(ctx)
+}
+
+// ReportUpdated is the resolver for the reportUpdated field.
+func (r *subscriptionResolver) ReportUpdated(ctx context.Context, flowID int64) (<-chan *model.Report, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "flows.read", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.Subscriptions.NewFlowSubscriber(uid, flowID).ReportUpdated(ctx)
+}
+
+// ReportDeleted is the resolver for the reportDeleted field.
+func (r *subscriptionResolver) ReportDeleted(ctx context.Context, flowID int64) (<-chan *model.Report, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "flows.read", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.Subscriptions.NewFlowSubscriber(uid, flowID).ReportDeleted(ctx)
+}
+
+// ReportSectionUpdated is the resolver for the reportSectionUpdated field.
+func (r *subscriptionResolver) ReportSectionUpdated(ctx context.Context, flowID int64) (<-chan *model.ReportSection, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "flows.read", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.Subscriptions.NewFlowSubscriber(uid, flowID).ReportSectionUpdated(ctx)
+}
+
+// ReportLogAdded is the resolver for the reportLogAdded field.
+func (r *subscriptionResolver) ReportLogAdded(ctx context.Context, flowID int64) (<-chan *model.ReportLog, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "flows.read", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.Subscriptions.NewFlowSubscriber(uid, flowID).ReportLogAdded(ctx)
+}
+
 // Mutation returns MutationResolver implementation.
 func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 
@@ -3123,3 +3391,58 @@ func (r *Resolver) Subscription() SubscriptionResolver { return &subscriptionRes
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type subscriptionResolver struct{ *Resolver }
+
+// validateReport checks the reports.read permission and the report ownership
+// (the controller's GetReport is user-scoped, so an admin sees only their own
+// reports in v1).
+func validateReport(
+	ctx context.Context,
+	reports controller.ReportController,
+	reportID int64,
+) (int64, error) {
+	uid, _, err := validatePermission(ctx, "flows.read")
+	if err != nil {
+		return 0, err
+	}
+
+	if _, err := reports.GetReport(ctx, uid, reportID); err != nil {
+		return 0, err
+	}
+
+	return uid, nil
+}
+
+// validateReportRow returns the owned report row on top of the check.
+func validateReportRow(
+	ctx context.Context,
+	reports controller.ReportController,
+	reportID int64,
+) (int64, *database.Report, error) {
+	uid, _, err := validatePermission(ctx, "flows.read")
+	if err != nil {
+		return 0, nil, err
+	}
+
+	report, err := reports.GetReport(ctx, uid, reportID)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return uid, report, nil
+}
+
+// deref returns the string value or an empty string.
+func deref(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
+// derefInt returns the int value or 0.
+func derefInt(value *int) int {
+	if value == nil {
+		return 0
+	}
+	return *value
+}
