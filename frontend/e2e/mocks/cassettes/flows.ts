@@ -7,6 +7,7 @@ import type {
     FlowFragmentFragment,
     FlowReportDocument,
     FlowStatsByFlowDocument,
+    MessageLogContentFragmentFragment,
     MessageLogFragmentFragment,
     TerminalLogFragmentFragment,
     ToolcallsStatsByFlowDocument,
@@ -70,7 +71,7 @@ export const makeFlow = (
 export const makeMessage = (
     id: string,
     flowId: string,
-    overrides: Partial<MessageLogFragmentFragment> = {},
+    overrides: Partial<MessageLogContentFragmentFragment & MessageLogFragmentFragment> = {},
 ): MessageLogFragmentFragment =>
     entity('MessageLog', {
         agent: null,
@@ -146,6 +147,7 @@ export const flowQueryData = (
 ): ResultOf<typeof FlowDocument> => ({
     agentLogs: [],
     flow,
+    flowLooseMessageLogs: [],
     messageLogs,
     msgchains: [],
     screenshots: [],
@@ -395,6 +397,7 @@ const PNG_1X1 = Buffer.from(
 const flowTabsData: ResultOf<typeof FlowDocument> = {
     agentLogs: [TABS_AGENT_LOG],
     flow: FLOW_A,
+    flowLooseMessageLogs: [],
     messageLogs: [],
     msgchains: [],
     screenshots: [TABS_SCREENSHOT, TABS_SCREENSHOT_NEWER, TABS_SCREENSHOT_NEWEST],

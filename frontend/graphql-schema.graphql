@@ -86,14 +86,18 @@ fragment messageLogFragment on MessageLog {
     id
     type
     message
-    thinking
-    result
-    resultFormat
     flowId
     agent
     taskId
     subtaskId
     createdAt
+}
+
+fragment messageLogContentFragment on MessageLog {
+    id
+    thinking
+    result
+    resultFormat
 }
 
 fragment msgchainFragment on Msgchain {
@@ -898,6 +902,9 @@ query flow($id: ID!) {
     msgchains(flowId: $id) {
         ...msgchainFragment
     }
+    flowLooseMessageLogs(flowId: $id) {
+        ...messageLogContentFragment
+    }
     agentLogs(flowId: $id) {
         ...agentLogFragment
     }
@@ -906,6 +913,12 @@ query flow($id: ID!) {
     }
     vectorStoreLogs(flowId: $id) {
         ...vectorStoreLogFragment
+    }
+}
+
+query subtaskMessageLogs($flowId: ID!, $subtaskId: ID!) {
+    subtaskMessageLogs(flowId: $flowId, subtaskId: $subtaskId) {
+        ...messageLogContentFragment
     }
 }
 
@@ -1297,12 +1310,14 @@ subscription terminalLogAdded($flowId: ID!) {
 subscription messageLogAdded($flowId: ID!) {
     messageLogAdded(flowId: $flowId) {
         ...messageLogFragment
+        ...messageLogContentFragment
     }
 }
 
 subscription messageLogUpdated($flowId: ID!) {
     messageLogUpdated(flowId: $flowId) {
         ...messageLogFragment
+        ...messageLogContentFragment
     }
 }
 

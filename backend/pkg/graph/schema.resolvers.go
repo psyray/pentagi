@@ -1542,6 +1542,52 @@ func (r *queryResolver) MessageLogs(ctx context.Context, flowID int64) ([]*model
 	return converter.ConvertMessageLogs(logs), nil
 }
 
+// SubtaskMessageLogs is the resolver for the subtaskMessageLogs field.
+func (r *queryResolver) SubtaskMessageLogs(ctx context.Context, flowID int64, subtaskID int64) ([]*model.MessageLog, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "msglogs.view", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+
+	r.Logger.WithFields(logrus.Fields{
+		"uid":     uid,
+		"flow":    flowID,
+		"subtask": subtaskID,
+	}).Debug("get subtask msg logs")
+
+	// Confines the read to a subtask of the flow the caller is allowed to read.
+	if _, err := r.DB.GetFlowSubtask(ctx, database.GetFlowSubtaskParams{ID: subtaskID, FlowID: flowID}); err != nil {
+		return nil, err
+	}
+
+	logs, err := r.DB.GetSubtaskMsgLogs(ctx, database.Int64ToNullInt64(&subtaskID))
+	if err != nil {
+		return nil, err
+	}
+
+	return converter.ConvertMessageLogs(logs), nil
+}
+
+// FlowLooseMessageLogs is the resolver for the flowLooseMessageLogs field.
+func (r *queryResolver) FlowLooseMessageLogs(ctx context.Context, flowID int64) ([]*model.MessageLog, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "msglogs.view", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+
+	r.Logger.WithFields(logrus.Fields{
+		"uid":  uid,
+		"flow": flowID,
+	}).Debug("get flow loose msg logs")
+
+	logs, err := r.DB.GetFlowLooseMsgLogs(ctx, flowID)
+	if err != nil {
+		return nil, err
+	}
+
+	return converter.ConvertMessageLogs(logs), nil
+}
+
 // AgentLogs is the resolver for the agentLogs field.
 func (r *queryResolver) AgentLogs(ctx context.Context, flowID int64) ([]*model.AgentLog, error) {
 	uid, err := validatePermissionWithFlowID(ctx, "agentlogs.view", flowID, r.DB)
