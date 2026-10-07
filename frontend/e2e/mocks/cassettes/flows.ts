@@ -165,6 +165,10 @@ export const flowsCassette = (override: Cassette = {}): Cassette =>
         {
             queries: {
                 ...baseQueries(),
+                // The flow opens on Dashboard, so every flow landing queries the
+                // Overview; mock it for both seeded flows so no spec leaves those
+                // calls unmatched (the pager opens flow 6 on the same default).
+                ...dashboardQueries([FLOW_A.id, FLOW_B.id]),
                 assistants: [{ data: noAssistants }],
                 flow: [
                     {
@@ -439,6 +443,24 @@ const toolcallsStatsByFunctionForFlow: ResultOf<typeof ToolcallsStatsByFunctionF
 
 const flowStatsByFlow: ResultOf<typeof FlowStatsByFlowDocument> = {
     flowStatsByFlow: entity('FlowStats', { totalAssistantsCount: 1, totalSubtasksCount: 3, totalTasksCount: 1 }),
+};
+
+// The queries the Dashboard Overview fires on every flow landing (it is the
+// default tab), shared by every flows cassette. The seeded flows list holds two
+// flows and the pager steps between them without a reload, so every flow that
+// can land on screen gets its own set of answers.
+const dashboardQueries = (flowIds: string[]): NonNullable<Cassette['queries']> => {
+    const perFlow = <T>(data: T) => flowIds.map((flowId) => ({ data, variables: { flowId } }));
+
+    return {
+        flowStatsByFlow: perFlow(flowStatsByFlow),
+        kgDashboardEnabled: [{ data: { kgDashboardEnabled: true } }],
+        toolcallsStatsByFlow: perFlow(toolcallsStatsByFlow),
+        toolcallsStatsByFunctionForFlow: perFlow(toolcallsStatsByFunctionForFlow),
+        usageStatsByAgentTypeForFlow: perFlow(usageStatsByAgentTypeForFlow),
+        usageStatsByFlow: perFlow(usageStatsByFlow),
+        usageStatsByModelAgentsForFlow: perFlow(usageStatsByModelAgentsForFlow),
+    };
 };
 
 /** Text that exists only in a streamed frame, so a panel that ignores its subscription stays blank. */

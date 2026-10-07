@@ -32,6 +32,8 @@ test.describe('flow reconnect', { tag: ['@flows', '@smoke'] }, () => {
 
         await page.goto('/flows');
         await page.getByRole('row', { name: /E2E Alpha/ }).click();
+        // The flow opens on Dashboard; the message log lives on the Automation tab.
+        await page.getByRole('tab', { name: 'Automation' }).click();
         await expect(page.locator(MESSAGE_ID_SELECTOR)).toHaveCount(BEFORE_DROP.length);
 
         const loadsBeforeDrop = resourceLoads.length;
