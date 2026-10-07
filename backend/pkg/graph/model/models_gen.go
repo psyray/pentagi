@@ -200,6 +200,15 @@ type CreateKnowledgeDocumentInput struct {
 	CodeLang    *string              `json:"codeLang,omitempty"`
 }
 
+type CreateReportInput struct {
+	TemplateKey            *string `json:"templateKey,omitempty"`
+	ProviderName           *string `json:"providerName,omitempty"`
+	Title                  *string `json:"title,omitempty"`
+	AdditionalInstructions *string `json:"additionalInstructions,omitempty"`
+	ControlBudgetSeconds   *int    `json:"controlBudgetSeconds,omitempty"`
+	ContentBudgetSeconds   *int    `json:"contentBudgetSeconds,omitempty"`
+}
+
 type CredentialStatusRow struct {
 	Status   CredentialStatus `json:"status"`
 	Count    int              `json:"count"`
@@ -549,6 +558,76 @@ type ReasoningConfig struct {
 	MaxTokens *int             `json:"maxTokens,omitempty"`
 }
 
+type Report struct {
+	ID                     int64            `json:"id"`
+	FlowID                 int64            `json:"flowId"`
+	UserID                 int64            `json:"userId"`
+	Status                 ReportStatusType `json:"status"`
+	Title                  string           `json:"title"`
+	TemplateKey            string           `json:"templateKey"`
+	TemplateLabel          string           `json:"templateLabel"`
+	ProviderName           string           `json:"providerName"`
+	ProviderType           ProviderType     `json:"providerType"`
+	Language               string           `json:"language"`
+	AdditionalInstructions *string          `json:"additionalInstructions,omitempty"`
+	ControlBudgetSeconds   int              `json:"controlBudgetSeconds"`
+	ContentBudgetSeconds   int              `json:"contentBudgetSeconds"`
+	ControlUsedSeconds     float64          `json:"controlUsedSeconds"`
+	ContentUsedSeconds     float64          `json:"contentUsedSeconds"`
+	SectionsEstimate       int              `json:"sectionsEstimate"`
+	SectionsTotal          int              `json:"sectionsTotal"`
+	SectionsDone           int              `json:"sectionsDone"`
+	TokensIn               int              `json:"tokensIn"`
+	TokensOut              int              `json:"tokensOut"`
+	Error                  *string          `json:"error,omitempty"`
+	CreatedAt              time.Time        `json:"createdAt"`
+	UpdatedAt              time.Time        `json:"updatedAt"`
+	FinishedAt             *time.Time       `json:"finishedAt,omitempty"`
+}
+
+type ReportLog struct {
+	ID        int64                  `json:"id"`
+	ReportID  int64                  `json:"reportId"`
+	SectionID *int64                 `json:"sectionId,omitempty"`
+	Kind      ReportLogKind          `json:"kind"`
+	Message   string                 `json:"message"`
+	Payload   map[string]interface{} `json:"payload,omitempty"`
+	CreatedAt time.Time              `json:"createdAt"`
+}
+
+type ReportSection struct {
+	ID              int64                   `json:"id"`
+	ReportID        int64                   `json:"reportId"`
+	ParentID        *int64                  `json:"parentId,omitempty"`
+	Position        int                     `json:"position"`
+	Key             string                  `json:"key"`
+	Kind            ReportSectionKind       `json:"kind"`
+	Title           string                  `json:"title"`
+	Status          ReportSectionStatusType `json:"status"`
+	Content         string                  `json:"content"`
+	Instructions    *string                 `json:"instructions,omitempty"`
+	Variables       []*ReportVariable       `json:"variables"`
+	Warnings        []string                `json:"warnings,omitempty"`
+	Hidden          bool                    `json:"hidden"`
+	TokensIn        int                     `json:"tokensIn"`
+	TokensOut       int                     `json:"tokensOut"`
+	DurationSeconds float64                 `json:"durationSeconds"`
+	CreatedAt       time.Time               `json:"createdAt"`
+	UpdatedAt       time.Time               `json:"updatedAt"`
+}
+
+type ReportSectionInput struct {
+	Title        string   `json:"title"`
+	Instructions *string  `json:"instructions,omitempty"`
+	Variables    *string  `json:"variables,omitempty"`
+	Warnings     []string `json:"warnings,omitempty"`
+}
+
+type ReportVariable struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
 type Screenshot struct {
 	ID        int64     `json:"id"`
 	FlowID    int64     `json:"flowId"`
@@ -579,6 +658,7 @@ type Settings struct {
 	DockerInside       bool   `json:"dockerInside"`
 	IsDevelopMode      bool   `json:"isDevelopMode"`
 	AssistantUseAgents bool   `json:"assistantUseAgents"`
+	ReportsEnabled     bool   `json:"reportsEnabled"`
 }
 
 type Subscription struct {
@@ -1577,6 +1657,194 @@ func (e ReasoningMode) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
+type ReportLogKind string
+
+const (
+	ReportLogKindControl ReportLogKind = "control"
+	ReportLogKindSection ReportLogKind = "section"
+	ReportLogKindNote    ReportLogKind = "note"
+	ReportLogKindError   ReportLogKind = "error"
+	ReportLogKindStatus  ReportLogKind = "status"
+)
+
+var AllReportLogKind = []ReportLogKind{
+	ReportLogKindControl,
+	ReportLogKindSection,
+	ReportLogKindNote,
+	ReportLogKindError,
+	ReportLogKindStatus,
+}
+
+func (e ReportLogKind) IsValid() bool {
+	switch e {
+	case ReportLogKindControl, ReportLogKindSection, ReportLogKindNote, ReportLogKindError, ReportLogKindStatus:
+		return true
+	}
+	return false
+}
+
+func (e ReportLogKind) String() string {
+	return string(e)
+}
+
+func (e *ReportLogKind) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ReportLogKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ReportLogKind", str)
+	}
+	return nil
+}
+
+func (e ReportLogKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type ReportSectionKind string
+
+const (
+	ReportSectionKindLlm       ReportSectionKind = "llm"
+	ReportSectionKindAggregate ReportSectionKind = "aggregate"
+	ReportSectionKindComposed  ReportSectionKind = "composed"
+)
+
+var AllReportSectionKind = []ReportSectionKind{
+	ReportSectionKindLlm,
+	ReportSectionKindAggregate,
+	ReportSectionKindComposed,
+}
+
+func (e ReportSectionKind) IsValid() bool {
+	switch e {
+	case ReportSectionKindLlm, ReportSectionKindAggregate, ReportSectionKindComposed:
+		return true
+	}
+	return false
+}
+
+func (e ReportSectionKind) String() string {
+	return string(e)
+}
+
+func (e *ReportSectionKind) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ReportSectionKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ReportSectionKind", str)
+	}
+	return nil
+}
+
+func (e ReportSectionKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type ReportSectionStatusType string
+
+const (
+	ReportSectionStatusTypeQueued     ReportSectionStatusType = "queued"
+	ReportSectionStatusTypeWriting    ReportSectionStatusType = "writing"
+	ReportSectionStatusTypeDone       ReportSectionStatusType = "done"
+	ReportSectionStatusTypeFailed     ReportSectionStatusType = "failed"
+	ReportSectionStatusTypeSkipped    ReportSectionStatusType = "skipped"
+	ReportSectionStatusTypeNotWritten ReportSectionStatusType = "not_written"
+)
+
+var AllReportSectionStatusType = []ReportSectionStatusType{
+	ReportSectionStatusTypeQueued,
+	ReportSectionStatusTypeWriting,
+	ReportSectionStatusTypeDone,
+	ReportSectionStatusTypeFailed,
+	ReportSectionStatusTypeSkipped,
+	ReportSectionStatusTypeNotWritten,
+}
+
+func (e ReportSectionStatusType) IsValid() bool {
+	switch e {
+	case ReportSectionStatusTypeQueued, ReportSectionStatusTypeWriting, ReportSectionStatusTypeDone, ReportSectionStatusTypeFailed, ReportSectionStatusTypeSkipped, ReportSectionStatusTypeNotWritten:
+		return true
+	}
+	return false
+}
+
+func (e ReportSectionStatusType) String() string {
+	return string(e)
+}
+
+func (e *ReportSectionStatusType) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ReportSectionStatusType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ReportSectionStatusType", str)
+	}
+	return nil
+}
+
+func (e ReportSectionStatusType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type ReportStatusType string
+
+const (
+	ReportStatusTypeCreated    ReportStatusType = "created"
+	ReportStatusTypePlanning   ReportStatusType = "planning"
+	ReportStatusTypeGenerating ReportStatusType = "generating"
+	ReportStatusTypeCompleted  ReportStatusType = "completed"
+	ReportStatusTypeFailed     ReportStatusType = "failed"
+	ReportStatusTypeCanceled   ReportStatusType = "canceled"
+)
+
+var AllReportStatusType = []ReportStatusType{
+	ReportStatusTypeCreated,
+	ReportStatusTypePlanning,
+	ReportStatusTypeGenerating,
+	ReportStatusTypeCompleted,
+	ReportStatusTypeFailed,
+	ReportStatusTypeCanceled,
+}
+
+func (e ReportStatusType) IsValid() bool {
+	switch e {
+	case ReportStatusTypeCreated, ReportStatusTypePlanning, ReportStatusTypeGenerating, ReportStatusTypeCompleted, ReportStatusTypeFailed, ReportStatusTypeCanceled:
+		return true
+	}
+	return false
+}
+
+func (e ReportStatusType) String() string {
+	return string(e)
+}
+
+func (e *ReportStatusType) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ReportStatusType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ReportStatusType", str)
+	}
+	return nil
+}
+
+func (e ReportStatusType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
 type ResultFormat string
 
 const (
@@ -1658,6 +1926,47 @@ func (e *ResultType) UnmarshalGQL(v interface{}) error {
 }
 
 func (e ResultType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type SectionDirection string
+
+const (
+	SectionDirectionUp   SectionDirection = "up"
+	SectionDirectionDown SectionDirection = "down"
+)
+
+var AllSectionDirection = []SectionDirection{
+	SectionDirectionUp,
+	SectionDirectionDown,
+}
+
+func (e SectionDirection) IsValid() bool {
+	switch e {
+	case SectionDirectionUp, SectionDirectionDown:
+		return true
+	}
+	return false
+}
+
+func (e SectionDirection) String() string {
+	return string(e)
+}
+
+func (e *SectionDirection) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = SectionDirection(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid SectionDirection", str)
+	}
+	return nil
+}
+
+func (e SectionDirection) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 

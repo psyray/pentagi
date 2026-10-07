@@ -51,6 +51,11 @@ type FlowSubscriber interface {
 	FlowUpdated(ctx context.Context) (<-chan *model.Flow, error)
 	TaskCreated(ctx context.Context) (<-chan *model.Task, error)
 	TaskUpdated(ctx context.Context) (<-chan *model.Task, error)
+	ReportCreated(ctx context.Context) (<-chan *model.Report, error)
+	ReportUpdated(ctx context.Context) (<-chan *model.Report, error)
+	ReportDeleted(ctx context.Context) (<-chan *model.Report, error)
+	ReportSectionUpdated(ctx context.Context) (<-chan *model.ReportSection, error)
+	ReportLogAdded(ctx context.Context) (<-chan *model.ReportLog, error)
 	AssistantCreated(ctx context.Context) (<-chan *model.Assistant, error)
 	AssistantUpdated(ctx context.Context) (<-chan *model.Assistant, error)
 	AssistantDeleted(ctx context.Context) (<-chan *model.Assistant, error)
@@ -114,6 +119,11 @@ type FlowPublisher interface {
 	FlowUpdated(ctx context.Context, flow database.Flow, terms []database.Container)
 	TaskCreated(ctx context.Context, task database.Task, subtasks []database.Subtask)
 	TaskUpdated(ctx context.Context, task database.Task, subtasks []database.Subtask)
+	ReportCreated(ctx context.Context, report *model.Report)
+	ReportUpdated(ctx context.Context, report *model.Report)
+	ReportDeleted(ctx context.Context, report *model.Report)
+	ReportSectionUpdated(ctx context.Context, section *model.ReportSection)
+	ReportLogAdded(ctx context.Context, log *model.ReportLog)
 	AssistantCreated(ctx context.Context, assistant database.Assistant)
 	AssistantUpdated(ctx context.Context, assistant database.Assistant)
 	AssistantDeleted(ctx context.Context, assistant database.Assistant)
@@ -192,31 +202,36 @@ type ResourcePublisher interface {
 }
 
 type controller struct {
-	flowCreatedAdmin    Channel[*model.Flow]
-	flowCreated         Channel[*model.Flow]
-	flowDeletedAdmin    Channel[*model.Flow]
-	flowDeleted         Channel[*model.Flow]
-	flowUpdatedAdmin    Channel[*model.Flow]
-	flowUpdated         Channel[*model.Flow]
-	taskCreated         Channel[*model.Task]
-	taskUpdated         Channel[*model.Task]
-	assistantCreated    Channel[*model.Assistant]
-	assistantUpdated    Channel[*model.Assistant]
-	assistantDeleted    Channel[*model.Assistant]
-	flowFileAdded       Channel[*model.FlowFile]
-	flowFileUpdated     Channel[*model.FlowFile]
-	flowFileDeleted     Channel[*model.FlowFile]
-	screenshotAdded     Channel[*model.Screenshot]
-	terminalLogAdded    Channel[*model.TerminalLog]
-	messageLogAdded     Channel[*model.MessageLog]
-	messageLogUpdated   Channel[*model.MessageLog]
-	agentLogAdded       Channel[*model.AgentLog]
-	searchLogAdded      Channel[*model.SearchLog]
-	vecStoreLogAdded    Channel[*model.VectorStoreLog]
-	toolCallLogAdded    Channel[*model.ToolCallLog]
-	toolCallLogUpdated  Channel[*model.ToolCallLog]
-	assistantLogAdded   Channel[*model.AssistantLog]
-	assistantLogUpdated Channel[*model.AssistantLog]
+	flowCreatedAdmin     Channel[*model.Flow]
+	flowCreated          Channel[*model.Flow]
+	flowDeletedAdmin     Channel[*model.Flow]
+	flowDeleted          Channel[*model.Flow]
+	flowUpdatedAdmin     Channel[*model.Flow]
+	flowUpdated          Channel[*model.Flow]
+	taskCreated          Channel[*model.Task]
+	taskUpdated          Channel[*model.Task]
+	reportCreated        Channel[*model.Report]
+	reportUpdated        Channel[*model.Report]
+	reportDeleted        Channel[*model.Report]
+	reportSectionUpdated Channel[*model.ReportSection]
+	reportLogAdded       Channel[*model.ReportLog]
+	assistantCreated     Channel[*model.Assistant]
+	assistantUpdated     Channel[*model.Assistant]
+	assistantDeleted     Channel[*model.Assistant]
+	flowFileAdded        Channel[*model.FlowFile]
+	flowFileUpdated      Channel[*model.FlowFile]
+	flowFileDeleted      Channel[*model.FlowFile]
+	screenshotAdded      Channel[*model.Screenshot]
+	terminalLogAdded     Channel[*model.TerminalLog]
+	messageLogAdded      Channel[*model.MessageLog]
+	messageLogUpdated    Channel[*model.MessageLog]
+	agentLogAdded        Channel[*model.AgentLog]
+	searchLogAdded       Channel[*model.SearchLog]
+	vecStoreLogAdded     Channel[*model.VectorStoreLog]
+	toolCallLogAdded     Channel[*model.ToolCallLog]
+	toolCallLogUpdated   Channel[*model.ToolCallLog]
+	assistantLogAdded    Channel[*model.AssistantLog]
+	assistantLogUpdated  Channel[*model.AssistantLog]
 
 	providerCreated Channel[*model.ProviderConfig]
 	providerUpdated Channel[*model.ProviderConfig]
@@ -249,31 +264,36 @@ type controller struct {
 
 func NewSubscriptionsController() SubscriptionsController {
 	return &controller{
-		flowCreatedAdmin:    NewChannel[*model.Flow](),
-		flowCreated:         NewChannel[*model.Flow](),
-		flowDeletedAdmin:    NewChannel[*model.Flow](),
-		flowDeleted:         NewChannel[*model.Flow](),
-		flowUpdatedAdmin:    NewChannel[*model.Flow](),
-		flowUpdated:         NewChannel[*model.Flow](),
-		taskCreated:         NewChannel[*model.Task](),
-		taskUpdated:         NewChannel[*model.Task](),
-		assistantCreated:    NewChannel[*model.Assistant](),
-		assistantUpdated:    NewChannel[*model.Assistant](),
-		assistantDeleted:    NewChannel[*model.Assistant](),
-		flowFileAdded:       NewChannel[*model.FlowFile](),
-		flowFileUpdated:     NewChannel[*model.FlowFile](),
-		flowFileDeleted:     NewChannel[*model.FlowFile](),
-		screenshotAdded:     NewChannel[*model.Screenshot](),
-		terminalLogAdded:    NewChannel[*model.TerminalLog](),
-		messageLogAdded:     NewChannel[*model.MessageLog](),
-		messageLogUpdated:   NewChannel[*model.MessageLog](),
-		agentLogAdded:       NewChannel[*model.AgentLog](),
-		searchLogAdded:      NewChannel[*model.SearchLog](),
-		vecStoreLogAdded:    NewChannel[*model.VectorStoreLog](),
-		toolCallLogAdded:    NewChannel[*model.ToolCallLog](),
-		toolCallLogUpdated:  NewChannel[*model.ToolCallLog](),
-		assistantLogAdded:   NewChannel[*model.AssistantLog](),
-		assistantLogUpdated: NewChannel[*model.AssistantLog](),
+		flowCreatedAdmin:     NewChannel[*model.Flow](),
+		flowCreated:          NewChannel[*model.Flow](),
+		flowDeletedAdmin:     NewChannel[*model.Flow](),
+		flowDeleted:          NewChannel[*model.Flow](),
+		flowUpdatedAdmin:     NewChannel[*model.Flow](),
+		flowUpdated:          NewChannel[*model.Flow](),
+		taskCreated:          NewChannel[*model.Task](),
+		taskUpdated:          NewChannel[*model.Task](),
+		reportCreated:        NewChannel[*model.Report](),
+		reportUpdated:        NewChannel[*model.Report](),
+		reportDeleted:        NewChannel[*model.Report](),
+		reportSectionUpdated: NewChannel[*model.ReportSection](),
+		reportLogAdded:       NewChannel[*model.ReportLog](),
+		assistantCreated:     NewChannel[*model.Assistant](),
+		assistantUpdated:     NewChannel[*model.Assistant](),
+		assistantDeleted:     NewChannel[*model.Assistant](),
+		flowFileAdded:        NewChannel[*model.FlowFile](),
+		flowFileUpdated:      NewChannel[*model.FlowFile](),
+		flowFileDeleted:      NewChannel[*model.FlowFile](),
+		screenshotAdded:      NewChannel[*model.Screenshot](),
+		terminalLogAdded:     NewChannel[*model.TerminalLog](),
+		messageLogAdded:      NewChannel[*model.MessageLog](),
+		messageLogUpdated:    NewChannel[*model.MessageLog](),
+		agentLogAdded:        NewChannel[*model.AgentLog](),
+		searchLogAdded:       NewChannel[*model.SearchLog](),
+		vecStoreLogAdded:     NewChannel[*model.VectorStoreLog](),
+		toolCallLogAdded:     NewChannel[*model.ToolCallLog](),
+		toolCallLogUpdated:   NewChannel[*model.ToolCallLog](),
+		assistantLogAdded:    NewChannel[*model.AssistantLog](),
+		assistantLogUpdated:  NewChannel[*model.AssistantLog](),
 
 		providerCreated: NewChannel[*model.ProviderConfig](),
 		providerUpdated: NewChannel[*model.ProviderConfig](),

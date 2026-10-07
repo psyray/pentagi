@@ -69,6 +69,26 @@ func (p *flowPublisher) AssistantDeleted(ctx context.Context, assistant database
 	p.ctrl.assistantDeleted.Publish(ctx, p.flowID, converter.ConvertAssistant(assistant))
 }
 
+func (p *flowPublisher) ReportCreated(ctx context.Context, report *model.Report) {
+	p.ctrl.reportCreated.Publish(ctx, p.flowID, report)
+}
+
+func (p *flowPublisher) ReportUpdated(ctx context.Context, report *model.Report) {
+	p.ctrl.reportUpdated.Publish(ctx, p.flowID, report)
+}
+
+func (p *flowPublisher) ReportDeleted(ctx context.Context, report *model.Report) {
+	p.ctrl.reportDeleted.Publish(ctx, p.flowID, report)
+}
+
+func (p *flowPublisher) ReportSectionUpdated(ctx context.Context, section *model.ReportSection) {
+	p.ctrl.reportSectionUpdated.Publish(ctx, p.flowID, section)
+}
+
+func (p *flowPublisher) ReportLogAdded(ctx context.Context, reportLog *model.ReportLog) {
+	p.ctrl.reportLogAdded.Publish(ctx, p.flowID, reportLog)
+}
+
 func (p *flowPublisher) FlowFileAdded(ctx context.Context, file *model.FlowFile) {
 	file.FlowID = p.flowID
 	p.ctrl.flowFileAdded.Publish(ctx, p.flowID, file)

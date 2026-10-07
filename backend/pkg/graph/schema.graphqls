@@ -202,6 +202,7 @@ type Settings {
   dockerInside: Boolean!
   isDevelopMode: Boolean!
   assistantUseAgents: Boolean!
+  reportsEnabled: Boolean!
 }
 
 enum UpdateState {
@@ -1271,6 +1272,14 @@ type Query {
   flowDetectedCVEs(flowId: ID!): [DetectedCVERow!]!
   flowGraphitiToolUsage(flowId: ID!): [GraphitiToolUsageRow!]!
   flowArtifacts(flowId: ID!): [ArtifactRow!]!
+
+  # Reports (fork extended-version, section 6): AI-generated documents.
+  reports(flowId: ID!): [Report!]!
+  report(reportId: ID!): Report!
+  reportSections(reportId: ID!): [ReportSection!]!
+  reportLogs(reportId: ID!, limit: Int): [ReportLog!]!
+  reportDocument(reportId: ID!): String!
+
 }
 
 type Mutation {
@@ -1321,6 +1330,18 @@ type Mutation {
   renameKnowledgeDocument(id: String!, question: String!): KnowledgeDocument!
   deleteKnowledgeDocument(id: String!): ResultType!
   anonymizeText(text: String!): String!
+
+  # Reports (fork extended-version, section 6)
+  createReport(flowId: ID!, input: CreateReportInput!): Report!
+  putReportNote(reportId: ID!, note: String!): ResultType!
+  stopReport(reportId: ID!): ResultType!
+  deleteReport(reportId: ID!): ResultType!
+  updateReportSection(reportId: ID!, sectionId: ID!, input: ReportSectionInput!): ReportSection!
+  setReportSectionContent(reportId: ID!, sectionId: ID!, content: String!): ReportSection!
+  moveReportSection(reportId: ID!, sectionId: ID!, direction: SectionDirection!): ResultType!
+  hideReportSection(reportId: ID!, sectionId: ID!, hidden: Boolean!): ReportSection!
+  addReportSection(reportId: ID!, afterSectionId: ID, parentId: ID, title: String!): ReportSection!
+  deleteReportSection(reportId: ID!, sectionId: ID!): ResultType!
 }
 
 type Subscription {
@@ -1380,5 +1401,130 @@ type Subscription {
   knowledgeDocumentCreated: KnowledgeDocument!
   knowledgeDocumentUpdated: KnowledgeDocument!
   knowledgeDocumentDeleted: KnowledgeDocument!
-  
+
+  # Report events (fork extended-version, section 6)
+  reportCreated(flowId: ID!): Report!
+  reportUpdated(flowId: ID!): Report!
+  reportDeleted(flowId: ID!): Report!
+  reportSectionUpdated(flowId: ID!): ReportSection!
+  reportLogAdded(flowId: ID!): ReportLog!
+
+}
+
+# ==================== Reports Types (fork extended-version, section 6) ====================
+
+enum ReportStatusType {
+  created
+  planning
+  generating
+  completed
+  failed
+  canceled
+}
+
+enum ReportSectionStatusType {
+  queued
+  writing
+  done
+  failed
+  skipped
+  not_written
+}
+
+enum ReportSectionKind {
+  llm
+  aggregate
+  composed
+}
+
+enum ReportLogKind {
+  control
+  section
+  note
+  error
+  status
+}
+
+enum SectionDirection {
+  up
+  down
+}
+
+type Report {
+  id: ID!
+  flowId: ID!
+  userId: ID!
+  status: ReportStatusType!
+  title: String!
+  templateKey: String!
+  templateLabel: String!
+  providerName: String!
+  providerType: ProviderType!
+  language: String!
+  additionalInstructions: String
+  controlBudgetSeconds: Int!
+  contentBudgetSeconds: Int!
+  controlUsedSeconds: Float!
+  contentUsedSeconds: Float!
+  sectionsEstimate: Int!
+  sectionsTotal: Int!
+  sectionsDone: Int!
+  tokensIn: Int!
+  tokensOut: Int!
+  error: String
+  createdAt: Time!
+  updatedAt: Time!
+  finishedAt: Time
+}
+
+type ReportVariable {
+  name: String!
+  value: String!
+}
+
+type ReportSection {
+  id: ID!
+  reportId: ID!
+  parentId: ID
+  position: Int!
+  key: String!
+  kind: ReportSectionKind!
+  title: String!
+  status: ReportSectionStatusType!
+  content: String!
+  instructions: String
+  variables: [ReportVariable!]!
+  warnings: [String!]
+  hidden: Boolean!
+  tokensIn: Int!
+  tokensOut: Int!
+  durationSeconds: Float!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+type ReportLog {
+  id: ID!
+  reportId: ID!
+  sectionId: ID
+  kind: ReportLogKind!
+  message: String!
+  payload: JSON
+  createdAt: Time!
+}
+
+input CreateReportInput {
+  templateKey: String
+  providerName: String
+  title: String
+  additionalInstructions: String
+  controlBudgetSeconds: Int
+  contentBudgetSeconds: Int
+}
+
+input ReportSectionInput {
+  title: String!
+  instructions: String
+  variables: String
+  warnings: [String!]
 }
