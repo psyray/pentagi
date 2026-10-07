@@ -122,6 +122,50 @@ func (q *Queries) CreateResultMsgLog(ctx context.Context, arg CreateResultMsgLog
 	return i, err
 }
 
+const getFlowLooseMsgLogs = `-- name: GetFlowLooseMsgLogs :many
+SELECT
+  ml.id, ml.type, ml.message, ml.result, ml.flow_id, ml.task_id, ml.subtask_id, ml.created_at, ml.result_format, ml.thinking, ml.agent_type
+FROM msglogs ml
+INNER JOIN flows f ON ml.flow_id = f.id
+WHERE ml.flow_id = $1 AND ml.subtask_id IS NULL AND f.deleted_at IS NULL
+ORDER BY ml.created_at ASC
+`
+
+func (q *Queries) GetFlowLooseMsgLogs(ctx context.Context, flowID int64) ([]Msglog, error) {
+	rows, err := q.db.QueryContext(ctx, getFlowLooseMsgLogs, flowID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Msglog
+	for rows.Next() {
+		var i Msglog
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.Message,
+			&i.Result,
+			&i.FlowID,
+			&i.TaskID,
+			&i.SubtaskID,
+			&i.CreatedAt,
+			&i.ResultFormat,
+			&i.Thinking,
+			&i.AgentType,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getFlowMsgLogs = `-- name: GetFlowMsgLogs :many
 SELECT
   ml.id, ml.type, ml.message, ml.result, ml.flow_id, ml.task_id, ml.subtask_id, ml.created_at, ml.result_format, ml.thinking, ml.agent_type

@@ -1037,6 +1037,8 @@ type Query {
   screenshots(flowId: ID!): [Screenshot!]
   terminalLogs(flowId: ID!): [TerminalLog!]
   messageLogs(flowId: ID!): [MessageLog!]
+  subtaskMessageLogs(flowId: ID!, subtaskId: ID!): [MessageLog!]
+  flowLooseMessageLogs(flowId: ID!): [MessageLog!]
   agentLogs(flowId: ID!): [AgentLog!]
   msgchains(flowId: ID!): [Msgchain!]
   searchLogs(flowId: ID!): [SearchLog!]

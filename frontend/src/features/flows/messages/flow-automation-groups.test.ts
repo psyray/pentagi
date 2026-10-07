@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { MessageLogFragmentFragment, MsgchainFragmentFragment, SubtaskFragmentFragment } from '@/graphql/types';
 
-import { AgentType, MessageLogType, ResultFormat, StatusType } from '@/graphql/types';
+import { AgentType, MessageLogType, StatusType } from '@/graphql/types';
 
 import type { AutomationItem } from './flow-automation-groups';
 
@@ -16,11 +16,8 @@ const log = (overrides: Partial<MessageLogFragmentFragment> = {}): MessageLogFra
     flowId: '1',
     id: '1',
     message: '',
-    result: '',
-    resultFormat: ResultFormat.Plain,
     subtaskId: null,
     taskId: null,
-    thinking: null,
     type: MessageLogType.Answer,
     ...overrides,
 });

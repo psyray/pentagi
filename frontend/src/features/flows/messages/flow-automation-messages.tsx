@@ -5,6 +5,8 @@ import { useForm } from 'react-hook-form';
 import { useDebouncedCallback } from 'use-debounce';
 import { z } from 'zod';
 
+import type { MessageLogContentFragmentFragment } from '@/graphql/types';
+
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { Form, FormControl, FormField } from '@/components/ui/form';
@@ -158,6 +160,17 @@ function FlowAutomationMessages({ className }: FlowAutomationMessagesProps) {
     const subtasks = useMemo(() => (flowData?.tasks ?? []).flatMap((task) => task.subtasks ?? []), [flowData?.tasks]);
 
     const msgchains = useMemo(() => flowData?.msgchains ?? [], [flowData?.msgchains]);
+
+    // Heavy content of the messages written outside a subtask, loaded with the flow (small set).
+    const looseContentById = useMemo(() => {
+        const byId = new Map<string, MessageLogContentFragmentFragment>();
+
+        for (const log of flowData?.flowLooseMessageLogs ?? []) {
+            byId.set(log.id, log);
+        }
+
+        return byId;
+    }, [flowData?.flowLooseMessageLogs]);
 
     const items = useMemo(
         () => buildAutomationItems(filteredLogs, subtasks, msgchains),
@@ -363,27 +376,34 @@ function FlowAutomationMessages({ className }: FlowAutomationMessagesProps) {
                         className="flex h-full flex-col gap-4 overflow-y-auto"
                         ref={containerRef}
                     >
-                        {items.map((item) =>
-                            item.kind === 'subtask' ? (
-                                <FlowAutomationGroup
-                                    agentStates={viewState.agentStates}
-                                    group={item.group}
-                                    isOpen={expandedSubtasks.has(item.group.subtaskId)}
-                                    key={`subtask-${item.group.subtaskId}`}
-                                    onAgentStateChange={(agent, value) =>
-                                        setAgentState(item.group.subtaskId, agent, value)
-                                    }
-                                    onOpenChange={(open) => setSubtaskOpen(item.group.subtaskId, open)}
-                                    searchValue={debouncedSearchValue}
-                                />
-                            ) : (
+                        {items.map((item) => {
+                            if (item.kind === 'subtask') {
+                                return (
+                                    <FlowAutomationGroup
+                                        agentStates={viewState.agentStates}
+                                        flowId={flowId ?? ''}
+                                        group={item.group}
+                                        isOpen={expandedSubtasks.has(item.group.subtaskId)}
+                                        key={`subtask-${item.group.subtaskId}`}
+                                        onAgentStateChange={(agent, value) =>
+                                            setAgentState(item.group.subtaskId, agent, value)
+                                        }
+                                        onOpenChange={(open) => setSubtaskOpen(item.group.subtaskId, open)}
+                                        searchValue={debouncedSearchValue}
+                                    />
+                                );
+                            }
+
+                            const content = looseContentById.get(item.log.id);
+
+                            return (
                                 <FlowMessage
                                     key={item.log.id}
-                                    log={item.log}
+                                    log={content ? { ...item.log, ...content } : item.log}
                                     searchValue={debouncedSearchValue}
                                 />
-                            ),
-                        )}
+                            );
+                        })}
                         <div ref={endRef} />
                     </div>
 

@@ -1,15 +1,16 @@
+import { useQuery } from '@apollo/client/react';
 import { ChevronDown } from 'lucide-react';
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 
 import type { BadgeVariant } from '@/components/ui/badge';
-import type { StatusType } from '@/graphql/types';
+import type { MessageLogContentFragmentFragment, StatusType } from '@/graphql/types';
 
 import Markdown from '@/components/shared/markdown';
 import { Badge } from '@/components/ui/badge';
-import { StatusType as StatusTypeEnum } from '@/graphql/types';
+import { StatusType as StatusTypeEnum, SubtaskMessageLogsDocument } from '@/graphql/types';
 import { cn } from '@/lib/utils';
 
-import type { SubtaskGroup } from './flow-automation-groups';
+import type { AgentGroup, SubtaskGroup } from './flow-automation-groups';
 import type { AutomationAgentState } from './flow-automation-view-state';
 
 import FlowAutomationAgentGroup from './flow-automation-agent-group';
@@ -29,6 +30,7 @@ const closedAgentState: AutomationAgentState = { open: false, watched: false };
 
 interface FlowAutomationGroupProps {
     agentStates: Record<string, AutomationAgentState>;
+    flowId: string;
     group: SubtaskGroup;
     isOpen: boolean;
     onAgentStateChange: (agent: string, value: AutomationAgentState) => void;
@@ -38,6 +40,7 @@ interface FlowAutomationGroupProps {
 
 function FlowAutomationGroup({
     agentStates,
+    flowId,
     group,
     isOpen,
     onAgentStateChange,
@@ -46,6 +49,46 @@ function FlowAutomationGroup({
 }: FlowAutomationGroupProps) {
     const { subtask } = group;
     const title = subtask?.title || `Subtask ${group.subtaskId}`;
+
+    // Heavy content (tool output, thinking) is loaded only once the subtask is expanded, then merged
+    // into each message by id.
+    const { data: contentData } = useQuery(SubtaskMessageLogsDocument, {
+        skip: !isOpen || !flowId,
+        variables: { flowId, subtaskId: group.subtaskId },
+    });
+
+    const contentById = useMemo(() => {
+        const byId = new Map<string, MessageLogContentFragmentFragment>();
+
+        for (const log of contentData?.subtaskMessageLogs ?? []) {
+            byId.set(log.id, log);
+        }
+
+        return byId;
+    }, [contentData]);
+
+    const agentGroups: AgentGroup[] = useMemo(
+        () =>
+            group.agentGroups.map((group_) => ({
+                ...group_,
+                logs: group_.logs.map((log) => {
+                    const content = contentById.get(log.id);
+
+                    return content ? { ...log, ...content } : log;
+                }),
+            })),
+        [group.agentGroups, contentById],
+    );
+
+    const looseLogs = useMemo(
+        () =>
+            group.looseLogs.map((log) => {
+                const content = contentById.get(log.id);
+
+                return content ? { ...log, ...content } : log;
+            }),
+        [group.looseLogs, contentById],
+    );
 
     const toggle = () => onOpenChange(!isOpen);
 
@@ -101,7 +144,7 @@ function FlowAutomationGroup({
                             {subtask.description}
                         </Markdown>
                     )}
-                    {group.agentGroups.map((agentGroup) => {
+                    {agentGroups.map((agentGroup) => {
                         const key = agentStateKey(group.subtaskId, agentGroup.agent);
                         const state = agentStates[key] ?? closedAgentState;
 
@@ -120,7 +163,7 @@ function FlowAutomationGroup({
                             />
                         );
                     })}
-                    {group.looseLogs.map((log) => (
+                    {looseLogs.map((log) => (
                         <FlowMessage
                             key={log.id}
                             log={log}
