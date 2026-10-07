@@ -16,6 +16,8 @@ test.describe('themes', { tag: '@cross' }, () => {
         await page.getByRole('row', { name: /E2E Alpha/ }).click();
 
         await expect(page.locator('html')).toHaveClass(/dark/);
+        // The flow opens on Dashboard; the message log lives on the Automation tab.
+        await page.getByRole('tab', { name: 'Automation' }).click();
         await expect(page.locator(MESSAGE_ID_SELECTOR).first()).toBeVisible();
         await expect(page.locator('.xterm')).toBeVisible();
         expectCleanPage(pageErrorLog);

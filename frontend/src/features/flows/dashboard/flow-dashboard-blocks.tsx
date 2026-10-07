@@ -354,7 +354,7 @@ export function FlowDashboardArtifacts({ flowId }: { flowId: string }) {
 
     return (
         <DashboardTableCard
-            description="Files / outputs produced during the flow (Artifact ← PRODUCED ← Episodic)"
+            description="Files and command outputs produced during the flow"
             loading={loading && rows.length === 0}
             title="Artifacts"
         >
@@ -372,9 +372,11 @@ export function FlowDashboardArtifacts({ flowId }: { flowId: string }) {
                     <TableBody>
                         {rows.map((r, i) => (
                             <TableRow key={`${r.artifact}-${i}`}>
-                                <TableCell className="font-medium">{r.artifact || '—'}</TableCell>
+                                <TableCell className="max-w-xs font-medium break-words">{r.artifact || '—'}</TableCell>
                                 <TableCell className="text-muted-foreground">{r.producedBy || '—'}</TableCell>
-                                <TableCell className="text-muted-foreground">{r.summary || '—'}</TableCell>
+                                <TableCell className="text-muted-foreground max-w-md">
+                                    <span className="line-clamp-2">{r.summary || '—'}</span>
+                                </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>

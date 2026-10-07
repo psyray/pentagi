@@ -42,9 +42,9 @@ function FlowTabs({ activeTab, onTabChange }: FlowTabsProps) {
             <div className="max-w-full pr-4">
                 <ScrollArea className="w-full pb-3">
                     <TabsList className="flex w-fit">
+                        {!isDesktop && <TabsTrigger value="dashboard">Dashboard</TabsTrigger>}
                         {!isDesktop && <TabsTrigger value="automation">Automation</TabsTrigger>}
                         {!isDesktop && <TabsTrigger value="assistant">Assistant</TabsTrigger>}
-                        {!isDesktop && <TabsTrigger value="dashboard">Dashboard</TabsTrigger>}
                         <TabsTrigger value="terminal">Terminal</TabsTrigger>
                         <TabsTrigger value="shell">Shell</TabsTrigger>
                         <TabsTrigger value="tasks">Tasks</TabsTrigger>

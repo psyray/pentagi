@@ -1,6 +1,9 @@
 package kgdashboard
 
 import (
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
@@ -155,4 +158,92 @@ func recLabels(rec *neo4j.Record, key string) []string {
 		return filterLabels(out)
 	}
 	return nil
+}
+
+// nodePropertyExclusions are internal Graphiti/Neo4j properties that are not
+// useful in the node detail panel: they duplicate the projected fields
+// (uuid/name/summary) or leak storage internals (group_id/episode/dates).
+var nodePropertyExclusions = map[string]struct{}{
+	"uuid":       {},
+	"name":       {},
+	"summary":    {},
+	"group_id":   {},
+	"created_at": {},
+	"valid_at":   {},
+	"episode":    {},
+	"labels":     {},
+}
+
+// maxPropertyListItems caps how many items a list-valued attribute may hold to
+// be rendered. Graphiti stores embeddings as float vectors (name_embedding);
+// serializing one would bloat the response with thousands of numbers.
+const maxPropertyListItems = 16
+
+// nodeProperties projects the remaining node attributes into sorted, stringified
+// key/value pairs for the detail panel. Non-scalar values that cannot be
+// rendered are dropped rather than serialized as "map[...]"; embedding vectors
+// and other oversized lists are skipped.
+func nodeProperties(n neo4j.Node) []GraphitiProperty {
+	keys := make([]string, 0, len(n.Props))
+	for k := range n.Props {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	out := make([]GraphitiProperty, 0, len(keys))
+	for _, k := range keys {
+		if _, skip := nodePropertyExclusions[k]; skip {
+			continue
+		}
+		if strings.HasSuffix(k, "_embedding") {
+			continue
+		}
+		if s, ok := stringifyProp(n.Props[k]); ok && s != "" {
+			out = append(out, GraphitiProperty{Key: k, Value: s})
+		}
+	}
+	return out
+}
+
+// stringifyProp renders a Graphiti attribute value as a display string. Scalars
+// are formatted directly; slices of scalars are joined with ", ". Lists longer
+// than maxPropertyListItems (embeddings) and anything else (nested maps,
+// relationships) are dropped.
+func stringifyProp(v any) (string, bool) {
+	switch t := v.(type) {
+	case nil:
+		return "", false
+	case string:
+		return t, true
+	case bool:
+		return strconv.FormatBool(t), true
+	case int:
+		return strconv.Itoa(t), true
+	case int64:
+		return strconv.FormatInt(t, 10), true
+	case float64:
+		return strconv.FormatFloat(t, 'g', -1, 64), true
+	case time.Time:
+		return t.Format(time.RFC3339), true
+	case neo4j.Time:
+		return t.Time().Format(time.RFC3339), true
+	case []string:
+		if len(t) > maxPropertyListItems {
+			return "", false
+		}
+		return strings.Join(t, ", "), len(t) > 0
+	case []any:
+		if len(t) > maxPropertyListItems {
+			return "", false
+		}
+		parts := make([]string, 0, len(t))
+		for _, item := range t {
+			if s, ok := stringifyProp(item); ok && s != "" {
+				parts = append(parts, s)
+			}
+		}
+		return strings.Join(parts, ", "), len(parts) > 0
+	default:
+		return "", false
+	}
 }

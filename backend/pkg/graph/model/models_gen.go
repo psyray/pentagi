@@ -314,9 +314,15 @@ type FlowsStats struct {
 type FunctionToolcallsStats struct {
 	FunctionName         string  `json:"functionName"`
 	IsAgent              bool    `json:"isAgent"`
+	IsSubAgent           bool    `json:"isSubAgent"`
 	TotalCount           int     `json:"totalCount"`
 	TotalDurationSeconds float64 `json:"totalDurationSeconds"`
 	AvgDurationSeconds   float64 `json:"avgDurationSeconds"`
+}
+
+type GraphitiProperty struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 type GraphitiTagStat struct {
@@ -924,18 +930,24 @@ func (e AgentType) MarshalGQL(w io.Writer) {
 type AttackGraphView string
 
 const (
-	AttackGraphViewMain AttackGraphView = "MAIN"
-	AttackGraphViewFull AttackGraphView = "FULL"
+	AttackGraphViewMain    AttackGraphView = "MAIN"
+	AttackGraphViewAction  AttackGraphView = "ACTION"
+	AttackGraphViewInfra   AttackGraphView = "INFRA"
+	AttackGraphViewPrivesc AttackGraphView = "PRIVESC"
+	AttackGraphViewFull    AttackGraphView = "FULL"
 )
 
 var AllAttackGraphView = []AttackGraphView{
 	AttackGraphViewMain,
+	AttackGraphViewAction,
+	AttackGraphViewInfra,
+	AttackGraphViewPrivesc,
 	AttackGraphViewFull,
 }
 
 func (e AttackGraphView) IsValid() bool {
 	switch e {
-	case AttackGraphViewMain, AttackGraphViewFull:
+	case AttackGraphViewMain, AttackGraphViewAction, AttackGraphViewInfra, AttackGraphViewPrivesc, AttackGraphViewFull:
 		return true
 	}
 	return false

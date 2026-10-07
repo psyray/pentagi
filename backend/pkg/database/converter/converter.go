@@ -1222,6 +1222,15 @@ func isAgentTool(functionName string) bool {
 	return toolType == tools.AgentToolType || toolType == tools.StoreAgentResultToolType
 }
 
+// isSubAgentTool reports whether the function is a delegation to a sub-agent
+// (advice, coder, maintenance, memorist, pentester, search). Unlike isAgentTool
+// it excludes the *_result tools an agent stores its own output through, so
+// summing those counts gives the number of delegated agent runs.
+func isSubAgentTool(functionName string) bool {
+	toolType, exists := tools.GetToolTypeMapping()[functionName]
+	return exists && toolType == tools.AgentToolType
+}
+
 // ConvertFunctionToolcallsStats converts function toolcalls stats to GraphQL model
 func ConvertFunctionToolcallsStats(stats []database.GetToolcallsStatsByFunctionRow) []*model.FunctionToolcallsStats {
 	result := make([]*model.FunctionToolcallsStats, 0, len(stats))
@@ -1229,6 +1238,7 @@ func ConvertFunctionToolcallsStats(stats []database.GetToolcallsStatsByFunctionR
 		result = append(result, &model.FunctionToolcallsStats{
 			FunctionName:         stat.FunctionName,
 			IsAgent:              isAgentTool(stat.FunctionName),
+			IsSubAgent:           isSubAgentTool(stat.FunctionName),
 			TotalCount:           int(stat.TotalCount),
 			TotalDurationSeconds: stat.TotalDurationSeconds,
 			AvgDurationSeconds:   stat.AvgDurationSeconds,
@@ -1244,6 +1254,7 @@ func ConvertFunctionToolcallsStatsForFlow(stats []database.GetToolcallsStatsByFu
 		result = append(result, &model.FunctionToolcallsStats{
 			FunctionName:         stat.FunctionName,
 			IsAgent:              isAgentTool(stat.FunctionName),
+			IsSubAgent:           isSubAgentTool(stat.FunctionName),
 			TotalCount:           int(stat.TotalCount),
 			TotalDurationSeconds: stat.TotalDurationSeconds,
 			AvgDurationSeconds:   stat.AvgDurationSeconds,

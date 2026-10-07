@@ -16,9 +16,15 @@ test.describe('flow detail tabs', { tag: '@flows' }, () => {
         await page.goto('/flows/5');
         await expect(page.locator('header').getByRole('button', { name: 'Toggle favorite' })).toBeEnabled();
 
-        for (const { name, ready } of FLOW_DETAIL_TABS) {
+        // The flow opens on its default tab, which is therefore already shown.
+        const defaultTab = FLOW_DETAIL_TABS.find((tab) => tab.defaultTab)!;
+        const switchableTabs = FLOW_DETAIL_TABS.filter((tab) => !tab.defaultTab);
+
+        await expect(defaultTab.ready(page)).toBeVisible();
+
+        for (const { name, ready } of switchableTabs) {
             // Pins that the click is what reveals the panel. Ordering this sweep so a tab is already
-            // open when its turn comes (the flow auto-opens Assistant) makes its iteration a no-op.
+            // open when its turn comes makes its iteration a no-op.
             await expect(ready(page), `"${name}" must not be on screen before its own click`).not.toBeAttached();
             await page.getByRole('tab', { name }).click();
             await expect(ready(page)).toBeVisible();

@@ -28,6 +28,8 @@ test.describe('flow subscriptions', { tag: ['@flows', '@smoke'] }, () => {
     test('streams messages without duplicates within a flow', async ({ page, pageErrorLog }, testInfo) => {
         await page.goto('/flows');
         await page.getByRole('row', { name: /E2E Alpha/ }).click();
+        // The flow opens on Dashboard; the message log under test lives on Automation.
+        await page.getByRole('tab', { name: 'Automation' }).click();
 
         await expect(page.locator(MESSAGE_ID_SELECTOR)).toHaveCount(FLOW_A_IDS.length);
 
@@ -42,12 +44,16 @@ test.describe('flow subscriptions', { tag: ['@flows', '@smoke'] }, () => {
     test('keeps concurrent flows exact-set disjoint across a round trip', async ({ page, pageErrorLog }, testInfo) => {
         await page.goto('/flows');
         await page.getByRole('row', { name: /E2E Alpha/ }).click();
+        await page.getByRole('tab', { name: 'Automation' }).click();
         await expect(page.locator(MESSAGE_ID_SELECTOR)).toHaveCount(FLOW_A_IDS.length);
 
         const idsA = await extractMessageIds(page.locator('body'));
 
-        await page.goBack();
+        // Back to the list via its own link: the explicit Automation pick above wrote a history
+        // entry, so `goBack()` would reopen the flow rather than leave it.
+        await page.getByRole('link', { exact: true, name: 'Flows' }).click();
         await page.getByRole('row', { name: /E2E Beta/ }).click();
+        await page.getByRole('tab', { name: 'Automation' }).click();
         await expect(page.locator(MESSAGE_ID_SELECTOR)).toHaveCount(FLOW_B_IDS.length);
 
         const idsB = await extractMessageIds(page.locator('body'));
@@ -57,8 +63,9 @@ test.describe('flow subscriptions', { tag: ['@flows', '@smoke'] }, () => {
         await attachIdSet(testInfo, 'flow-5-message-ids', idsA);
         await attachIdSet(testInfo, 'flow-6-message-ids', idsB);
 
-        await page.goBack();
+        await page.getByRole('link', { exact: true, name: 'Flows' }).click();
         await page.getByRole('row', { name: /E2E Alpha/ }).click();
+        await page.getByRole('tab', { name: 'Automation' }).click();
         await expect(page.locator(MESSAGE_ID_SELECTOR)).toHaveCount(FLOW_A_IDS.length);
 
         const idsAgain = await extractMessageIds(page.locator('body'));
@@ -81,13 +88,16 @@ test.describe('flow subscriptions across a pager switch', { tag: '@flows' }, () 
         const streamB = subscriptionStreamKey('messageLogAdded', { flowId: '6' });
 
         await page.goto('/flows/5');
+        // The flow opens on Dashboard; the message log under test lives on Automation.
+        await page.getByRole('tab', { name: 'Automation' }).click();
         await expect(page.locator(MESSAGE_ID_SELECTOR)).toHaveCount(FLOW_A_IDS.length);
         expect(world.subscriberCount(streamA), 'flow A must be streaming before the switch').toBe(1);
 
         const idsA = await extractMessageIds(page.locator('body'));
 
         await page.locator('header').getByRole('button', { name: 'Next' }).click();
-        await expect(page).toHaveURL(/\/flows\/6$/);
+        // The pager steps to the sibling preserving the current search, so the tab it carries rides along.
+        await expect(page).toHaveURL(/\/flows\/6(\?|$)/);
         await expect(page.locator(MESSAGE_ID_SELECTOR)).toHaveCount(FLOW_B_IDS.length);
 
         // The DOM cannot witness this leak: `messageLogs` is keyed by flowId, so a frame carrying

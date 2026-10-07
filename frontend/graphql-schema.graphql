@@ -492,6 +492,7 @@ fragment dailyToolcallsStatsFragment on DailyToolcallsStats {
 fragment functionToolcallsStatsFragment on FunctionToolcallsStats {
     functionName
     isAgent
+    isSubAgent
     totalCount
     totalDurationSeconds
     avgDurationSeconds
@@ -1602,6 +1603,17 @@ query kgDashboardEnabled {
 query flowAttackGraph($flowId: ID!, $view: AttackGraphView!) {
     flowAttackGraph(flowId: $flowId, view: $view) {
         ...attackGraphFragment
+    }
+}
+
+fragment graphitiPropertyFragment on GraphitiProperty {
+    key
+    value
+}
+
+query flowGraphNodeProperties($flowId: ID!, $uuid: String!) {
+    flowGraphNodeProperties(flowId: $flowId, uuid: $uuid) {
+        ...graphitiPropertyFragment
     }
 }
 

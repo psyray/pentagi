@@ -11,24 +11,60 @@ package kgdashboard
 // entity with both the generic `Entity` label and its specific label, so we
 // match on the specific label and project labels(n) as the node's type set.
 
-// mainViewLabels is the entity label set of the MAIN view: only attack-chain
-// entities. Artifact, Evidence, Agent, Attempt, Endpoint, Capability,
-// AttackTechnique, and Misconfiguration are excluded — they are either noise
-// (command outputs, extracted facts, wordlist files misclassified as misconfig)
-// or progress tracking, not part of the attack chain backbone. Real
-// misconfigurations remain visible in the FULL view and the Vulnerability
-// breakdown table.
-var mainViewLabels = []string{
-	"Host", "Port", "Service", "Vulnerability",
-	"ValidAccess", "Account", "Credential", "PrivChange",
-	"WebApp", "Vhost",
+// viewSpec describes one attack-graph view: the entity label set materialized,
+// the relationship type allowlist kept between those entities, and the node cap.
+// An empty edgeTypes list means "keep every edge between selected nodes" (used
+// by MAIN to preserve connectivity in early flows); a non-empty list restricts
+// the graph to the semantically relevant relations to cut visual noise.
+type viewSpec struct {
+	labels    []string
+	edgeTypes []string
+	capNodes  int
+}
+
+// attackGraphViewSpecs is the per-view configuration of the Analytics tab.
+//
+// MAIN is the attack-chain backbone only (EE "Main Attack Chain"). ACTION adds
+// the action-level entities (EE "Action Chain"). INFRA is the infrastructure
+// map (Host → Port → Service). PRIVESC is the privilege-escalation chain.
+var attackGraphViewSpecs = map[AttackGraphView]viewSpec{
+	AttackGraphViewMain: {
+		labels:   []string{"Host", "Port", "Service", "WebApp", "Vhost", "Endpoint", "Vulnerability"},
+		capNodes: 200,
+	},
+	AttackGraphViewAction: {
+		labels: []string{
+			"Host", "Port", "Service", "WebApp", "Vhost", "Endpoint", "Vulnerability",
+			"Misconfiguration", "Attempt", "Artifact", "Evidence", "AttackTechnique",
+			"Tool", "ToolExecution",
+		},
+		edgeTypes: []string{
+			"HAS_PORT", "RUNS_SERVICE", "HOSTS_APP", "HAS_VHOST", "HAS_ENDPOINT", "ON_HOST",
+			"DETECTED_VULNERABILITY", "CONFIRMED_VULNERABILITY", "HAS_VULNERABILITY", "HAS_MISCONFIGURATION",
+			"ATTEMPTED_ON", "RESULTED_IN", "PRODUCED", "REVEALED", "SUPPORTS", "RELATES_TO",
+		},
+		capNodes: 400,
+	},
+	AttackGraphViewInfra: {
+		labels:    []string{"Host", "Port", "Service"},
+		edgeTypes: []string{"HAS_PORT", "RUNS_SERVICE", "ON_HOST"},
+		capNodes:  200,
+	},
+	AttackGraphViewPrivesc: {
+		labels: []string{"Host", "Service", "Account", "Credential", "ValidAccess", "PrivChange"},
+		edgeTypes: []string{
+			"YIELDED_ACCESS", "YIELDED_PRIV_ACCESS", "ESCALATED_VIA", "AUTHENTICATES_TO",
+			"AS_ACCOUNT", "BELONGS_TO_ACCOUNT", "VIA_SERVICE", "ON_HOST", "HAS_CREDENTIAL",
+		},
+		capNodes: 200,
+	},
 }
 
 // attackSurfaceLabels is the entity label set watched by the attack surface
 // overview block. Slimmed to attack-chain entities only — no Artifact,
 // Evidence, Agent, Attempt, Capability (noise). Misconfiguration and Endpoint
-// are kept here (but not in mainViewLabels) because the attack surface
-// overview is broader than the graph MAIN view.
+// are kept here because the attack surface overview is broader than the MAIN
+// graph view.
 var attackSurfaceLabels = []string{
 	"Host", "Port", "Service", "Vulnerability", "Misconfiguration",
 	"ValidAccess", "Account", "Credential", "Endpoint", "WebApp", "Vhost",
@@ -102,12 +138,12 @@ const targetConnectedFilter = `
 
 // ─── Attack graph queries ───────────────────────────────────────────────
 
-// attackGraphMainQuery returns the MAIN subgraph: attack-chain entity nodes
-// that are connected to target hosts (directly at depth 1, or via a Service
-// at depth 2). This filters out orphan noise like "read_file command" (a tool
-// name misclassified as Port by Graphiti) while keeping Vulnerabilities and
-// Credentials connected through Services.
-const attackGraphMainQuery = targetHostsFragment + `
+// attackGraphScopedQuery returns the subgraph of a scoped view: nodes whose
+// labels are in $labels and that are connected to target hosts (directly at
+// depth 1, or via a Service at depth 2). This filters out orphan noise like
+// "read_file command" (a tool name misclassified as Port by Graphiti) while
+// keeping Vulnerabilities and Credentials connected through Services.
+const attackGraphScopedQuery = targetHostsFragment + `
 MATCH (n) WHERE n.group_id = $group_id
   AND ANY(l IN labels(n) WHERE l IN $labels)` + targetConnectedFilter + `
 RETURN n AS n, coalesce(n.created_at, n.valid_at) AS ts
@@ -115,24 +151,36 @@ ORDER BY ts DESC
 LIMIT $cap
 `
 
-// attackGraphMainEdgesQuery returns the edges of the MAIN view. All edges
-// between two MAIN-view nodes are kept (no edge-type filter) so the graph
-// stays connected even in early flows.
-const attackGraphMainEdgesQuery = `
+// attackGraphScopedEdgesQuery returns the edges of a scoped view. All edges
+// between two selected nodes are kept when $edgeTypes is empty (MAIN, so the
+// graph stays connected even in early flows); otherwise only edges whose type
+// is in the allowlist are kept (ACTION, INFRA, PRIVESC), which cuts visual
+// noise without dropping the backbone.
+const attackGraphScopedEdgesQuery = `
 MATCH (src)-[r]->(tgt)
 WHERE src.group_id = $group_id AND tgt.group_id = $group_id AND r.group_id = $group_id
   AND ANY(l IN labels(src) WHERE l IN $labels)
   AND ANY(l IN labels(tgt) WHERE l IN $labels)
+  AND (size($edgeTypes) = 0 OR type(r) IN $edgeTypes)
 RETURN coalesce(src.uuid, src.elementId) AS srcUUID,
        coalesce(tgt.uuid, tgt.elementId) AS tgtUUID,
        r AS edge
 `
 
-// attackGraphMainCountQuery returns the total node count for the MAIN view.
-const attackGraphMainCountQuery = targetHostsFragment + `
+// attackGraphScopedCountQuery returns the total node count for a scoped view.
+const attackGraphScopedCountQuery = targetHostsFragment + `
 MATCH (n) WHERE n.group_id = $group_id
   AND ANY(l IN labels(n) WHERE l IN $labels)` + targetConnectedFilter + `
 RETURN count(n) AS total
+`
+
+// nodePropertiesQuery returns a single node by Graphiti UUID (or Neo4j element
+// id as fallback) so the node detail panel can render its attributes.
+const nodePropertiesQuery = `
+MATCH (n)
+WHERE n.group_id = $group_id AND (n.uuid = $uuid OR elementId(n) = $uuid)
+RETURN n AS n
+LIMIT 1
 `
 
 // attackGraphFullQuery returns every flow node (capped at $cap, newest first).
@@ -277,14 +325,18 @@ ORDER BY executions DESC
 
 // ─── Artifacts ──────────────────────────────────────────────────────────
 
-// artifactsQuery returns one row per Artifact produced by an Episodic source.
-// Flow-level (not host-centric), so no target-host filter.
+// artifactsQuery returns one row per Artifact produced during the flow. Graphiti
+// links an artifact to its producer through PRODUCED / RESULTED_IN /
+// EXTRACTED_FROM from a non-Episodic entity (Attempt, Artifact, Evidence), never
+// from the Episodic episode node itself, so the producer is resolved from any of
+// those edges (and left empty when there is none).
 const artifactsQuery = `
-MATCH (a:Artifact)<-[:PRODUCED]-(e:Episodic)
-WHERE a.group_id = $group_id
+MATCH (a:Artifact) WHERE a.group_id = $group_id
+OPTIONAL MATCH (a)<-[:PRODUCED|RESULTED_IN|EXTRACTED_FROM]-(src)
+WITH a, head([x IN collect(DISTINCT src.name) WHERE x IS NOT NULL]) AS producedBy
 RETURN coalesce(a.name, a.summary) AS artifact,
-       coalesce(e.source_description, e.name) AS producedBy,
-       a.summary AS summary
-ORDER BY a.created_at DESC
+       coalesce(producedBy, '') AS producedBy,
+       coalesce(a.summary, '') AS summary
+ORDER BY coalesce(a.created_at, a.valid_at) DESC
 LIMIT $limit
 `
