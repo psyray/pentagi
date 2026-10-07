@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Spinner } from '@/components/ui/spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import FlowAgents from '@/features/flows/agents/flow-agents';
 import FlowDashboard from '@/features/flows/dashboard/flow-dashboard';
@@ -14,6 +15,7 @@ import FlowTerminal from '@/features/flows/terminal/flow-terminal';
 import FlowTools from '@/features/flows/tools/flow-tools';
 import FlowVectorStores from '@/features/flows/vector-stores/flow-vector-stores';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
+import { useFlow } from '@/providers/flow-provider';
 
 interface FlowTabsProps {
     activeTab: string;
@@ -22,6 +24,7 @@ interface FlowTabsProps {
 
 function FlowTabs({ activeTab, onTabChange }: FlowTabsProps) {
     const { isDesktop } = useBreakpoint();
+    const { isLoading } = useFlow();
 
     const previousActiveTabRef = useRef<string>(activeTab);
 
@@ -35,7 +38,7 @@ function FlowTabs({ activeTab, onTabChange }: FlowTabsProps) {
 
     return (
         <Tabs
-            className="flex size-full flex-col"
+            className="relative flex size-full flex-col"
             onValueChange={onTabChange}
             value={activeTab}
         >
@@ -138,6 +141,17 @@ function FlowTabs({ activeTab, onTabChange }: FlowTabsProps) {
             >
                 <FlowScreenshots />
             </TabsContent>
+            {isLoading && (
+                <div
+                    aria-label="Loading flow"
+                    aria-live="polite"
+                    className="bg-background/60 absolute inset-0 z-20 flex flex-col items-center justify-center gap-2"
+                    role="status"
+                >
+                    <Spinner className="text-muted-foreground size-6" />
+                    <span className="text-muted-foreground text-xs">Loading flow...</span>
+                </div>
+            )}
         </Tabs>
     );
 }
