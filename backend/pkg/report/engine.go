@@ -259,7 +259,7 @@ type worker struct {
 	pub         subscriptions.FlowPublisher
 	prv         provider.Provider
 	tpl         *Template
-	ctx         context.Context  // run context: cancelled by Stop, bound to the LLM calls
+	ctx         context.Context // run context: cancelled by Stop, bound to the LLM calls
 	stateCtx    context.Context // surviving context for state writes (WithoutCancel)
 	cancel      context.CancelFunc
 	stopped     atomic.Bool
@@ -676,7 +676,7 @@ func planChildInstructions(child planChild) string {
 }
 
 func (w *worker) loadSections() ([]database.ReportSection, error) {
-	return w.deps.DB.GetReportSections(w.ctx, w.report.ID)
+	return w.deps.DB.GetReportSections(w.stateCtx, w.report.ID)
 }
 
 // loadNotes returns the operator notes as one text block for the prompts.
