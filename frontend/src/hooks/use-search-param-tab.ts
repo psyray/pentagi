@@ -8,19 +8,32 @@ interface SearchParamTabOptions {
     /** The set of tabs grows as data arrives, so the fallback would move the reader on its own. */
     hasVolatileValues?: boolean;
     key: string;
+    /**
+     * When this changes (e.g. the flow id on a flow switch), the value the hook
+     * was holding is dropped so the new fallback is used, letting each flow
+     * reopen its own remembered tab.
+     */
+    resetKey?: unknown;
     values: readonly string[];
 }
 
-export function useSearchParamTab({ fallback, hasVolatileValues = false, key, values }: SearchParamTabOptions) {
+export function useSearchParamTab({
+    fallback,
+    hasVolatileValues = false,
+    key,
+    resetKey,
+    values,
+}: SearchParamTabOptions) {
     const [searchParams, setSearchParams] = useSearchParams();
 
     const raw = searchParams.get(key);
     const named = raw && values.includes(raw) ? raw : null;
 
     // The fallback is a moving target while data arrives one subscription at a time, so what is
-    // already on screen is held instead.
+    // already on screen is held instead — but only while resetKey is unchanged.
     const [held, setHeld] = useState<null | string>(null);
-    const value = named ?? (held && values.includes(held) ? held : fallback);
+    const [heldKey, setHeldKey] = useState<unknown>(undefined);
+    const value = named ?? (heldKey === resetKey && held && values.includes(held) ? held : fallback);
 
     const setValue = useCallback(
         (next: string) => {
@@ -39,7 +52,10 @@ export function useSearchParamTab({ fallback, hasVolatileValues = false, key, va
     );
 
     useEffect(() => {
-        const remember = (next: null | string) => setHeld(next);
+        const remember = (next: null | string) => {
+            setHeld(next);
+            setHeldKey(resetKey);
+        };
 
         remember(named ? null : value);
     });
