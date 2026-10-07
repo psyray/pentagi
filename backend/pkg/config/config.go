@@ -132,6 +132,18 @@ type Config struct {
 	SummarizerMaxQABytes     int  `env:"SUMMARIZER_MAX_QA_BYTES" envDefault:"65536"`
 	SummarizerKeepQASections int  `env:"SUMMARIZER_KEEP_QA_SECTIONS" envDefault:"1"`
 
+	// === Reports (fork extended-version section 6): AI-generated documents ===
+	// Soft agent-time budgets in seconds; 0 disables the cap (report runs to the
+	// end of its templates). Streaming updates are throttled to avoid flooding
+	// the graphql-ws connection; the record digest is capped and compacted
+	// through the same summarizer machinery when it exceeds the byte limit.
+	ReportEnabled              bool `env:"REPORT_ENABLED" envDefault:"true"`
+	ReportControlBudgetSec     int  `env:"REPORT_CONTROL_NODE_BUDGET_SECONDS" envDefault:"900"`
+	ReportContentBudgetSec     int  `env:"REPORT_CONTENT_NODE_BUDGET_SECONDS" envDefault:"3600"`
+	ReportStreamIntervalMs     int  `env:"REPORT_STREAM_INTERVAL_MS" envDefault:"1500"`
+	ReportMaxRecordBytes       int  `env:"REPORT_MAX_RECORD_BYTES" envDefault:"196608"`
+	ReportMaxConcurrentPerFlow int  `env:"REPORT_MAX_CONCURRENT_PER_FLOW" envDefault:"3"`
+
 	// === LLM Provider: Custom/Self-Hosted ===
 	LLMServerURL               string `env:"LLM_SERVER_URL"`
 	LLMServerKey               string `env:"LLM_SERVER_KEY"`

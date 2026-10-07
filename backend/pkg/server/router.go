@@ -118,6 +118,7 @@ func NewRouter(
 	cfg *config.Config,
 	providers providers.ProviderController,
 	controller controller.FlowController,
+	reports controller.ReportController,
 	subscriptions subscriptions.SubscriptionsController,
 	dockerClient docker.DockerClient,
 	updates *update.Service,
@@ -228,7 +229,7 @@ func NewRouter(
 	knowledgeService := services.NewKnowledgeService(orm, knowledgeStore)
 	anonymizerService := services.NewAnonymizerService(textReplacer)
 	graphqlService := services.NewGraphqlService(
-		db, cfg, baseURL, cfg.CorsOrigins, tokenCache, providers, controller, subscriptions, knowledgeStore, textReplacer,
+		db, cfg, baseURL, cfg.CorsOrigins, tokenCache, providers, controller, reports, subscriptions, knowledgeStore, textReplacer,
 		updates, timezones,
 	)
 
