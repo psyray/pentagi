@@ -14,6 +14,7 @@ const servedBy = {
     flows: ['flows.sql', ['GetFlows', 'GetUserFlows']],
     flowTemplates: ['flow_templates.sql', ['GetFlowTemplatesByUserID']],
     messageLogs: ['msglogs.sql', ['GetFlowMsgLogs']],
+    reports: ['reports.sql', ['GetFlowReports']],
     screenshots: ['screenshots.sql', ['GetFlowScreenshots']],
     searchLogs: ['searchlogs.sql', ['GetFlowSearchLogs']],
     tasks: ['tasks.sql', ['GetFlowTasks']],

@@ -7,6 +7,7 @@ import FlowDashboard from '@/features/flows/dashboard/flow-dashboard';
 import FlowFiles from '@/features/flows/files/flow-files';
 import FlowAssistantMessages from '@/features/flows/messages/flow-assistant-messages';
 import FlowAutomationMessages from '@/features/flows/messages/flow-automation-messages';
+import FlowReports from '@/features/flows/reports/flow-reports';
 import FlowScreenshots from '@/features/flows/screenshots/flow-screenshots';
 import FlowTasks from '@/features/flows/tasks/flow-tasks';
 import FlowTerminal from '@/features/flows/terminal/flow-terminal';
@@ -49,6 +50,7 @@ function FlowTabs({ activeTab, onTabChange }: FlowTabsProps) {
                         <TabsTrigger value="agents">Agents</TabsTrigger>
                         <TabsTrigger value="tools">Searches</TabsTrigger>
                         <TabsTrigger value="vectorStores">Vector Store</TabsTrigger>
+                        <TabsTrigger value="reports">Reports</TabsTrigger>
                         <TabsTrigger value="files">Files</TabsTrigger>
                         <TabsTrigger value="screenshots">Screenshots</TabsTrigger>
                     </TabsList>
@@ -114,6 +116,13 @@ function FlowTabs({ activeTab, onTabChange }: FlowTabsProps) {
                 value="vectorStores"
             >
                 <FlowVectorStores />
+            </TabsContent>
+
+            <TabsContent
+                className="mt-1 flex-1 overflow-auto pr-4"
+                value="reports"
+            >
+                <FlowReports />
             </TabsContent>
 
             <TabsContent

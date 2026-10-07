@@ -93,6 +93,21 @@ export type CreateKnowledgeDocumentInput = {
     question: string;
 };
 
+export type CreateReportInput = {
+    additionalInstructions?: string | null | undefined;
+    contentBudgetSeconds?: number | null | undefined;
+    controlBudgetSeconds?: number | null | undefined;
+    providerName?: string | null | undefined;
+    templateKey?: string | null | undefined;
+    title?: string | null | undefined;
+};
+
+export enum CredentialStatus {
+    Compromised = 'Compromised',
+    Discovered = 'Discovered',
+    Unknown = 'Unknown',
+}
+
 export enum KnowledgeAnswerType {
     Code = 'code',
     Guide = 'guide',
@@ -240,6 +255,45 @@ export enum ReasoningMode {
     Off = 'off',
 }
 
+export enum ReportLogKind {
+    Control = 'control',
+    Error = 'error',
+    Note = 'note',
+    Section = 'section',
+    Status = 'status',
+}
+
+export type ReportSectionInput = {
+    instructions?: string | null | undefined;
+    title: string;
+    variables?: string | null | undefined;
+    warnings?: Array<string> | null | undefined;
+};
+
+export enum ReportSectionKind {
+    Aggregate = 'aggregate',
+    Composed = 'composed',
+    Llm = 'llm',
+}
+
+export enum ReportSectionStatusType {
+    Done = 'done',
+    Failed = 'failed',
+    NotWritten = 'not_written',
+    Queued = 'queued',
+    Skipped = 'skipped',
+    Writing = 'writing',
+}
+
+export enum ReportStatusType {
+    Canceled = 'canceled',
+    Completed = 'completed',
+    Created = 'created',
+    Failed = 'failed',
+    Generating = 'generating',
+    Planning = 'planning',
+}
+
 export enum ResultFormat {
     Markdown = 'markdown',
     Plain = 'plain',
@@ -249,6 +303,11 @@ export enum ResultFormat {
 export enum ResultType {
     Error = 'error',
     Success = 'success',
+}
+
+export enum SectionDirection {
+    Down = 'down',
+    Up = 'up',
 }
 
 export enum StatusType {
@@ -1446,6 +1505,335 @@ export type KnowledgeDocumentUpdatedSubscription = { knowledgeDocumentUpdated: K
 export type KnowledgeDocumentDeletedSubscriptionVariables = Exact<{ [key: string]: never }>;
 
 export type KnowledgeDocumentDeletedSubscription = { knowledgeDocumentDeleted: KnowledgeDocumentFragmentFragment };
+
+export type AttackGraphNodeFragmentFragment = {
+    uuid: string;
+    labels: Array<string>;
+    name: string;
+    summary: string;
+    createdAt: string | null;
+};
+
+export type AttackGraphEdgeFragmentFragment = {
+    uuid: string;
+    type: string;
+    fact: string;
+    sourceUUID: string;
+    targetUUID: string;
+    createdAt: string | null;
+};
+
+export type AttackGraphFragmentFragment = {
+    totalNodes: number;
+    totalEdges: number;
+    truncated: boolean;
+    nodes: Array<AttackGraphNodeFragmentFragment>;
+    edges: Array<AttackGraphEdgeFragmentFragment>;
+};
+
+export type GraphitiTagStatFragmentFragment = { tag: string; count: number };
+
+export type AttackSurfaceItemFragmentFragment = {
+    type: string;
+    name: string;
+    summary: string;
+    createdAt: string | null;
+};
+
+export type CredentialStatusRowFragmentFragment = { status: CredentialStatus; count: number; examples: Array<string> };
+
+export type ValidAccessRowFragmentFragment = {
+    access: string;
+    account: string;
+    host: string;
+    service: string;
+    summary: string;
+};
+
+export type InfraMapRowFragmentFragment = { host: string; port: string; service: string };
+
+export type OpenPortRowFragmentFragment = { port: string; service: string; host: string };
+
+export type VulnBreakdownRowFragmentFragment = { category: VulnCategory; count: number; examples: Array<string> };
+
+export type DetectedCveRowFragmentFragment = { cve: string; foundOn: string; source: string };
+
+export type GraphitiToolUsageRowFragmentFragment = { tool: string; executions: number };
+
+export type ArtifactRowFragmentFragment = { artifact: string; producedBy: string; summary: string };
+
+export type KgDashboardEnabledQueryVariables = Exact<{ [key: string]: never }>;
+
+export type KgDashboardEnabledQuery = { kgDashboardEnabled: boolean };
+
+export type FlowAttackGraphQueryVariables = Exact<{
+    flowId: string | number;
+    view: AttackGraphView;
+}>;
+
+export type FlowAttackGraphQuery = { flowAttackGraph: AttackGraphFragmentFragment };
+
+export type GraphitiPropertyFragmentFragment = { key: string; value: string };
+
+export type FlowGraphNodePropertiesQueryVariables = Exact<{
+    flowId: string | number;
+    uuid: string;
+}>;
+
+export type FlowGraphNodePropertiesQuery = { flowGraphNodeProperties: Array<GraphitiPropertyFragmentFragment> };
+
+export type FlowGraphitiTagStatsQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowGraphitiTagStatsQuery = { flowGraphitiTagStats: Array<GraphitiTagStatFragmentFragment> };
+
+export type FlowAttackSurfaceQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowAttackSurfaceQuery = { flowAttackSurface: Array<AttackSurfaceItemFragmentFragment> };
+
+export type FlowCredentialsStatusQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowCredentialsStatusQuery = { flowCredentialsStatus: Array<CredentialStatusRowFragmentFragment> };
+
+export type FlowValidAccessesQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowValidAccessesQuery = { flowValidAccesses: Array<ValidAccessRowFragmentFragment> };
+
+export type FlowInfrastructureMapQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowInfrastructureMapQuery = { flowInfrastructureMap: Array<InfraMapRowFragmentFragment> };
+
+export type FlowOpenPortsQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowOpenPortsQuery = { flowOpenPorts: Array<OpenPortRowFragmentFragment> };
+
+export type FlowVulnerabilityBreakdownQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowVulnerabilityBreakdownQuery = { flowVulnerabilityBreakdown: Array<VulnBreakdownRowFragmentFragment> };
+
+export type FlowDetectedCvEsQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowDetectedCvEsQuery = { flowDetectedCVEs: Array<DetectedCveRowFragmentFragment> };
+
+export type FlowGraphitiToolUsageQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowGraphitiToolUsageQuery = { flowGraphitiToolUsage: Array<GraphitiToolUsageRowFragmentFragment> };
+
+export type FlowArtifactsQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowArtifactsQuery = { flowArtifacts: Array<ArtifactRowFragmentFragment> };
+
+export type ReportFragmentFragment = {
+    id: string;
+    flowId: string;
+    userId: string;
+    status: ReportStatusType;
+    title: string;
+    templateKey: string;
+    templateLabel: string;
+    providerName: string;
+    providerType: ProviderType;
+    language: string;
+    additionalInstructions: string | null;
+    controlBudgetSeconds: number;
+    contentBudgetSeconds: number;
+    controlUsedSeconds: number;
+    contentUsedSeconds: number;
+    sectionsEstimate: number;
+    sectionsTotal: number;
+    sectionsDone: number;
+    tokensIn: number;
+    tokensOut: number;
+    error: string | null;
+    createdAt: string;
+    updatedAt: string;
+    finishedAt: string | null;
+};
+
+export type ReportSectionFragmentFragment = {
+    id: string;
+    reportId: string;
+    parentId: string | null;
+    position: number;
+    key: string;
+    kind: ReportSectionKind;
+    title: string;
+    status: ReportSectionStatusType;
+    content: string;
+    instructions: string | null;
+    warnings: Array<string> | null;
+    hidden: boolean;
+    tokensIn: number;
+    tokensOut: number;
+    durationSeconds: number;
+    createdAt: string;
+    updatedAt: string;
+    variables: Array<{ name: string; value: string }>;
+};
+
+export type ReportLogFragmentFragment = {
+    id: string;
+    reportId: string;
+    sectionId: string | null;
+    kind: ReportLogKind;
+    message: string;
+    payload: unknown;
+    createdAt: string;
+};
+
+export type FlowReportsQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowReportsQuery = { reports: Array<ReportFragmentFragment> };
+
+export type ReportRowQueryVariables = Exact<{
+    reportId: string | number;
+}>;
+
+export type ReportRowQuery = { report: ReportFragmentFragment };
+
+export type ReportSectionsQueryVariables = Exact<{
+    reportId: string | number;
+}>;
+
+export type ReportSectionsQuery = { reportSections: Array<ReportSectionFragmentFragment> };
+
+export type ReportLogsQueryVariables = Exact<{
+    reportId: string | number;
+    limit?: number | null | undefined;
+}>;
+
+export type ReportLogsQuery = { reportLogs: Array<ReportLogFragmentFragment> };
+
+export type ReportDocumentQueryVariables = Exact<{
+    reportId: string | number;
+}>;
+
+export type ReportDocumentQuery = { reportDocument: string };
+
+export type CreateReportMutationVariables = Exact<{
+    flowId: string | number;
+    input: CreateReportInput;
+}>;
+
+export type CreateReportMutation = { createReport: ReportFragmentFragment };
+
+export type PutReportNoteMutationVariables = Exact<{
+    reportId: string | number;
+    note: string;
+}>;
+
+export type PutReportNoteMutation = { putReportNote: ResultType };
+
+export type StopReportMutationVariables = Exact<{
+    reportId: string | number;
+}>;
+
+export type StopReportMutation = { stopReport: ResultType };
+
+export type DeleteReportMutationVariables = Exact<{
+    reportId: string | number;
+}>;
+
+export type DeleteReportMutation = { deleteReport: ResultType };
+
+export type UpdateReportSectionMutationVariables = Exact<{
+    reportId: string | number;
+    sectionId: string | number;
+    input: ReportSectionInput;
+}>;
+
+export type UpdateReportSectionMutation = { updateReportSection: ReportSectionFragmentFragment };
+
+export type SetReportSectionContentMutationVariables = Exact<{
+    reportId: string | number;
+    sectionId: string | number;
+    content: string;
+}>;
+
+export type SetReportSectionContentMutation = { setReportSectionContent: ReportSectionFragmentFragment };
+
+export type MoveReportSectionMutationVariables = Exact<{
+    reportId: string | number;
+    sectionId: string | number;
+    direction: SectionDirection;
+}>;
+
+export type MoveReportSectionMutation = { moveReportSection: ResultType };
+
+export type HideReportSectionMutationVariables = Exact<{
+    reportId: string | number;
+    sectionId: string | number;
+    hidden: boolean;
+}>;
+
+export type HideReportSectionMutation = { hideReportSection: ReportSectionFragmentFragment };
+
+export type AddReportSectionMutationVariables = Exact<{
+    reportId: string | number;
+    afterSectionId?: string | number | null | undefined;
+    parentId?: string | number | null | undefined;
+    title: string;
+}>;
+
+export type AddReportSectionMutation = { addReportSection: ReportSectionFragmentFragment };
+
+export type DeleteReportSectionMutationVariables = Exact<{
+    reportId: string | number;
+    sectionId: string | number;
+}>;
+
+export type DeleteReportSectionMutation = { deleteReportSection: ResultType };
+
+export type ReportCreatedSubscriptionVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type ReportCreatedSubscription = { reportCreated: ReportFragmentFragment };
+
+export type ReportUpdatedSubscriptionVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type ReportUpdatedSubscription = { reportUpdated: ReportFragmentFragment };
+
+export type ReportDeletedSubscriptionVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type ReportDeletedSubscription = { reportDeleted: ReportFragmentFragment };
+
+export type ReportSectionUpdatedSubscriptionVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type ReportSectionUpdatedSubscription = { reportSectionUpdated: ReportSectionFragmentFragment };
+
+export type ReportLogAddedSubscriptionVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type ReportLogAddedSubscription = { reportLogAdded: ReportLogFragmentFragment };
 
 export const SettingsFragmentFragmentDoc = {
     kind: 'Document',
@@ -3433,6 +3821,418 @@ export const UserPreferencesFragmentFragmentDoc = {
         },
     ],
 } as unknown as DocumentNode<UserPreferencesFragmentFragment, unknown>;
+export const AttackGraphNodeFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'attackGraphNodeFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'AttackGraphNode' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'uuid' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'labels' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'summary' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<AttackGraphNodeFragmentFragment, unknown>;
+export const AttackGraphEdgeFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'attackGraphEdgeFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'AttackGraphEdge' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'uuid' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'type' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'fact' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sourceUUID' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'targetUUID' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<AttackGraphEdgeFragmentFragment, unknown>;
+export const AttackGraphFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'attackGraphFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'AttackGraph' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'nodes' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'attackGraphNodeFragment' } },
+                            ],
+                        },
+                    },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'edges' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'attackGraphEdgeFragment' } },
+                            ],
+                        },
+                    },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalNodes' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalEdges' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'truncated' } },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'attackGraphNodeFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'AttackGraphNode' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'uuid' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'labels' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'summary' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'attackGraphEdgeFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'AttackGraphEdge' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'uuid' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'type' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'fact' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sourceUUID' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'targetUUID' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<AttackGraphFragmentFragment, unknown>;
+export const GraphitiTagStatFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'graphitiTagStatFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'GraphitiTagStat' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'tag' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'count' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<GraphitiTagStatFragmentFragment, unknown>;
+export const AttackSurfaceItemFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'attackSurfaceItemFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'AttackSurfaceItem' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'type' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'summary' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<AttackSurfaceItemFragmentFragment, unknown>;
+export const CredentialStatusRowFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'credentialStatusRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'CredentialStatusRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'count' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'examples' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<CredentialStatusRowFragmentFragment, unknown>;
+export const ValidAccessRowFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'validAccessRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'ValidAccessRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'access' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'account' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'host' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'service' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'summary' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<ValidAccessRowFragmentFragment, unknown>;
+export const InfraMapRowFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'infraMapRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'InfraMapRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'host' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'port' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'service' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<InfraMapRowFragmentFragment, unknown>;
+export const OpenPortRowFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'openPortRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'OpenPortRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'port' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'service' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'host' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<OpenPortRowFragmentFragment, unknown>;
+export const VulnBreakdownRowFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'vulnBreakdownRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'VulnBreakdownRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'category' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'count' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'examples' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<VulnBreakdownRowFragmentFragment, unknown>;
+export const DetectedCveRowFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'detectedCVERowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'DetectedCVERow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'cve' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'foundOn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'source' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<DetectedCveRowFragmentFragment, unknown>;
+export const GraphitiToolUsageRowFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'graphitiToolUsageRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'GraphitiToolUsageRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'tool' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'executions' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<GraphitiToolUsageRowFragmentFragment, unknown>;
+export const ArtifactRowFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'artifactRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'ArtifactRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'artifact' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'producedBy' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'summary' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<ArtifactRowFragmentFragment, unknown>;
+export const GraphitiPropertyFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'graphitiPropertyFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'GraphitiProperty' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'key' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'value' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<GraphitiPropertyFragmentFragment, unknown>;
+export const ReportFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'reportFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'Report' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'flowId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'userId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'templateKey' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'templateLabel' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'providerName' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'providerType' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'language' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'additionalInstructions' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'controlBudgetSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'contentBudgetSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'controlUsedSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'contentUsedSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsEstimate' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsTotal' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsDone' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'error' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'finishedAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<ReportFragmentFragment, unknown>;
+export const ReportSectionFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'reportSectionFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'ReportSection' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'reportId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'parentId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'position' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'key' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'content' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'instructions' } },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'variables' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'value' } },
+                            ],
+                        },
+                    },
+                    { kind: 'Field', name: { kind: 'Name', value: 'warnings' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'hidden' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'durationSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<ReportSectionFragmentFragment, unknown>;
+export const ReportLogFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'reportLogFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'ReportLog' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'reportId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'message' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'payload' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<ReportLogFragmentFragment, unknown>;
 export const FlowsDocument = {
     kind: 'Document',
     definitions: [
@@ -12798,3 +13598,2081 @@ export const KnowledgeDocumentDeletedDocument = {
         },
     ],
 } as unknown as DocumentNode<KnowledgeDocumentDeletedSubscription, KnowledgeDocumentDeletedSubscriptionVariables>;
+export const KgDashboardEnabledDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'kgDashboardEnabled' },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [{ kind: 'Field', name: { kind: 'Name', value: 'kgDashboardEnabled' } }],
+            },
+        },
+    ],
+} as unknown as DocumentNode<KgDashboardEnabledQuery, KgDashboardEnabledQueryVariables>;
+export const FlowAttackGraphDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowAttackGraph' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'view' } },
+                    type: {
+                        kind: 'NonNullType',
+                        type: { kind: 'NamedType', name: { kind: 'Name', value: 'AttackGraphView' } },
+                    },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowAttackGraph' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'view' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'view' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'attackGraphFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'attackGraphNodeFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'AttackGraphNode' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'uuid' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'labels' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'summary' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'attackGraphEdgeFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'AttackGraphEdge' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'uuid' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'type' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'fact' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sourceUUID' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'targetUUID' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'attackGraphFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'AttackGraph' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'nodes' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'attackGraphNodeFragment' } },
+                            ],
+                        },
+                    },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'edges' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'attackGraphEdgeFragment' } },
+                            ],
+                        },
+                    },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalNodes' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalEdges' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'truncated' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowAttackGraphQuery, FlowAttackGraphQueryVariables>;
+export const FlowGraphNodePropertiesDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowGraphNodeProperties' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'uuid' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'String' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowGraphNodeProperties' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'uuid' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'uuid' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'graphitiPropertyFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'graphitiPropertyFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'GraphitiProperty' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'key' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'value' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowGraphNodePropertiesQuery, FlowGraphNodePropertiesQueryVariables>;
+export const FlowGraphitiTagStatsDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowGraphitiTagStats' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowGraphitiTagStats' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'graphitiTagStatFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'graphitiTagStatFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'GraphitiTagStat' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'tag' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'count' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowGraphitiTagStatsQuery, FlowGraphitiTagStatsQueryVariables>;
+export const FlowAttackSurfaceDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowAttackSurface' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowAttackSurface' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'attackSurfaceItemFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'attackSurfaceItemFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'AttackSurfaceItem' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'type' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'summary' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowAttackSurfaceQuery, FlowAttackSurfaceQueryVariables>;
+export const FlowCredentialsStatusDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowCredentialsStatus' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowCredentialsStatus' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                {
+                                    kind: 'FragmentSpread',
+                                    name: { kind: 'Name', value: 'credentialStatusRowFragment' },
+                                },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'credentialStatusRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'CredentialStatusRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'count' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'examples' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowCredentialsStatusQuery, FlowCredentialsStatusQueryVariables>;
+export const FlowValidAccessesDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowValidAccesses' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowValidAccesses' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'validAccessRowFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'validAccessRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'ValidAccessRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'access' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'account' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'host' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'service' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'summary' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowValidAccessesQuery, FlowValidAccessesQueryVariables>;
+export const FlowInfrastructureMapDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowInfrastructureMap' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowInfrastructureMap' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'infraMapRowFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'infraMapRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'InfraMapRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'host' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'port' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'service' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowInfrastructureMapQuery, FlowInfrastructureMapQueryVariables>;
+export const FlowOpenPortsDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowOpenPorts' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowOpenPorts' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'openPortRowFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'openPortRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'OpenPortRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'port' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'service' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'host' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowOpenPortsQuery, FlowOpenPortsQueryVariables>;
+export const FlowVulnerabilityBreakdownDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowVulnerabilityBreakdown' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowVulnerabilityBreakdown' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'vulnBreakdownRowFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'vulnBreakdownRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'VulnBreakdownRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'category' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'count' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'examples' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowVulnerabilityBreakdownQuery, FlowVulnerabilityBreakdownQueryVariables>;
+export const FlowDetectedCvEsDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowDetectedCVEs' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowDetectedCVEs' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'detectedCVERowFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'detectedCVERowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'DetectedCVERow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'cve' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'foundOn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'source' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowDetectedCvEsQuery, FlowDetectedCvEsQueryVariables>;
+export const FlowGraphitiToolUsageDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowGraphitiToolUsage' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowGraphitiToolUsage' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                {
+                                    kind: 'FragmentSpread',
+                                    name: { kind: 'Name', value: 'graphitiToolUsageRowFragment' },
+                                },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'graphitiToolUsageRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'GraphitiToolUsageRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'tool' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'executions' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowGraphitiToolUsageQuery, FlowGraphitiToolUsageQueryVariables>;
+export const FlowArtifactsDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowArtifacts' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowArtifacts' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'artifactRowFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'artifactRowFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'ArtifactRow' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'artifact' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'producedBy' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'summary' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowArtifactsQuery, FlowArtifactsQueryVariables>;
+export const FlowReportsDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowReports' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'reports' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [{ kind: 'FragmentSpread', name: { kind: 'Name', value: 'reportFragment' } }],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'reportFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'Report' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'flowId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'userId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'templateKey' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'templateLabel' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'providerName' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'providerType' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'language' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'additionalInstructions' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'controlBudgetSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'contentBudgetSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'controlUsedSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'contentUsedSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsEstimate' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsTotal' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsDone' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'error' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'finishedAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowReportsQuery, FlowReportsQueryVariables>;
+export const ReportRowDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'reportRow' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'report' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'reportId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [{ kind: 'FragmentSpread', name: { kind: 'Name', value: 'reportFragment' } }],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'reportFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'Report' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'flowId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'userId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'templateKey' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'templateLabel' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'providerName' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'providerType' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'language' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'additionalInstructions' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'controlBudgetSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'contentBudgetSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'controlUsedSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'contentUsedSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsEstimate' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsTotal' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsDone' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'error' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'finishedAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<ReportRowQuery, ReportRowQueryVariables>;
+export const ReportSectionsDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'reportSections' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'reportSections' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'reportId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'reportSectionFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'reportSectionFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'ReportSection' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'reportId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'parentId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'position' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'key' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'content' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'instructions' } },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'variables' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'value' } },
+                            ],
+                        },
+                    },
+                    { kind: 'Field', name: { kind: 'Name', value: 'warnings' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'hidden' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'durationSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<ReportSectionsQuery, ReportSectionsQueryVariables>;
+export const ReportLogsDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'reportLogs' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'limit' } },
+                    type: { kind: 'NamedType', name: { kind: 'Name', value: 'Int' } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'reportLogs' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'reportId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'limit' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'limit' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'reportLogFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'reportLogFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'ReportLog' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'reportId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'message' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'payload' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<ReportLogsQuery, ReportLogsQueryVariables>;
+export const ReportDocumentDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'reportDocument' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'reportDocument' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'reportId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<ReportDocumentQuery, ReportDocumentQueryVariables>;
+export const CreateReportDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'mutation',
+            name: { kind: 'Name', value: 'createReport' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'input' } },
+                    type: {
+                        kind: 'NonNullType',
+                        type: { kind: 'NamedType', name: { kind: 'Name', value: 'CreateReportInput' } },
+                    },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'createReport' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'input' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'input' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [{ kind: 'FragmentSpread', name: { kind: 'Name', value: 'reportFragment' } }],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'reportFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'Report' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'flowId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'userId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'templateKey' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'templateLabel' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'providerName' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'providerType' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'language' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'additionalInstructions' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'controlBudgetSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'contentBudgetSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'controlUsedSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'contentUsedSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsEstimate' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsTotal' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsDone' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'error' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'finishedAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<CreateReportMutation, CreateReportMutationVariables>;
+export const PutReportNoteDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'mutation',
+            name: { kind: 'Name', value: 'putReportNote' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'note' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'String' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'putReportNote' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'reportId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'note' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'note' } },
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<PutReportNoteMutation, PutReportNoteMutationVariables>;
+export const StopReportDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'mutation',
+            name: { kind: 'Name', value: 'stopReport' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'stopReport' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'reportId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<StopReportMutation, StopReportMutationVariables>;
+export const DeleteReportDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'mutation',
+            name: { kind: 'Name', value: 'deleteReport' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'deleteReport' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'reportId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<DeleteReportMutation, DeleteReportMutationVariables>;
+export const UpdateReportSectionDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'mutation',
+            name: { kind: 'Name', value: 'updateReportSection' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'sectionId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'input' } },
+                    type: {
+                        kind: 'NonNullType',
+                        type: { kind: 'NamedType', name: { kind: 'Name', value: 'ReportSectionInput' } },
+                    },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'updateReportSection' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'reportId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'sectionId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'sectionId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'input' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'input' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'reportSectionFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'reportSectionFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'ReportSection' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'reportId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'parentId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'position' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'key' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'content' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'instructions' } },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'variables' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'value' } },
+                            ],
+                        },
+                    },
+                    { kind: 'Field', name: { kind: 'Name', value: 'warnings' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'hidden' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'durationSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<UpdateReportSectionMutation, UpdateReportSectionMutationVariables>;
+export const SetReportSectionContentDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'mutation',
+            name: { kind: 'Name', value: 'setReportSectionContent' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'sectionId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'content' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'String' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'setReportSectionContent' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'reportId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'sectionId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'sectionId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'content' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'content' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'reportSectionFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'reportSectionFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'ReportSection' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'reportId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'parentId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'position' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'key' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'content' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'instructions' } },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'variables' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'value' } },
+                            ],
+                        },
+                    },
+                    { kind: 'Field', name: { kind: 'Name', value: 'warnings' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'hidden' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'durationSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<SetReportSectionContentMutation, SetReportSectionContentMutationVariables>;
+export const MoveReportSectionDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'mutation',
+            name: { kind: 'Name', value: 'moveReportSection' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'sectionId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'direction' } },
+                    type: {
+                        kind: 'NonNullType',
+                        type: { kind: 'NamedType', name: { kind: 'Name', value: 'SectionDirection' } },
+                    },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'moveReportSection' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'reportId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'sectionId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'sectionId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'direction' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'direction' } },
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<MoveReportSectionMutation, MoveReportSectionMutationVariables>;
+export const HideReportSectionDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'mutation',
+            name: { kind: 'Name', value: 'hideReportSection' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'sectionId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'hidden' } },
+                    type: {
+                        kind: 'NonNullType',
+                        type: { kind: 'NamedType', name: { kind: 'Name', value: 'Boolean' } },
+                    },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'hideReportSection' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'reportId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'sectionId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'sectionId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'hidden' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'hidden' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'reportSectionFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'reportSectionFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'ReportSection' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'reportId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'parentId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'position' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'key' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'content' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'instructions' } },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'variables' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'value' } },
+                            ],
+                        },
+                    },
+                    { kind: 'Field', name: { kind: 'Name', value: 'warnings' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'hidden' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'durationSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<HideReportSectionMutation, HideReportSectionMutationVariables>;
+export const AddReportSectionDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'mutation',
+            name: { kind: 'Name', value: 'addReportSection' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'afterSectionId' } },
+                    type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'parentId' } },
+                    type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'title' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'String' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'addReportSection' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'reportId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'afterSectionId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'afterSectionId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'parentId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'parentId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'title' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'title' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'reportSectionFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'reportSectionFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'ReportSection' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'reportId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'parentId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'position' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'key' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'content' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'instructions' } },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'variables' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'value' } },
+                            ],
+                        },
+                    },
+                    { kind: 'Field', name: { kind: 'Name', value: 'warnings' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'hidden' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'durationSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<AddReportSectionMutation, AddReportSectionMutationVariables>;
+export const DeleteReportSectionDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'mutation',
+            name: { kind: 'Name', value: 'deleteReportSection' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'sectionId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'deleteReportSection' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'reportId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'sectionId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'sectionId' } },
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<DeleteReportSectionMutation, DeleteReportSectionMutationVariables>;
+export const ReportCreatedDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'subscription',
+            name: { kind: 'Name', value: 'reportCreated' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'reportCreated' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [{ kind: 'FragmentSpread', name: { kind: 'Name', value: 'reportFragment' } }],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'reportFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'Report' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'flowId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'userId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'templateKey' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'templateLabel' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'providerName' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'providerType' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'language' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'additionalInstructions' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'controlBudgetSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'contentBudgetSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'controlUsedSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'contentUsedSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsEstimate' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsTotal' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsDone' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'error' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'finishedAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<ReportCreatedSubscription, ReportCreatedSubscriptionVariables>;
+export const ReportUpdatedDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'subscription',
+            name: { kind: 'Name', value: 'reportUpdated' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'reportUpdated' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [{ kind: 'FragmentSpread', name: { kind: 'Name', value: 'reportFragment' } }],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'reportFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'Report' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'flowId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'userId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'templateKey' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'templateLabel' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'providerName' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'providerType' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'language' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'additionalInstructions' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'controlBudgetSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'contentBudgetSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'controlUsedSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'contentUsedSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsEstimate' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsTotal' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsDone' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'error' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'finishedAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<ReportUpdatedSubscription, ReportUpdatedSubscriptionVariables>;
+export const ReportDeletedDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'subscription',
+            name: { kind: 'Name', value: 'reportDeleted' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'reportDeleted' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [{ kind: 'FragmentSpread', name: { kind: 'Name', value: 'reportFragment' } }],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'reportFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'Report' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'flowId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'userId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'templateKey' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'templateLabel' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'providerName' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'providerType' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'language' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'additionalInstructions' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'controlBudgetSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'contentBudgetSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'controlUsedSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'contentUsedSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsEstimate' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsTotal' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsDone' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'error' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'finishedAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<ReportDeletedSubscription, ReportDeletedSubscriptionVariables>;
+export const ReportSectionUpdatedDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'subscription',
+            name: { kind: 'Name', value: 'reportSectionUpdated' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'reportSectionUpdated' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'reportSectionFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'reportSectionFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'ReportSection' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'reportId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'parentId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'position' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'key' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'content' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'instructions' } },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'variables' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'name' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'value' } },
+                            ],
+                        },
+                    },
+                    { kind: 'Field', name: { kind: 'Name', value: 'warnings' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'hidden' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'durationSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<ReportSectionUpdatedSubscription, ReportSectionUpdatedSubscriptionVariables>;
+export const ReportLogAddedDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'subscription',
+            name: { kind: 'Name', value: 'reportLogAdded' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'reportLogAdded' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'reportLogFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'reportLogFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'ReportLog' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'reportId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'message' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'payload' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<ReportLogAddedSubscription, ReportLogAddedSubscriptionVariables>;
