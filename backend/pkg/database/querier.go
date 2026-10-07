@@ -32,6 +32,9 @@ type Querier interface {
 	CreateMsgChain(ctx context.Context, arg CreateMsgChainParams) (Msgchain, error)
 	CreateMsgLog(ctx context.Context, arg CreateMsgLogParams) (Msglog, error)
 	CreateProvider(ctx context.Context, arg CreateProviderParams) (Provider, error)
+	CreateReport(ctx context.Context, arg CreateReportParams) (Report, error)
+	CreateReportLog(ctx context.Context, arg CreateReportLogParams) (ReportLog, error)
+	CreateReportSection(ctx context.Context, arg CreateReportSectionParams) (ReportSection, error)
 	CreateResultAssistantLog(ctx context.Context, arg CreateResultAssistantLogParams) (Assistantlog, error)
 	CreateResultMsgLog(ctx context.Context, arg CreateResultMsgLogParams) (Msglog, error)
 	CreateScreenshot(ctx context.Context, arg CreateScreenshotParams) (Screenshot, error)
@@ -59,6 +62,8 @@ type Querier interface {
 	DeleteKnowledgeDocument(ctx context.Context, uuid sql.NullString) error
 	DeletePrompt(ctx context.Context, id int64) error
 	DeleteProvider(ctx context.Context, id int64) (Provider, error)
+	DeleteReport(ctx context.Context, arg DeleteReportParams) error
+	DeleteReportSection(ctx context.Context, arg DeleteReportSectionParams) error
 	DeleteSubtask(ctx context.Context, id int64) error
 	DeleteSubtasks(ctx context.Context, ids []int64) error
 	DeleteUser(ctx context.Context, id int64) error
@@ -75,9 +80,11 @@ type Querier interface {
 	// (providers_name_user_id_unique is partial on deleted_at IS NULL). Mirrors the
 	// guard GetUserProvider already applies on the rename path.
 	DeleteUserProvider(ctx context.Context, arg DeleteUserProviderParams) (Provider, error)
+	FinishReport(ctx context.Context, arg FinishReportParams) (Report, error)
 	GetAPIToken(ctx context.Context, id int64) (ApiToken, error)
 	GetAPITokenByTokenID(ctx context.Context, tokenID string) (ApiToken, error)
 	GetAPITokens(ctx context.Context) ([]ApiToken, error)
+	GetActiveReports(ctx context.Context) ([]Report, error)
 	// Get toolcalls stats for all flows
 	GetAllFlowsToolcallsStats(ctx context.Context) ([]GetAllFlowsToolcallsStatsRow, error)
 	GetAllFlowsUsageStats(ctx context.Context) ([]GetAllFlowsUsageStatsRow, error)
@@ -103,6 +110,8 @@ type Querier interface {
 	GetFlowMsgChains(ctx context.Context, flowID int64) ([]Msgchain, error)
 	GetFlowMsgLogs(ctx context.Context, flowID int64) ([]Msglog, error)
 	GetFlowPrimaryContainer(ctx context.Context, flowID int64) (Container, error)
+	GetFlowReport(ctx context.Context, arg GetFlowReportParams) (Report, error)
+	GetFlowReports(ctx context.Context, arg GetFlowReportsParams) ([]Report, error)
 	GetFlowScreenshots(ctx context.Context, flowID int64) ([]Screenshot, error)
 	GetFlowSearchLog(ctx context.Context, arg GetFlowSearchLogParams) (Searchlog, error)
 	GetFlowSearchLogs(ctx context.Context, flowID int64) ([]Searchlog, error)
@@ -134,6 +143,7 @@ type Querier interface {
 	GetFlowsStatsByDay(ctx context.Context, arg GetFlowsStatsByDayParams) ([]GetFlowsStatsByDayRow, error)
 	// Fetch a single knowledge document by its UUID (admin view — no user_id check).
 	GetKnowledgeDocument(ctx context.Context, uuid string) (GetKnowledgeDocumentRow, error)
+	GetMaxReportSectionPosition(ctx context.Context, reportID int64) (sql.NullInt32, error)
 	GetMsgChain(ctx context.Context, id int64) (Msgchain, error)
 	// Get all msgchains for a flow (including task and subtask level)
 	GetMsgchainsForFlow(ctx context.Context, flowID int64) ([]GetMsgchainsForFlowRow, error)
@@ -141,6 +151,11 @@ type Querier interface {
 	GetProvider(ctx context.Context, id int64) (Provider, error)
 	GetProviders(ctx context.Context) ([]Provider, error)
 	GetProvidersByType(ctx context.Context, type_ ProviderType) ([]Provider, error)
+	GetReport(ctx context.Context, arg GetReportParams) (Report, error)
+	GetReportByID(ctx context.Context, id int64) (Report, error)
+	GetReportLogs(ctx context.Context, arg GetReportLogsParams) ([]ReportLog, error)
+	GetReportSection(ctx context.Context, arg GetReportSectionParams) (ReportSection, error)
+	GetReportSections(ctx context.Context, reportID int64) ([]ReportSection, error)
 	GetRole(ctx context.Context, id int64) (GetRoleRow, error)
 	GetRoleByName(ctx context.Context, name string) (GetRoleByNameRow, error)
 	GetRoles(ctx context.Context) ([]GetRolesRow, error)
@@ -272,6 +287,12 @@ type Querier interface {
 	// lim          maximum number of rows to return
 	// user_id      owner filter as a decimal text string (e.g. "42")
 	SearchUserKnowledgeDocuments(ctx context.Context, arg SearchUserKnowledgeDocumentsParams) ([]SearchUserKnowledgeDocumentsRow, error)
+	SetReportEstimate(ctx context.Context, arg SetReportEstimateParams) (Report, error)
+	SetReportPlan(ctx context.Context, arg SetReportPlanParams) (Report, error)
+	SetReportSectionHidden(ctx context.Context, arg SetReportSectionHiddenParams) (ReportSection, error)
+	SetReportSectionPosition(ctx context.Context, arg SetReportSectionPositionParams) (ReportSection, error)
+	SetReportSectionStatus(ctx context.Context, arg SetReportSectionStatusParams) (ReportSection, error)
+	ShiftReportSectionPositions(ctx context.Context, arg ShiftReportSectionPositionsParams) error
 	UpdateAPIToken(ctx context.Context, arg UpdateAPITokenParams) (ApiToken, error)
 	UpdateAssistant(ctx context.Context, arg UpdateAssistantParams) (Assistant, error)
 	UpdateAssistantLanguage(ctx context.Context, arg UpdateAssistantLanguageParams) (Assistant, error)
@@ -319,6 +340,10 @@ type Querier interface {
 	UpdateMsgLogResult(ctx context.Context, arg UpdateMsgLogResultParams) (Msglog, error)
 	UpdatePrompt(ctx context.Context, arg UpdatePromptParams) (Prompt, error)
 	UpdateProvider(ctx context.Context, arg UpdateProviderParams) (Provider, error)
+	UpdateReportProgress(ctx context.Context, arg UpdateReportProgressParams) (Report, error)
+	UpdateReportSectionContent(ctx context.Context, arg UpdateReportSectionContentParams) (ReportSection, error)
+	UpdateReportSectionFields(ctx context.Context, arg UpdateReportSectionFieldsParams) (ReportSection, error)
+	UpdateReportStatus(ctx context.Context, arg UpdateReportStatusParams) (Report, error)
 	UpdateSubtaskContext(ctx context.Context, arg UpdateSubtaskContextParams) (Subtask, error)
 	UpdateSubtaskFailedResult(ctx context.Context, arg UpdateSubtaskFailedResultParams) (Subtask, error)
 	UpdateSubtaskFinishedResult(ctx context.Context, arg UpdateSubtaskFinishedResultParams) (Subtask, error)
