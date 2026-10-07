@@ -14,6 +14,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
+import { FormSubmitButton } from '@/components/ui/form-submit-button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -240,13 +241,14 @@ function FlowReportCreateDialog({ onCreate, onCreated, onOpenChange, open }: Flo
                             >
                                 Cancel
                             </Button>
-                            <Button
+                            <FormSubmitButton
                                 loading={isSubmitting}
+                                requireValid={false}
                                 type="submit"
                             >
                                 <FilePlus2 className="size-4" />
                                 Create report
-                            </Button>
+                            </FormSubmitButton>
                         </DialogFooter>
                     </form>
                 </Form>

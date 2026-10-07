@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { ReportStatusType } from '@/graphql/types';
+import { ProviderType, ReportStatusType } from '@/graphql/types';
 
 import FlowReportCard from './flow-report-card';
 import { type ReportProgress } from './use-flow-reports';
@@ -19,7 +19,7 @@ const base: ReportProgress = {
     id: '1',
     language: 'English',
     providerName: 'OptimV2 glm-5.3-flash',
-    providerType: 'custom',
+    providerType: ProviderType.Custom,
     sectionsDone: 4,
     sectionsEstimate: 25,
     sectionsTotal: 25,
