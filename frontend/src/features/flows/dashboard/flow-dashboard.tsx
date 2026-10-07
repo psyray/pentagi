@@ -3,7 +3,17 @@ import { useState } from 'react';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FlowDashboardAttackGraph } from '@/features/flows/dashboard/flow-dashboard-attack-graph';
-import { FlowDashboardArtifacts, FlowDashboardAttackSurface, FlowDashboardCredentialsStatus, FlowDashboardDetectedCVEs, FlowDashboardInfrastructureMap, FlowDashboardOpenPorts, FlowDashboardToolUsage, FlowDashboardValidAccesses, FlowDashboardVulnerabilityBreakdown } from '@/features/flows/dashboard/flow-dashboard-blocks';
+import {
+    FlowDashboardArtifacts,
+    FlowDashboardAttackSurface,
+    FlowDashboardCredentialsStatus,
+    FlowDashboardDetectedCVEs,
+    FlowDashboardInfrastructureMap,
+    FlowDashboardOpenPorts,
+    FlowDashboardToolUsage,
+    FlowDashboardValidAccesses,
+    FlowDashboardVulnerabilityBreakdown,
+} from '@/features/flows/dashboard/flow-dashboard-blocks';
 import { FlowDashboardOverview } from '@/features/flows/dashboard/flow-dashboard-overview';
 import { FlowDashboardTagStats } from '@/features/flows/dashboard/flow-dashboard-tag-stats';
 import { KgDashboardEnabledDocument } from '@/graphql/types';
@@ -58,40 +68,64 @@ function FlowDashboard() {
                 ) : null}
             </TabsList>
 
-            <TabsContent className="mt-3 flex-1 overflow-auto" value="overview">
+            <TabsContent
+                className="mt-3 flex-1 overflow-auto"
+                value="overview"
+            >
                 <FlowDashboardOverview flowId={flowId} />
             </TabsContent>
 
             {kgEnabled ? (
                 <>
-                    <TabsContent className="mt-3 flex-1 overflow-auto" value="attackchain">
+                    <TabsContent
+                        className="mt-3 flex-1 overflow-auto"
+                        value="attackchain"
+                    >
                         <div className="flex flex-col gap-4 pr-0">
                             <FlowDashboardAttackGraph flowId={flowId} />
                             <FlowDashboardTagStats flowId={flowId} />
                         </div>
                     </TabsContent>
-                    <TabsContent className="mt-3 flex-1 overflow-auto pr-1" value="surface">
+                    <TabsContent
+                        className="mt-3 flex-1 overflow-auto pr-1"
+                        value="surface"
+                    >
                         <FlowDashboardAttackSurface flowId={flowId} />
                     </TabsContent>
-                    <TabsContent className="mt-3 flex-1 overflow-auto pr-1" value="credentials">
+                    <TabsContent
+                        className="mt-3 flex-1 overflow-auto pr-1"
+                        value="credentials"
+                    >
                         <FlowDashboardCredentialsStatus flowId={flowId} />
                     </TabsContent>
-                    <TabsContent className="mt-3 flex-1 overflow-auto pr-1" value="access">
+                    <TabsContent
+                        className="mt-3 flex-1 overflow-auto pr-1"
+                        value="access"
+                    >
                         <FlowDashboardValidAccesses flowId={flowId} />
                     </TabsContent>
-                    <TabsContent className="mt-3 flex-1 overflow-auto pr-1" value="infra">
+                    <TabsContent
+                        className="mt-3 flex-1 overflow-auto pr-1"
+                        value="infra"
+                    >
                         <div className="flex flex-col gap-4">
                             <FlowDashboardInfrastructureMap flowId={flowId} />
                             <FlowDashboardOpenPorts flowId={flowId} />
                         </div>
                     </TabsContent>
-                    <TabsContent className="mt-3 flex-1 overflow-auto pr-1" value="vulns">
+                    <TabsContent
+                        className="mt-3 flex-1 overflow-auto pr-1"
+                        value="vulns"
+                    >
                         <div className="flex flex-col gap-4">
                             <FlowDashboardVulnerabilityBreakdown flowId={flowId} />
                             <FlowDashboardDetectedCVEs flowId={flowId} />
                         </div>
                     </TabsContent>
-                    <TabsContent className="mt-3 flex-1 overflow-auto pr-1" value="tools">
+                    <TabsContent
+                        className="mt-3 flex-1 overflow-auto pr-1"
+                        value="tools"
+                    >
                         <div className="flex flex-col gap-4">
                             <FlowDashboardToolUsage flowId={flowId} />
                             <FlowDashboardArtifacts flowId={flowId} />

@@ -396,6 +396,9 @@ export type SubtaskFragmentFragment = {
     taskId: string;
     createdAt: string;
     updatedAt: string;
+    type: string | null;
+    evidence: Array<string> | null;
+    budgetSeconds: number | null;
 };
 
 export type TerminalLogFragmentFragment = {
@@ -732,6 +735,14 @@ export type SubtaskExecutionStatsFragmentFragment = {
     subtaskTitle: string;
     totalDurationSeconds: number;
     totalToolcallsCount: number;
+    totalToolcallsDurationSeconds: number;
+    subAgentsCount: number;
+    totalUsageIn: number;
+    totalUsageOut: number;
+    totalUsageCacheIn: number;
+    totalUsageCacheOut: number;
+    totalCostIn: number;
+    totalCostOut: number;
 };
 
 export type TaskExecutionStatsFragmentFragment = {
@@ -739,6 +750,14 @@ export type TaskExecutionStatsFragmentFragment = {
     taskTitle: string;
     totalDurationSeconds: number;
     totalToolcallsCount: number;
+    totalToolcallsDurationSeconds: number;
+    subAgentsCount: number;
+    totalUsageIn: number;
+    totalUsageOut: number;
+    totalUsageCacheIn: number;
+    totalUsageCacheOut: number;
+    totalCostIn: number;
+    totalCostOut: number;
     subtasks: Array<SubtaskExecutionStatsFragmentFragment>;
 };
 
@@ -1025,6 +1044,12 @@ export type FlowStatsByFlowQueryVariables = Exact<{
 }>;
 
 export type FlowStatsByFlowQuery = { flowStatsByFlow: FlowStatsFragmentFragment };
+
+export type FlowExecutionStatsQueryVariables = Exact<{
+    flowId: string | number;
+}>;
+
+export type FlowExecutionStatsQuery = { flowExecutionStats: FlowExecutionStatsFragmentFragment };
 
 export type FlowsExecutionStatsByPeriodQueryVariables = Exact<{
     period: UsageStatsPeriod;
@@ -1776,6 +1801,9 @@ export const SubtaskFragmentFragmentDoc = {
                     { kind: 'Field', name: { kind: 'Name', value: 'taskId' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'type' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'evidence' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'budgetSeconds' } },
                 ],
             },
         },
@@ -1825,6 +1853,9 @@ export const TaskFragmentFragmentDoc = {
                     { kind: 'Field', name: { kind: 'Name', value: 'taskId' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'type' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'evidence' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'budgetSeconds' } },
                 ],
             },
         },
@@ -3407,6 +3438,14 @@ export const SubtaskExecutionStatsFragmentFragmentDoc = {
                     { kind: 'Field', name: { kind: 'Name', value: 'subtaskTitle' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'totalDurationSeconds' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'totalToolcallsCount' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalToolcallsDurationSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'subAgentsCount' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageCacheIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageCacheOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalCostIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalCostOut' } },
                 ],
             },
         },
@@ -3426,6 +3465,14 @@ export const TaskExecutionStatsFragmentFragmentDoc = {
                     { kind: 'Field', name: { kind: 'Name', value: 'taskTitle' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'totalDurationSeconds' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'totalToolcallsCount' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalToolcallsDurationSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'subAgentsCount' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageCacheIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageCacheOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalCostIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalCostOut' } },
                     {
                         kind: 'Field',
                         name: { kind: 'Name', value: 'subtasks' },
@@ -3453,6 +3500,14 @@ export const TaskExecutionStatsFragmentFragmentDoc = {
                     { kind: 'Field', name: { kind: 'Name', value: 'subtaskTitle' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'totalDurationSeconds' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'totalToolcallsCount' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalToolcallsDurationSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'subAgentsCount' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageCacheIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageCacheOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalCostIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalCostOut' } },
                 ],
             },
         },
@@ -3497,6 +3552,14 @@ export const FlowExecutionStatsFragmentFragmentDoc = {
                     { kind: 'Field', name: { kind: 'Name', value: 'subtaskTitle' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'totalDurationSeconds' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'totalToolcallsCount' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalToolcallsDurationSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'subAgentsCount' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageCacheIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageCacheOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalCostIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalCostOut' } },
                 ],
             },
         },
@@ -3511,6 +3574,14 @@ export const FlowExecutionStatsFragmentFragmentDoc = {
                     { kind: 'Field', name: { kind: 'Name', value: 'taskTitle' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'totalDurationSeconds' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'totalToolcallsCount' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalToolcallsDurationSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'subAgentsCount' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageCacheIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageCacheOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalCostIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalCostOut' } },
                     {
                         kind: 'Field',
                         name: { kind: 'Name', value: 'subtasks' },
@@ -5848,6 +5919,9 @@ export const FlowDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'taskId' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'type' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'evidence' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'budgetSeconds' } },
                 ],
             },
         },
@@ -6100,6 +6174,9 @@ export const TasksDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'taskId' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'type' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'evidence' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'budgetSeconds' } },
                 ],
             },
         },
@@ -6490,6 +6567,9 @@ export const FlowReportDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'taskId' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'type' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'evidence' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'budgetSeconds' } },
                 ],
             },
         },
@@ -7542,6 +7622,127 @@ export const FlowStatsByFlowDocument = {
         },
     ],
 } as unknown as DocumentNode<FlowStatsByFlowQuery, FlowStatsByFlowQueryVariables>;
+export const FlowExecutionStatsDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'flowExecutionStats' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'flowExecutionStats' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'flowExecutionStatsFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'subtaskExecutionStatsFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'SubtaskExecutionStats' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'subtaskId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'subtaskTitle' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalDurationSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalToolcallsCount' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalToolcallsDurationSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'subAgentsCount' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageCacheIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageCacheOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalCostIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalCostOut' } },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'taskExecutionStatsFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'TaskExecutionStats' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'taskId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'taskTitle' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalDurationSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalToolcallsCount' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalToolcallsDurationSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'subAgentsCount' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageCacheIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageCacheOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalCostIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalCostOut' } },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'subtasks' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                {
+                                    kind: 'FragmentSpread',
+                                    name: { kind: 'Name', value: 'subtaskExecutionStatsFragment' },
+                                },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'flowExecutionStatsFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'FlowExecutionStats' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'flowId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'flowTitle' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalDurationSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalToolcallsCount' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalAssistantsCount' } },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'tasks' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'taskExecutionStatsFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<FlowExecutionStatsQuery, FlowExecutionStatsQueryVariables>;
 export const FlowsExecutionStatsByPeriodDocument = {
     kind: 'Document',
     definitions: [
@@ -7603,6 +7804,14 @@ export const FlowsExecutionStatsByPeriodDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'subtaskTitle' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'totalDurationSeconds' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'totalToolcallsCount' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalToolcallsDurationSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'subAgentsCount' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageCacheIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageCacheOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalCostIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalCostOut' } },
                 ],
             },
         },
@@ -7617,6 +7826,14 @@ export const FlowsExecutionStatsByPeriodDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'taskTitle' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'totalDurationSeconds' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'totalToolcallsCount' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalToolcallsDurationSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'subAgentsCount' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageCacheIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalUsageCacheOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalCostIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'totalCostOut' } },
                     {
                         kind: 'Field',
                         name: { kind: 'Name', value: 'subtasks' },
@@ -11927,6 +12144,9 @@ export const TaskCreatedDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'taskId' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'type' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'evidence' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'budgetSeconds' } },
                 ],
             },
         },
@@ -12008,6 +12228,9 @@ export const TaskUpdatedDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'taskId' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'type' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'evidence' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'budgetSeconds' } },
                 ],
             },
         },

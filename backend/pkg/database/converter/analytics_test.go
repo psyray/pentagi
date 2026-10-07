@@ -231,9 +231,29 @@ func TestAnalytics_BuildFlowExecutionStats_BuildsTheWholeTree(t *testing.T) {
 			assistants: 2,
 			want: &model.FlowExecutionStats{FlowID: 1, FlowTitle: "Test Flow", TotalDurationSeconds: 10, TotalToolcallsCount: 1,
 				TotalAssistantsCount: 2, Tasks: []*model.TaskExecutionStats{{
-					TaskID: 1, TaskTitle: "Test Task", TotalDurationSeconds: 10, TotalToolcallsCount: 1,
-					Subtasks: []*model.SubtaskExecutionStats{{SubtaskID: 1, SubtaskTitle: "Test Subtask", TotalDurationSeconds: 10, TotalToolcallsCount: 1}},
+					TaskID: 1, TaskTitle: "Test Task", TotalDurationSeconds: 10, TotalToolcallsCount: 1, TotalToolcallsDurationSeconds: 5,
+					Subtasks: []*model.SubtaskExecutionStats{{SubtaskID: 1, SubtaskTitle: "Test Subtask", TotalDurationSeconds: 10, TotalToolcallsCount: 1, TotalToolcallsDurationSeconds: 5}},
 				}}},
+		},
+		{
+			name:     "usage and delegated sub-agents roll up to the subtask and the task",
+			tasks:    []database.GetTasksForFlowRow{{ID: 1, Title: "Test Task", CreatedAt: analyticsAt(0), UpdatedAt: analyticsAt(10)}},
+			subtasks: []database.GetSubtasksForTasksRow{subtaskRow(1, 1, "Test Subtask", 0, 10)},
+			msgchains: []database.GetMsgchainsForFlowRow{
+				{Type: database.MsgchainTypePrimaryAgent, FlowID: 1, TaskID: analyticsID(1), SubtaskID: analyticsID(1),
+					DurationSeconds: 10, UsageIn: 100, UsageOut: 50, UsageCacheIn: 10, UsageCacheOut: 5,
+					UsageCostIn: 0.1, UsageCostOut: 0.2, CreatedAt: analyticsAt(0), UpdatedAt: analyticsAt(10)},
+				{Type: database.MsgchainTypeAdviser, FlowID: 1, TaskID: analyticsID(1), SubtaskID: analyticsID(1),
+					DurationSeconds: 2, UsageIn: 20, UsageOut: 10, CreatedAt: analyticsAt(0), UpdatedAt: analyticsAt(2)},
+			},
+			want: &model.FlowExecutionStats{FlowID: 1, FlowTitle: "Test Flow", TotalDurationSeconds: 10, Tasks: []*model.TaskExecutionStats{{
+				TaskID: 1, TaskTitle: "Test Task", TotalDurationSeconds: 10, SubAgentsCount: 1,
+				TotalUsageIn: 120, TotalUsageOut: 60, TotalUsageCacheIn: 10, TotalUsageCacheOut: 5, TotalCostIn: 0.1, TotalCostOut: 0.2,
+				Subtasks: []*model.SubtaskExecutionStats{{
+					SubtaskID: 1, SubtaskTitle: "Test Subtask", TotalDurationSeconds: 10, SubAgentsCount: 1,
+					TotalUsageIn: 120, TotalUsageOut: 60, TotalUsageCacheIn: 10, TotalUsageCacheOut: 5, TotalCostIn: 0.1, TotalCostOut: 0.2,
+				}},
+			}}},
 		},
 		{
 			name:  "batch-created subtasks after a generator",

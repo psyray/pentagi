@@ -1,3 +1,4 @@
+import { useQuery } from '@apollo/client/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ChevronDown, ListTodo, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -5,10 +6,13 @@ import { useForm } from 'react-hook-form';
 import { useDebouncedCallback } from 'use-debounce';
 import { z } from 'zod';
 
+import type { SubtaskExecutionStatsFragmentFragment, TaskExecutionStatsFragmentFragment } from '@/graphql/types';
+
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { Form, FormControl, FormField } from '@/components/ui/form';
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group';
+import { FlowExecutionStatsDocument } from '@/graphql/types';
 import { useAutoScroll } from '@/hooks/use-auto-scroll';
 import { matchesSearchTerm } from '@/lib/text-filter';
 import { useFlow } from '@/providers/flow-provider';
@@ -26,6 +30,56 @@ function FlowTasks() {
     const [debouncedSearchValue, setDebouncedSearchValue] = useState('');
 
     const { containerRef, endRef, hasNewMessages, isScrolledToBottom, scrollToEnd } = useAutoScroll(tasks, flowId);
+
+    const { data: executionStatsData, refetch: refetchExecutionStats } = useQuery(FlowExecutionStatsDocument, {
+        fetchPolicy: 'cache-and-network',
+        skip: !flowId,
+        variables: { flowId: flowId ?? '' },
+    });
+
+    const taskStatsById = useMemo(() => {
+        const map = new Map<string, TaskExecutionStatsFragmentFragment>();
+
+        for (const task of executionStatsData?.flowExecutionStats?.tasks ?? []) {
+            map.set(task.taskId, task);
+        }
+
+        return map;
+    }, [executionStatsData]);
+
+    const subtaskStatsById = useMemo(() => {
+        const map = new Map<string, SubtaskExecutionStatsFragmentFragment>();
+
+        for (const task of executionStatsData?.flowExecutionStats?.tasks ?? []) {
+            for (const subtask of task.subtasks) {
+                map.set(subtask.subtaskId, subtask);
+            }
+        }
+
+        return map;
+    }, [executionStatsData]);
+
+    // Execution metrics are not pushed by the task subscriptions, so refresh them
+    // whenever a task or one of its subtasks changes. The signature keeps the
+    // refetch from looping: a fresh answer does not change the tasks themselves.
+    const tasksSignature = useMemo(
+        () =>
+            tasks
+                .map(
+                    (task) =>
+                        `${task.id}:${task.updatedAt}:${(task.subtasks ?? []).map((subtask) => `${subtask.id}:${subtask.updatedAt}`).join('.')}`,
+                )
+                .join('|'),
+        [tasks],
+    );
+
+    useEffect(() => {
+        if (!flowId) {
+            return;
+        }
+
+        refetchExecutionStats();
+    }, [tasksSignature, flowId, refetchExecutionStats]);
 
     const form = useForm<z.infer<typeof searchFormSchema>>({
         defaultValues: {
@@ -138,6 +192,8 @@ function FlowTasks() {
                             <FlowTask
                                 key={task.id}
                                 searchValue={debouncedSearchValue}
+                                stats={taskStatsById.get(task.id)}
+                                subtaskStats={subtaskStatsById}
                                 task={task}
                             />
                         ))}

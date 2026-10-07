@@ -252,13 +252,16 @@ const TABS_TASK = entity('Task', {
     status: StatusType.Finished,
     subtasks: [
         entity('Subtask', {
+            budgetSeconds: 300,
             createdAt: T,
             description: 'Run an nmap sweep',
+            evidence: ['service-banner-evidence'],
             id: '21',
             result: 'Ports 22, 80 open',
             status: StatusType.Finished,
             taskId: '11',
             title: 'E2E Subtask Scan',
+            type: 'enumeration',
             updatedAt: T,
         }),
     ],

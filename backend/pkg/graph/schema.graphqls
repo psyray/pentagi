@@ -310,6 +310,9 @@ type Subtask {
   taskId: ID!
   createdAt: Time!
   updatedAt: Time!
+  type: String
+  evidence: [String!]
+  budgetSeconds: Int
 }
 
 # ==================== Logging Types ====================
@@ -711,6 +714,14 @@ type SubtaskExecutionStats {
   subtaskTitle: String!
   totalDurationSeconds: Float!
   totalToolcallsCount: Int!
+  totalToolcallsDurationSeconds: Float!
+  subAgentsCount: Int!
+  totalUsageIn: Int!
+  totalUsageOut: Int!
+  totalUsageCacheIn: Int!
+  totalUsageCacheOut: Int!
+  totalCostIn: Float!
+  totalCostOut: Float!
 }
 
 # Task execution time statistics
@@ -719,6 +730,14 @@ type TaskExecutionStats {
   taskTitle: String!
   totalDurationSeconds: Float!
   totalToolcallsCount: Int!
+  totalToolcallsDurationSeconds: Float!
+  subAgentsCount: Int!
+  totalUsageIn: Int!
+  totalUsageOut: Int!
+  totalUsageCacheIn: Int!
+  totalUsageCacheOut: Int!
+  totalCostIn: Float!
+  totalCostOut: Float!
   subtasks: [SubtaskExecutionStats!]!
 }
 
@@ -1195,6 +1214,7 @@ type Query {
   flowsStatsByPeriod(period: UsageStatsPeriod!, timezone: String): [DailyFlowsStats!]!
   flowStatsByFlow(flowId: ID!): FlowStats!
   flowsExecutionStatsByPeriod(period: UsageStatsPeriod!, timezone: String): [FlowExecutionStats!]!
+  flowExecutionStats(flowId: ID!): FlowExecutionStats!
 
   # System settings
   settings: Settings!

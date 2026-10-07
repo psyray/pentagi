@@ -66,6 +66,9 @@ fragment subtaskFragment on Subtask {
     taskId
     createdAt
     updatedAt
+    type
+    evidence
+    budgetSeconds
 }
 
 fragment terminalLogFragment on TerminalLog {
@@ -519,6 +522,14 @@ fragment subtaskExecutionStatsFragment on SubtaskExecutionStats {
     subtaskTitle
     totalDurationSeconds
     totalToolcallsCount
+    totalToolcallsDurationSeconds
+    subAgentsCount
+    totalUsageIn
+    totalUsageOut
+    totalUsageCacheIn
+    totalUsageCacheOut
+    totalCostIn
+    totalCostOut
 }
 
 fragment taskExecutionStatsFragment on TaskExecutionStats {
@@ -526,6 +537,14 @@ fragment taskExecutionStatsFragment on TaskExecutionStats {
     taskTitle
     totalDurationSeconds
     totalToolcallsCount
+    totalToolcallsDurationSeconds
+    subAgentsCount
+    totalUsageIn
+    totalUsageOut
+    totalUsageCacheIn
+    totalUsageCacheOut
+    totalCostIn
+    totalCostOut
     subtasks {
         ...subtaskExecutionStatsFragment
     }
@@ -1021,6 +1040,12 @@ query flowsStatsByPeriod($period: UsageStatsPeriod!, $timezone: String) {
 query flowStatsByFlow($flowId: ID!) {
     flowStatsByFlow(flowId: $flowId) {
         ...flowStatsFragment
+    }
+}
+
+query flowExecutionStats($flowId: ID!) {
+    flowExecutionStats(flowId: $flowId) {
+        ...flowExecutionStatsFragment
     }
 }
 
