@@ -1480,8 +1480,6 @@ subscription knowledgeDocumentDeleted {
         ...knowledgeDocumentFragment
     }
 }
-<<<<<<< HEAD
-=======
 
 # ==================== Knowledge-graph dashboard (Graphiti / Neo4j) =========
 
@@ -1826,4 +1824,3 @@ subscription reportLogAdded($flowId: ID!) {
         ...reportLogFragment
     }
 }
->>>>>>> c6457f14 (feat(report): reports tab with live progress and create dialog)
