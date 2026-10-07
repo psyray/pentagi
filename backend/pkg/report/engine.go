@@ -866,6 +866,7 @@ func (w *worker) writeSection(ctx context.Context, st database.ReportSection) er
 		return nil
 	}
 
+	prevIn, prevOut := w.tokensIn, w.tokensOut
 	resp, err := w.prv.CallEx(ctx, pconfig.OptionsTypeSimple, chain, streamCb)
 	close(flushDone)
 	contentSeconds := time.Since(start).Seconds()
@@ -888,8 +889,8 @@ func (w *worker) writeSection(ctx context.Context, st database.ReportSection) er
 		ID:              st.ID,
 		Content:         content,
 		Status:          SectionDone,
-		TokensIn:        w.tokensIn,
-		TokensOut:       w.tokensOut,
+		TokensIn:        w.tokensIn - prevIn,
+		TokensOut:       w.tokensOut - prevOut,
 		DurationSeconds: contentSeconds,
 	})
 	if err != nil {
@@ -1032,6 +1033,7 @@ func (w *worker) bumpDone() {
 func (w *worker) refreshProgress(ctx context.Context) {
 	w.mx.Lock()
 	params := database.UpdateReportProgressParams{
+		ID:                 w.report.ID,
 		SectionsDone:       w.doneCount,
 		TokensIn:           w.tokensIn,
 		TokensOut:          w.tokensOut,
