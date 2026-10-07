@@ -16,6 +16,8 @@ import { useFlow } from '@/providers/flow-provider';
 
 import { FlowForm, type FlowFormValues } from '../flow-form';
 import FlowTasksDropdown from '../flow-tasks-dropdown';
+import FlowAutomationGroup from './flow-automation-group';
+import { buildAutomationItems } from './flow-automation-groups';
 import FlowMessage from './flow-message';
 
 interface FlowAutomationMessagesProps {
@@ -127,6 +129,15 @@ function FlowAutomationMessages({ className }: FlowAutomationMessagesProps) {
 
         return filtered;
     }, [logs, debouncedSearchValue, filter]);
+
+    const subtasks = useMemo(() => (flowData?.tasks ?? []).flatMap((task) => task.subtasks ?? []), [flowData?.tasks]);
+
+    const msgchains = useMemo(() => flowData?.msgchains ?? [], [flowData?.msgchains]);
+
+    const items = useMemo(
+        () => buildAutomationItems(filteredLogs, subtasks, msgchains),
+        [filteredLogs, subtasks, msgchains],
+    );
 
     const placeholder = useMemo(() => {
         if (!flowId) {
@@ -254,13 +265,21 @@ function FlowAutomationMessages({ className }: FlowAutomationMessagesProps) {
                         className="flex h-full flex-col gap-4 overflow-y-auto"
                         ref={containerRef}
                     >
-                        {filteredLogs.map((log) => (
-                            <FlowMessage
-                                key={log.id}
-                                log={log}
-                                searchValue={debouncedSearchValue}
-                            />
-                        ))}
+                        {items.map((item) =>
+                            item.kind === 'subtask' ? (
+                                <FlowAutomationGroup
+                                    group={item.group}
+                                    key={`subtask-${item.group.subtaskId}`}
+                                    searchValue={debouncedSearchValue}
+                                />
+                            ) : (
+                                <FlowMessage
+                                    key={item.log.id}
+                                    log={item.log}
+                                    searchValue={debouncedSearchValue}
+                                />
+                            ),
+                        )}
                         <div ref={endRef} />
                     </div>
 

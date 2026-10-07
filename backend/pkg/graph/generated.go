@@ -380,6 +380,7 @@ type ComplexityRoot struct {
 	}
 
 	MessageLog struct {
+		Agent        func(childComplexity int) int
 		CreatedAt    func(childComplexity int) int
 		FlowID       func(childComplexity int) int
 		ID           func(childComplexity int) int
@@ -431,6 +432,22 @@ type ComplexityRoot struct {
 		Model    func(childComplexity int) int
 		Provider func(childComplexity int) int
 		Stats    func(childComplexity int) int
+	}
+
+	Msgchain struct {
+		CreatedAt       func(childComplexity int) int
+		DurationSeconds func(childComplexity int) int
+		FlowID          func(childComplexity int) int
+		ID              func(childComplexity int) int
+		Model           func(childComplexity int) int
+		ModelProvider   func(childComplexity int) int
+		SubtaskID       func(childComplexity int) int
+		TaskID          func(childComplexity int) int
+		Type            func(childComplexity int) int
+		UsageCacheIn    func(childComplexity int) int
+		UsageCacheOut   func(childComplexity int) int
+		UsageIn         func(childComplexity int) int
+		UsageOut        func(childComplexity int) int
 	}
 
 	Mutation struct {
@@ -591,6 +608,7 @@ type ComplexityRoot struct {
 		KnowledgeDocument               func(childComplexity int, id string) int
 		KnowledgeDocuments              func(childComplexity int, filter *model.KnowledgeFilter, withContent bool) int
 		MessageLogs                     func(childComplexity int, flowID int64) int
+		Msgchains                       func(childComplexity int, flowID int64) int
 		Providers                       func(childComplexity int) int
 		Resources                       func(childComplexity int, path *string, recursive *bool) int
 		Screenshots                     func(childComplexity int, flowID int64) int
@@ -919,6 +937,7 @@ type QueryResolver interface {
 	TerminalLogs(ctx context.Context, flowID int64) ([]*model.TerminalLog, error)
 	MessageLogs(ctx context.Context, flowID int64) ([]*model.MessageLog, error)
 	AgentLogs(ctx context.Context, flowID int64) ([]*model.AgentLog, error)
+	Msgchains(ctx context.Context, flowID int64) ([]*model.Msgchain, error)
 	SearchLogs(ctx context.Context, flowID int64) ([]*model.SearchLog, error)
 	VectorStoreLogs(ctx context.Context, flowID int64) ([]*model.VectorStoreLog, error)
 	ToolCallLogs(ctx context.Context, flowID int64) ([]*model.ToolCallLog, error)
@@ -2531,6 +2550,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.KnowledgeDocumentWithScore.Score(childComplexity), true
 
+	case "MessageLog.agent":
+		if e.complexity.MessageLog.Agent == nil {
+			break
+		}
+
+		return e.complexity.MessageLog.Agent(childComplexity), true
+
 	case "MessageLog.createdAt":
 		if e.complexity.MessageLog.CreatedAt == nil {
 			break
@@ -2782,6 +2808,97 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.ModelUsageStats.Stats(childComplexity), true
+
+	case "Msgchain.createdAt":
+		if e.complexity.Msgchain.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.Msgchain.CreatedAt(childComplexity), true
+
+	case "Msgchain.durationSeconds":
+		if e.complexity.Msgchain.DurationSeconds == nil {
+			break
+		}
+
+		return e.complexity.Msgchain.DurationSeconds(childComplexity), true
+
+	case "Msgchain.flowId":
+		if e.complexity.Msgchain.FlowID == nil {
+			break
+		}
+
+		return e.complexity.Msgchain.FlowID(childComplexity), true
+
+	case "Msgchain.id":
+		if e.complexity.Msgchain.ID == nil {
+			break
+		}
+
+		return e.complexity.Msgchain.ID(childComplexity), true
+
+	case "Msgchain.model":
+		if e.complexity.Msgchain.Model == nil {
+			break
+		}
+
+		return e.complexity.Msgchain.Model(childComplexity), true
+
+	case "Msgchain.modelProvider":
+		if e.complexity.Msgchain.ModelProvider == nil {
+			break
+		}
+
+		return e.complexity.Msgchain.ModelProvider(childComplexity), true
+
+	case "Msgchain.subtaskId":
+		if e.complexity.Msgchain.SubtaskID == nil {
+			break
+		}
+
+		return e.complexity.Msgchain.SubtaskID(childComplexity), true
+
+	case "Msgchain.taskId":
+		if e.complexity.Msgchain.TaskID == nil {
+			break
+		}
+
+		return e.complexity.Msgchain.TaskID(childComplexity), true
+
+	case "Msgchain.type":
+		if e.complexity.Msgchain.Type == nil {
+			break
+		}
+
+		return e.complexity.Msgchain.Type(childComplexity), true
+
+	case "Msgchain.usageCacheIn":
+		if e.complexity.Msgchain.UsageCacheIn == nil {
+			break
+		}
+
+		return e.complexity.Msgchain.UsageCacheIn(childComplexity), true
+
+	case "Msgchain.usageCacheOut":
+		if e.complexity.Msgchain.UsageCacheOut == nil {
+			break
+		}
+
+		return e.complexity.Msgchain.UsageCacheOut(childComplexity), true
+
+	case "Msgchain.usageIn":
+		if e.complexity.Msgchain.UsageIn == nil {
+			break
+		}
+
+		return e.complexity.Msgchain.UsageIn(childComplexity), true
+
+	case "Msgchain.usageOut":
+		if e.complexity.Msgchain.UsageOut == nil {
+			break
+		}
+
+		return e.complexity.Msgchain.UsageOut(childComplexity), true
 
 	case "Mutation.addFavoriteFlow":
 		if e.complexity.Mutation.AddFavoriteFlow == nil {
@@ -3930,6 +4047,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.MessageLogs(childComplexity, args["flowId"].(int64)), true
+
+	case "Query.msgchains":
+		if e.complexity.Query.Msgchains == nil {
+			break
+		}
+
+		args, err := ec.field_Query_msgchains_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Msgchains(childComplexity, args["flowId"].(int64)), true
 
 	case "Query.providers":
 		if e.complexity.Query.Providers == nil {
@@ -8505,6 +8634,38 @@ func (ec *executionContext) field_Query_messageLogs_args(ctx context.Context, ra
 	return args, nil
 }
 func (ec *executionContext) field_Query_messageLogs_argsFlowID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["flowId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("flowId"))
+	if tmp, ok := rawArgs["flowId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_msgchains_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Query_msgchains_argsFlowID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["flowId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_msgchains_argsFlowID(
 	ctx context.Context,
 	rawArgs map[string]interface{},
 ) (int64, error) {
@@ -20483,6 +20644,47 @@ func (ec *executionContext) fieldContext_MessageLog_flowId(_ context.Context, fi
 	return fc, nil
 }
 
+func (ec *executionContext) _MessageLog_agent(ctx context.Context, field graphql.CollectedField, obj *model.MessageLog) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_MessageLog_agent(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Agent, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.AgentType)
+	fc.Result = res
+	return ec.marshalOAgentType2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐAgentType(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_MessageLog_agent(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MessageLog",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type AgentType does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _MessageLog_taskId(ctx context.Context, field graphql.CollectedField, obj *model.MessageLog) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_MessageLog_taskId(ctx, field)
 	if err != nil {
@@ -21760,6 +21962,572 @@ func (ec *executionContext) fieldContext_ModelUsageStats_stats(_ context.Context
 				return ec.fieldContext_UsageStats_totalUsageCostOut(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type UsageStats", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Msgchain_id(ctx context.Context, field graphql.CollectedField, obj *model.Msgchain) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Msgchain_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Msgchain_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Msgchain",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Msgchain_type(ctx context.Context, field graphql.CollectedField, obj *model.Msgchain) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Msgchain_type(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Type, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(model.AgentType)
+	fc.Result = res
+	return ec.marshalNAgentType2pentagiᚋpkgᚋgraphᚋmodelᚐAgentType(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Msgchain_type(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Msgchain",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type AgentType does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Msgchain_model(ctx context.Context, field graphql.CollectedField, obj *model.Msgchain) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Msgchain_model(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Model, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Msgchain_model(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Msgchain",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Msgchain_modelProvider(ctx context.Context, field graphql.CollectedField, obj *model.Msgchain) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Msgchain_modelProvider(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ModelProvider, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Msgchain_modelProvider(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Msgchain",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Msgchain_usageIn(ctx context.Context, field graphql.CollectedField, obj *model.Msgchain) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Msgchain_usageIn(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UsageIn, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Msgchain_usageIn(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Msgchain",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Msgchain_usageOut(ctx context.Context, field graphql.CollectedField, obj *model.Msgchain) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Msgchain_usageOut(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UsageOut, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Msgchain_usageOut(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Msgchain",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Msgchain_usageCacheIn(ctx context.Context, field graphql.CollectedField, obj *model.Msgchain) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Msgchain_usageCacheIn(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UsageCacheIn, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Msgchain_usageCacheIn(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Msgchain",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Msgchain_usageCacheOut(ctx context.Context, field graphql.CollectedField, obj *model.Msgchain) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Msgchain_usageCacheOut(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UsageCacheOut, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Msgchain_usageCacheOut(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Msgchain",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Msgchain_durationSeconds(ctx context.Context, field graphql.CollectedField, obj *model.Msgchain) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Msgchain_durationSeconds(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.DurationSeconds, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(float64)
+	fc.Result = res
+	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Msgchain_durationSeconds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Msgchain",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Msgchain_flowId(ctx context.Context, field graphql.CollectedField, obj *model.Msgchain) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Msgchain_flowId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FlowID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Msgchain_flowId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Msgchain",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Msgchain_taskId(ctx context.Context, field graphql.CollectedField, obj *model.Msgchain) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Msgchain_taskId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TaskID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*int64)
+	fc.Result = res
+	return ec.marshalOID2ᚖint64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Msgchain_taskId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Msgchain",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Msgchain_subtaskId(ctx context.Context, field graphql.CollectedField, obj *model.Msgchain) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Msgchain_subtaskId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.SubtaskID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*int64)
+	fc.Result = res
+	return ec.marshalOID2ᚖint64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Msgchain_subtaskId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Msgchain",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Msgchain_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Msgchain) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Msgchain_createdAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CreatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Msgchain_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Msgchain",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
 		},
 	}
 	return fc, nil
@@ -27580,6 +28348,8 @@ func (ec *executionContext) fieldContext_Query_messageLogs(ctx context.Context, 
 				return ec.fieldContext_MessageLog_resultFormat(ctx, field)
 			case "flowId":
 				return ec.fieldContext_MessageLog_flowId(ctx, field)
+			case "agent":
+				return ec.fieldContext_MessageLog_agent(ctx, field)
 			case "taskId":
 				return ec.fieldContext_MessageLog_taskId(ctx, field)
 			case "subtaskId":
@@ -27670,6 +28440,86 @@ func (ec *executionContext) fieldContext_Query_agentLogs(ctx context.Context, fi
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_agentLogs_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_msgchains(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_msgchains(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Msgchains(rctx, fc.Args["flowId"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Msgchain)
+	fc.Result = res
+	return ec.marshalOMsgchain2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐMsgchainᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_msgchains(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Msgchain_id(ctx, field)
+			case "type":
+				return ec.fieldContext_Msgchain_type(ctx, field)
+			case "model":
+				return ec.fieldContext_Msgchain_model(ctx, field)
+			case "modelProvider":
+				return ec.fieldContext_Msgchain_modelProvider(ctx, field)
+			case "usageIn":
+				return ec.fieldContext_Msgchain_usageIn(ctx, field)
+			case "usageOut":
+				return ec.fieldContext_Msgchain_usageOut(ctx, field)
+			case "usageCacheIn":
+				return ec.fieldContext_Msgchain_usageCacheIn(ctx, field)
+			case "usageCacheOut":
+				return ec.fieldContext_Msgchain_usageCacheOut(ctx, field)
+			case "durationSeconds":
+				return ec.fieldContext_Msgchain_durationSeconds(ctx, field)
+			case "flowId":
+				return ec.fieldContext_Msgchain_flowId(ctx, field)
+			case "taskId":
+				return ec.fieldContext_Msgchain_taskId(ctx, field)
+			case "subtaskId":
+				return ec.fieldContext_Msgchain_subtaskId(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Msgchain_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Msgchain", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_msgchains_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -32982,6 +33832,8 @@ func (ec *executionContext) fieldContext_Subscription_messageLogAdded(ctx contex
 				return ec.fieldContext_MessageLog_resultFormat(ctx, field)
 			case "flowId":
 				return ec.fieldContext_MessageLog_flowId(ctx, field)
+			case "agent":
+				return ec.fieldContext_MessageLog_agent(ctx, field)
 			case "taskId":
 				return ec.fieldContext_MessageLog_taskId(ctx, field)
 			case "subtaskId":
@@ -33073,6 +33925,8 @@ func (ec *executionContext) fieldContext_Subscription_messageLogUpdated(ctx cont
 				return ec.fieldContext_MessageLog_resultFormat(ctx, field)
 			case "flowId":
 				return ec.fieldContext_MessageLog_flowId(ctx, field)
+			case "agent":
+				return ec.fieldContext_MessageLog_agent(ctx, field)
 			case "taskId":
 				return ec.fieldContext_MessageLog_taskId(ctx, field)
 			case "subtaskId":
@@ -45075,6 +45929,8 @@ func (ec *executionContext) _MessageLog(ctx context.Context, sel ast.SelectionSe
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "agent":
+			out.Values[i] = ec._MessageLog_agent(ctx, field, obj)
 		case "taskId":
 			out.Values[i] = ec._MessageLog_taskId(ctx, field, obj)
 		case "subtaskId":
@@ -45339,6 +46195,99 @@ func (ec *executionContext) _ModelUsageStats(ctx context.Context, sel ast.Select
 			}
 		case "stats":
 			out.Values[i] = ec._ModelUsageStats_stats(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var msgchainImplementors = []string{"Msgchain"}
+
+func (ec *executionContext) _Msgchain(ctx context.Context, sel ast.SelectionSet, obj *model.Msgchain) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, msgchainImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Msgchain")
+		case "id":
+			out.Values[i] = ec._Msgchain_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "type":
+			out.Values[i] = ec._Msgchain_type(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "model":
+			out.Values[i] = ec._Msgchain_model(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "modelProvider":
+			out.Values[i] = ec._Msgchain_modelProvider(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "usageIn":
+			out.Values[i] = ec._Msgchain_usageIn(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "usageOut":
+			out.Values[i] = ec._Msgchain_usageOut(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "usageCacheIn":
+			out.Values[i] = ec._Msgchain_usageCacheIn(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "usageCacheOut":
+			out.Values[i] = ec._Msgchain_usageCacheOut(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "durationSeconds":
+			out.Values[i] = ec._Msgchain_durationSeconds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "flowId":
+			out.Values[i] = ec._Msgchain_flowId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "taskId":
+			out.Values[i] = ec._Msgchain_taskId(ctx, field, obj)
+		case "subtaskId":
+			out.Values[i] = ec._Msgchain_subtaskId(ctx, field, obj)
+		case "createdAt":
+			out.Values[i] = ec._Msgchain_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -46447,6 +47396,25 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_agentLogs(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "msgchains":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_msgchains(ctx, field)
 				return res
 			}
 
@@ -51077,6 +52045,16 @@ func (ec *executionContext) marshalNModelUsageStats2ᚖpentagiᚋpkgᚋgraphᚋm
 	return ec._ModelUsageStats(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNMsgchain2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐMsgchain(ctx context.Context, sel ast.SelectionSet, v *model.Msgchain) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._Msgchain(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNOpenPortRow2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐOpenPortRowᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.OpenPortRow) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
@@ -52387,6 +53365,22 @@ func (ec *executionContext) marshalOAgentLog2ᚕᚖpentagiᚋpkgᚋgraphᚋmodel
 	return ret
 }
 
+func (ec *executionContext) unmarshalOAgentType2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐAgentType(ctx context.Context, v interface{}) (*model.AgentType, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.AgentType)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOAgentType2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐAgentType(ctx context.Context, sel ast.SelectionSet, v *model.AgentType) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
+}
+
 func (ec *executionContext) marshalOAssistant2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐAssistantᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Assistant) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -53050,6 +54044,53 @@ func (ec *executionContext) marshalOModelReasoningMode2ᚖpentagiᚋpkgᚋgraph�
 		return graphql.Null
 	}
 	return v
+}
+
+func (ec *executionContext) marshalOMsgchain2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐMsgchainᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Msgchain) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNMsgchain2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐMsgchain(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalOPromptValidationErrorType2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐPromptValidationErrorType(ctx context.Context, v interface{}) (*model.PromptValidationErrorType, error) {

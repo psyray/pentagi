@@ -1562,6 +1562,26 @@ func (r *queryResolver) AgentLogs(ctx context.Context, flowID int64) ([]*model.A
 	return converter.ConvertAgentLogs(logs), nil
 }
 
+// Msgchains is the resolver for the msgchains field.
+func (r *queryResolver) Msgchains(ctx context.Context, flowID int64) ([]*model.Msgchain, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "msglogs.view", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+
+	r.Logger.WithFields(logrus.Fields{
+		"uid":  uid,
+		"flow": flowID,
+	}).Debug("get msgchains")
+
+	chains, err := r.DB.GetFlowMsgChains(ctx, flowID)
+	if err != nil {
+		return nil, err
+	}
+
+	return converter.ConvertMsgchains(chains), nil
+}
+
 // SearchLogs is the resolver for the searchLogs field.
 func (r *queryResolver) SearchLogs(ctx context.Context, flowID int64) ([]*model.SearchLog, error) {
 	uid, err := validatePermissionWithFlowID(ctx, "searchlogs.view", flowID, r.DB)
