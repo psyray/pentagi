@@ -3544,6 +3544,9 @@ func (f *fakeDockerClient) ContainerExecInspect(_ context.Context, _ string) (cl
 	}
 	return client.ExecInspectResult{ExitCode: f.execInspectCode}, nil
 }
+func (f *fakeDockerClient) ContainerExecResize(_ context.Context, _ string, _ uint, _ uint) error {
+	return nil
+}
 func (f *fakeDockerClient) ContainerStatPath(_ context.Context, _ string, p string) (container.PathStat, error) {
 	if f.statPathErrMap != nil {
 		if err, ok := f.statPathErrMap[p]; ok {

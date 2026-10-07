@@ -105,6 +105,7 @@ type DockerClient interface {
 	ContainerExecCreate(ctx context.Context, container string, config client.ExecCreateOptions) (client.ExecCreateResult, error)
 	ContainerExecAttach(ctx context.Context, execID string, config client.ExecAttachOptions) (client.HijackedResponse, error)
 	ContainerExecInspect(ctx context.Context, execID string) (client.ExecInspectResult, error)
+	ContainerExecResize(ctx context.Context, execID string, height, width uint) error
 	ContainerStatPath(ctx context.Context, containerID string, path string) (container.PathStat, error)
 	ListContainerDir(ctx context.Context, containerID string, dirPath string) (ContainerDirListing, error)
 	CopyToContainer(ctx context.Context, containerID string, dstPath string, content io.Reader, options client.CopyToContainerOptions) error
@@ -1044,6 +1045,15 @@ func (dc *dockerClient) ContainerExecInspect(
 	execID string,
 ) (client.ExecInspectResult, error) {
 	return dc.client.ExecInspect(ctx, execID, client.ExecInspectOptions{})
+}
+
+func (dc *dockerClient) ContainerExecResize(
+	ctx context.Context,
+	execID string,
+	height, width uint,
+) error {
+	_, err := dc.client.ExecResize(ctx, execID, client.ExecResizeOptions{Height: height, Width: width})
+	return err
 }
 
 func (dc *dockerClient) ContainerStatPath(

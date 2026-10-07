@@ -8,6 +8,7 @@ import FlowFiles from '@/features/flows/files/flow-files';
 import FlowAssistantMessages from '@/features/flows/messages/flow-assistant-messages';
 import FlowAutomationMessages from '@/features/flows/messages/flow-automation-messages';
 import FlowScreenshots from '@/features/flows/screenshots/flow-screenshots';
+import FlowShell from '@/features/flows/shell/flow-shell';
 import FlowTasks from '@/features/flows/tasks/flow-tasks';
 import FlowTerminal from '@/features/flows/terminal/flow-terminal';
 import FlowTools from '@/features/flows/tools/flow-tools';
@@ -45,6 +46,7 @@ function FlowTabs({ activeTab, onTabChange }: FlowTabsProps) {
                         {!isDesktop && <TabsTrigger value="assistant">Assistant</TabsTrigger>}
                         {!isDesktop && <TabsTrigger value="dashboard">Dashboard</TabsTrigger>}
                         <TabsTrigger value="terminal">Terminal</TabsTrigger>
+                        <TabsTrigger value="shell">Shell</TabsTrigger>
                         <TabsTrigger value="tasks">Tasks</TabsTrigger>
                         <TabsTrigger value="agents">Agents</TabsTrigger>
                         <TabsTrigger value="tools">Searches</TabsTrigger>
@@ -86,6 +88,13 @@ function FlowTabs({ activeTab, onTabChange }: FlowTabsProps) {
                 value="terminal"
             >
                 <FlowTerminal />
+            </TabsContent>
+
+            <TabsContent
+                className="mt-1 flex-1 overflow-auto pr-4"
+                value="shell"
+            >
+                <FlowShell />
             </TabsContent>
 
             <TabsContent

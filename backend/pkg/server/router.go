@@ -28,6 +28,7 @@ import (
 	"pentagi/pkg/server/oauth"
 	"pentagi/pkg/server/services"
 	"pentagi/pkg/server/update"
+	"pentagi/pkg/shell"
 	"pentagi/pkg/timezone"
 
 	_ "pentagi/pkg/server/docs" // swagger docs
@@ -235,6 +236,9 @@ func NewRouter(
 	settingsService := services.NewSettingsService(cfg)
 	flowService := services.NewFlowService(orm, db, providers, controller, subscriptions)
 	flowFileService := services.NewFlowFileService(orm, cfg.DataDir, cfg.TenantPrefix(), dockerClient, subscriptions)
+	shellManager := shell.NewManager(dockerClient, cfg.FlowShellMaxTerminals, logrus.StandardLogger())
+	flowShellService := services.NewFlowShellService(
+		orm, cfg.TenantPrefix(), dockerClient, shellManager, cfg.CorsOrigins, cfg.FlowShellEnabled)
 	resourceService := services.NewResourceService(orm, cfg.DataDir, subscriptions)
 	taskService := services.NewTaskService(orm)
 	subtaskService := services.NewSubtaskService(orm)
@@ -347,6 +351,7 @@ func NewRouter(
 		container:    containerService,
 		flow:         flowService,
 		flowFile:     flowFileService,
+		flowShell:    flowShellService,
 		graphql:      graphqlService,
 		knowledge:    knowledgeService,
 		msglog:       msglogService,
@@ -481,6 +486,7 @@ type privateServices struct {
 	container    *services.ContainerService
 	flow         *services.FlowService
 	flowFile     *services.FlowFileService
+	flowShell    *services.FlowShellService
 	graphql      *services.GraphqlService
 	knowledge    *services.KnowledgeService
 	msglog       *services.MsglogService
@@ -519,6 +525,7 @@ func registerPrivateRoutes(tokenTier, userTier *gin.RouterGroup, svc privateServ
 	setSettingsGroup(tokenTier, svc.settings)
 	setFlowsGroup(tokenTier, svc.flow)
 	setFlowFilesGroup(tokenTier, svc.flowFile)
+	setFlowShellGroup(tokenTier, svc.flowShell)
 	setResourcesGroup(tokenTier, svc.resource)
 	setTasksGroup(tokenTier, svc.task)
 	setSubtasksGroup(tokenTier, svc.subtask)
@@ -607,6 +614,16 @@ func setFlowFilesGroup(parent *gin.RouterGroup, svc *services.FlowFileService) {
 		flowFilesGroup.POST("/pull", svc.PullFlowFiles)
 		flowFilesGroup.POST("/resources", svc.AddResourcesToFlow)
 		flowFilesGroup.POST("/to-resources", svc.AddResourceFromFlow)
+	}
+}
+
+func setFlowShellGroup(parent *gin.RouterGroup, svc *services.FlowShellService) {
+	flowShellGroup := parent.Group("/flows/:flowID/shell")
+	{
+		flowShellGroup.GET("/", svc.GetFlowShells)
+		flowShellGroup.POST("/", svc.CreateFlowShell)
+		flowShellGroup.DELETE("/:terminalID", svc.DeleteFlowShell)
+		flowShellGroup.GET("/:terminalID/ws", svc.AttachFlowShell)
 	}
 }
 

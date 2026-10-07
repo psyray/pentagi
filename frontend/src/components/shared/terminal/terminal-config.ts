@@ -17,6 +17,16 @@ export const TERMINAL_OPTIONS: ITerminalOptions = {
     smoothScrollDuration: 0,
 } as const;
 
+// Interactive shells differ from the read-only log terminal: stdin is enabled, a
+// blinking cursor shows where input lands, and line-ending translation is OFF
+// because the PTY already emits CRLF (convertEol would double every newline).
+export const INTERACTIVE_TERMINAL_OPTIONS: ITerminalOptions = {
+    ...TERMINAL_OPTIONS,
+    convertEol: false,
+    cursorBlink: true,
+    disableStdin: false,
+};
+
 const DARK_THEME: ITheme = {
     background: '#050c13',
     black: '#f4f4f5',

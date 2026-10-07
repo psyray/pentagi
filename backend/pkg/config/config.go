@@ -355,6 +355,13 @@ type Config struct {
 	CLMTimeoutSec      int    `env:"CLM_TIMEOUT_SEC" envDefault:"5"`
 	CLMAgents          string `env:"CLM_BEST_OF_N_AGENTS" envDefault:"pentester"`
 
+	// === Flow Shell (interactive terminal into the flow container) ===
+	// FlowShellEnabled exposes the Shell tab: an interactive, user-driven shell
+	// inside a running flow's primary container. FlowShellMaxTerminals caps how
+	// many live shells one flow may hold at once.
+	FlowShellEnabled      bool `env:"FLOW_SHELL_ENABLED" envDefault:"true"`
+	FlowShellMaxTerminals int  `env:"FLOW_SHELL_MAX_TERMINALS" envDefault:"5"`
+
 	// === Database Configuration ===
 	DatabaseURL string `env:"DATABASE_URL" envDefault:"postgres://pentagiuser:pentagipass@pgvector:5432/pentagidb?sslmode=disable"`
 
