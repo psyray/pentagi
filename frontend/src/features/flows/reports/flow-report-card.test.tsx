@@ -1,0 +1,72 @@
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+
+import { ReportStatusType } from '@/graphql/types';
+
+import FlowReportCard from './flow-report-card';
+import { type ReportProgress } from './use-flow-reports';
+
+const base: ReportProgress = {
+    additionalInstructions: null,
+    contentBudgetSeconds: 600,
+    contentUsedSeconds: 88,
+    controlBudgetSeconds: 120,
+    controlUsedSeconds: 7,
+    createdAt: new Date(Date.now() - 120_000).toISOString(),
+    error: null,
+    finishedAt: null,
+    flowId: '10',
+    id: '1',
+    language: 'English',
+    providerName: 'OptimV2 glm-5.3-flash',
+    providerType: 'custom',
+    sectionsDone: 4,
+    sectionsEstimate: 25,
+    sectionsTotal: 25,
+    status: ReportStatusType.Generating,
+    templateKey: 'bundled/pentagi-default-pentest-report',
+    templateLabel: 'PentAGI Penetration Testing Report',
+    title: 'Paperwork report',
+    tokensIn: 152974,
+    tokensOut: 10454,
+    updatedAt: new Date().toISOString(),
+    userId: '1',
+};
+
+const card = (overrides: Partial<ReportProgress> = {}) =>
+    render(
+        <FlowReportCard
+            onDownload={() => {}}
+            onOpen={() => {}}
+            report={{ ...base, ...overrides }}
+        />,
+    );
+
+describe('FlowReportCard', () => {
+    it('shows the running counters and the budget ceiling while generating', () => {
+        card();
+
+        expect(screen.getByText('Paperwork report')).toBeInTheDocument();
+        expect(screen.getByText('4 of 25 sections')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Download report' })).toBeDisabled();
+    });
+
+    it('keeps download disabled until the run has finished', () => {
+        card({ finishedAt: new Date().toISOString(), sectionsDone: 25, status: ReportStatusType.Completed });
+
+        expect(screen.getByText('25 of 25 sections')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Download report' })).toBeEnabled();
+    });
+
+    it('shows the planning state before the planner has run', () => {
+        card({ sectionsEstimate: 0, sectionsTotal: 0 });
+
+        expect(screen.getByText('Planning outline')).toBeInTheDocument();
+    });
+
+    it('renders a failed run with its error line', () => {
+        card({ error: 'planner call failed: boom', status: ReportStatusType.Failed });
+
+        expect(screen.getByText('planner call failed: boom')).toBeInTheDocument();
+    });
+});
