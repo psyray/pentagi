@@ -1,5 +1,5 @@
 import { ChevronDown } from 'lucide-react';
-import { memo, useState } from 'react';
+import { memo } from 'react';
 
 import type { BadgeVariant } from '@/components/ui/badge';
 import type { StatusType } from '@/graphql/types';
@@ -10,9 +10,11 @@ import { StatusType as StatusTypeEnum } from '@/graphql/types';
 import { cn } from '@/lib/utils';
 
 import type { SubtaskGroup } from './flow-automation-groups';
+import type { AutomationAgentState } from './flow-automation-view-state';
 
 import FlowAutomationAgentGroup from './flow-automation-agent-group';
 import FlowAutomationSummary from './flow-automation-summary';
+import { agentStateKey } from './flow-automation-view-state';
 import FlowMessage from './flow-message';
 
 const statusVariants: Record<StatusType, BadgeVariant> = {
@@ -23,25 +25,35 @@ const statusVariants: Record<StatusType, BadgeVariant> = {
     [StatusTypeEnum.Waiting]: 'yellow',
 };
 
+const closedAgentState: AutomationAgentState = { open: false, watched: false };
+
 interface FlowAutomationGroupProps {
+    agentStates: Record<string, AutomationAgentState>;
     group: SubtaskGroup;
+    isOpen: boolean;
+    onAgentStateChange: (agent: string, value: AutomationAgentState) => void;
+    onOpenChange: (open: boolean) => void;
     searchValue?: string;
 }
 
-function FlowAutomationGroup({ group, searchValue = '' }: FlowAutomationGroupProps) {
-    const [isOpen, setIsOpen] = useState(true);
-    // Kept here, not in the agent group, so collapsing the subtask (which unmounts the body)
-    // does not reset each agent's open/watch state.
-    const [agentOpen, setAgentOpen] = useState<Record<string, boolean>>({});
-    const [agentWatched, setAgentWatched] = useState<Record<string, boolean>>({});
-
+function FlowAutomationGroup({
+    agentStates,
+    group,
+    isOpen,
+    onAgentStateChange,
+    onOpenChange,
+    searchValue = '',
+}: FlowAutomationGroupProps) {
     const { subtask } = group;
     const title = subtask?.title || `Subtask ${group.subtaskId}`;
 
-    const toggle = () => setIsOpen(!isOpen);
+    const toggle = () => onOpenChange(!isOpen);
 
     return (
-        <div className="bg-card text-card-foreground max-w-[90%] rounded-xl border shadow-sm">
+        <div
+            className="bg-card text-card-foreground max-w-[90%] rounded-xl border shadow-sm"
+            data-subtask-id={group.subtaskId}
+        >
             <div
                 aria-expanded={isOpen}
                 className="flex w-full cursor-pointer items-start gap-2 p-3 text-left"
@@ -89,20 +101,25 @@ function FlowAutomationGroup({ group, searchValue = '' }: FlowAutomationGroupPro
                             {subtask.description}
                         </Markdown>
                     )}
-                    {group.agentGroups.map((agentGroup) => (
-                        <FlowAutomationAgentGroup
-                            group={agentGroup}
-                            isOpen={agentOpen[agentGroup.agent] ?? false}
-                            isWatched={agentWatched[agentGroup.agent] ?? false}
-                            key={agentGroup.agent}
-                            onOpenChange={(open) => setAgentOpen((prev) => ({ ...prev, [agentGroup.agent]: open }))}
-                            onWatchedChange={(watched) =>
-                                setAgentWatched((prev) => ({ ...prev, [agentGroup.agent]: watched }))
-                            }
-                            searchValue={searchValue}
-                            subtaskTitle={subtask?.title}
-                        />
-                    ))}
+                    {group.agentGroups.map((agentGroup) => {
+                        const key = agentStateKey(group.subtaskId, agentGroup.agent);
+                        const state = agentStates[key] ?? closedAgentState;
+
+                        return (
+                            <FlowAutomationAgentGroup
+                                group={agentGroup}
+                                isOpen={state.open}
+                                isWatched={state.watched}
+                                key={agentGroup.agent}
+                                onOpenChange={(open) => onAgentStateChange(agentGroup.agent, { ...state, open })}
+                                onWatchedChange={(watched) =>
+                                    onAgentStateChange(agentGroup.agent, { ...state, watched })
+                                }
+                                searchValue={searchValue}
+                                subtaskTitle={subtask?.title}
+                            />
+                        );
+                    })}
                     {group.looseLogs.map((log) => (
                         <FlowMessage
                             key={log.id}
