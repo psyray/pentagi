@@ -514,6 +514,7 @@ type ComplexityRoot struct {
 		Assistants                      func(childComplexity int, flowID int64) int
 		Flow                            func(childComplexity int, flowID int64) int
 		FlowFiles                       func(childComplexity int, flowID int64) int
+		FlowLooseMessageLogs            func(childComplexity int, flowID int64) int
 		FlowStatsByFlow                 func(childComplexity int, flowID int64) int
 		FlowTemplate                    func(childComplexity int, templateID int64) int
 		FlowTemplates                   func(childComplexity int) int
@@ -534,6 +535,7 @@ type ComplexityRoot struct {
 		SettingsPrompts                 func(childComplexity int) int
 		SettingsProviders               func(childComplexity int) int
 		SettingsUser                    func(childComplexity int) int
+		SubtaskMessageLogs              func(childComplexity int, flowID int64, subtaskID int64) int
 		Tasks                           func(childComplexity int, flowID int64) int
 		TerminalLogs                    func(childComplexity int, flowID int64) int
 		ToolCallLogs                    func(childComplexity int, flowID int64) int
@@ -838,6 +840,8 @@ type QueryResolver interface {
 	Screenshots(ctx context.Context, flowID int64) ([]*model.Screenshot, error)
 	TerminalLogs(ctx context.Context, flowID int64) ([]*model.TerminalLog, error)
 	MessageLogs(ctx context.Context, flowID int64) ([]*model.MessageLog, error)
+	SubtaskMessageLogs(ctx context.Context, flowID int64, subtaskID int64) ([]*model.MessageLog, error)
+	FlowLooseMessageLogs(ctx context.Context, flowID int64) ([]*model.MessageLog, error)
 	AgentLogs(ctx context.Context, flowID int64) ([]*model.AgentLog, error)
 	Msgchains(ctx context.Context, flowID int64) ([]*model.Msgchain, error)
 	SearchLogs(ctx context.Context, flowID int64) ([]*model.SearchLog, error)
@@ -3421,6 +3425,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.FlowFiles(childComplexity, args["flowId"].(int64)), true
 
+	case "Query.flowLooseMessageLogs":
+		if e.complexity.Query.FlowLooseMessageLogs == nil {
+			break
+		}
+
+		args, err := ec.field_Query_flowLooseMessageLogs_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.FlowLooseMessageLogs(childComplexity, args["flowId"].(int64)), true
+
 	case "Query.flowStatsByFlow":
 		if e.complexity.Query.FlowStatsByFlow == nil {
 			break
@@ -3620,6 +3636,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Query.SettingsUser(childComplexity), true
+
+	case "Query.subtaskMessageLogs":
+		if e.complexity.Query.SubtaskMessageLogs == nil {
+			break
+		}
+
+		args, err := ec.field_Query_subtaskMessageLogs_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.SubtaskMessageLogs(childComplexity, args["flowId"].(int64), args["subtaskId"].(int64)), true
 
 	case "Query.tasks":
 		if e.complexity.Query.Tasks == nil {
@@ -7361,6 +7389,38 @@ func (ec *executionContext) field_Query_flowFiles_argsFlowID(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Query_flowLooseMessageLogs_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Query_flowLooseMessageLogs_argsFlowID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["flowId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_flowLooseMessageLogs_argsFlowID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["flowId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("flowId"))
+	if tmp, ok := rawArgs["flowId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Query_flowStatsByFlow_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -7932,6 +7992,65 @@ func (ec *executionContext) field_Query_searchLogs_argsFlowID(
 
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("flowId"))
 	if tmp, ok := rawArgs["flowId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_subtaskMessageLogs_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Query_subtaskMessageLogs_argsFlowID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["flowId"] = arg0
+	arg1, err := ec.field_Query_subtaskMessageLogs_argsSubtaskID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["subtaskId"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Query_subtaskMessageLogs_argsFlowID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["flowId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("flowId"))
+	if tmp, ok := rawArgs["flowId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_subtaskMessageLogs_argsSubtaskID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["subtaskId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("subtaskId"))
+	if tmp, ok := rawArgs["subtaskId"]; ok {
 		return ec.unmarshalNID2int64(ctx, tmp)
 	}
 
@@ -25684,6 +25803,158 @@ func (ec *executionContext) fieldContext_Query_messageLogs(ctx context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_subtaskMessageLogs(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_subtaskMessageLogs(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().SubtaskMessageLogs(rctx, fc.Args["flowId"].(int64), fc.Args["subtaskId"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.MessageLog)
+	fc.Result = res
+	return ec.marshalOMessageLog2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐMessageLogᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_subtaskMessageLogs(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_MessageLog_id(ctx, field)
+			case "type":
+				return ec.fieldContext_MessageLog_type(ctx, field)
+			case "message":
+				return ec.fieldContext_MessageLog_message(ctx, field)
+			case "thinking":
+				return ec.fieldContext_MessageLog_thinking(ctx, field)
+			case "result":
+				return ec.fieldContext_MessageLog_result(ctx, field)
+			case "resultFormat":
+				return ec.fieldContext_MessageLog_resultFormat(ctx, field)
+			case "flowId":
+				return ec.fieldContext_MessageLog_flowId(ctx, field)
+			case "agent":
+				return ec.fieldContext_MessageLog_agent(ctx, field)
+			case "taskId":
+				return ec.fieldContext_MessageLog_taskId(ctx, field)
+			case "subtaskId":
+				return ec.fieldContext_MessageLog_subtaskId(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_MessageLog_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MessageLog", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_subtaskMessageLogs_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_flowLooseMessageLogs(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_flowLooseMessageLogs(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().FlowLooseMessageLogs(rctx, fc.Args["flowId"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]*model.MessageLog)
+	fc.Result = res
+	return ec.marshalOMessageLog2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐMessageLogᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_flowLooseMessageLogs(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_MessageLog_id(ctx, field)
+			case "type":
+				return ec.fieldContext_MessageLog_type(ctx, field)
+			case "message":
+				return ec.fieldContext_MessageLog_message(ctx, field)
+			case "thinking":
+				return ec.fieldContext_MessageLog_thinking(ctx, field)
+			case "result":
+				return ec.fieldContext_MessageLog_result(ctx, field)
+			case "resultFormat":
+				return ec.fieldContext_MessageLog_resultFormat(ctx, field)
+			case "flowId":
+				return ec.fieldContext_MessageLog_flowId(ctx, field)
+			case "agent":
+				return ec.fieldContext_MessageLog_agent(ctx, field)
+			case "taskId":
+				return ec.fieldContext_MessageLog_taskId(ctx, field)
+			case "subtaskId":
+				return ec.fieldContext_MessageLog_subtaskId(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_MessageLog_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MessageLog", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_flowLooseMessageLogs_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_agentLogs(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Query_agentLogs(ctx, field)
 	if err != nil {
@@ -43032,6 +43303,44 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_messageLogs(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "subtaskMessageLogs":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_subtaskMessageLogs(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "flowLooseMessageLogs":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_flowLooseMessageLogs(ctx, field)
 				return res
 			}
 
