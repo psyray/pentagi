@@ -66,7 +66,7 @@ function FlowReports({ className }: FlowReportsProps) {
     );
 
     return (
-        <div className={`flex size-full flex-col ${className ?? ''}`}>
+        <div className={`flex size-full min-w-0 flex-col ${className ?? ''}`}>
             <div className="flex items-center justify-between gap-2 pb-3">
                 <div className="text-muted-foreground text-sm">
                     {loading ? 'Loading…' : `${reports.length} report${reports.length === 1 ? '' : 's'}`}
@@ -108,8 +108,12 @@ function FlowReports({ className }: FlowReportsProps) {
                     )}
                 </Empty>
             ) : (
-                <ScrollArea className="min-h-0 flex-1 pr-3">
-                    <div className="flex flex-col gap-3 pb-6">
+                <ScrollArea className="min-h-0 min-w-0 flex-1 pr-3 [&_[data-slot=scroll-area-viewport]>div]:block!">
+                    {/* Radix wraps the children in a `display: table` box, which never
+                        shrinks below their min-content: on a narrow panel the card
+                        overflowed and its right side was clipped. Forcing that wrapper
+                        back to a block keeps the content at the viewport width. */}
+                    <div className="flex min-w-0 flex-col gap-3 pb-6">
                         {reports.map((report) => (
                             <FlowReportCard
                                 key={report.id}

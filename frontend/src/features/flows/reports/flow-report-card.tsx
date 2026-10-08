@@ -69,7 +69,7 @@ function FlowReportCard({ onDownload, onOpen, report }: FlowReportCardProps) {
 
     return (
         <Collapsible
-            className="bg-card rounded-lg border p-4"
+            className="bg-card min-w-0 overflow-hidden rounded-lg border p-4"
             onOpenChange={setExpanded}
             open={expanded}
         >
@@ -90,7 +90,7 @@ function FlowReportCard({ onDownload, onOpen, report }: FlowReportCardProps) {
                         {reportStatusIcon(report)}
                         <span className="truncate font-medium">{report.title || 'Untitled report'}</span>
                         <Badge
-                            className="shrink-0 font-mono text-xs"
+                            className="max-w-[45%] shrink-0 truncate font-mono text-xs"
                             variant="secondary"
                         >
                             {report.templateKey.replace(/^.*\//, '')}
@@ -120,8 +120,8 @@ function FlowReportCard({ onDownload, onOpen, report }: FlowReportCardProps) {
                 </div>
             </div>
 
-            <div className="mt-3 flex items-center gap-3">
-                <div className="bg-muted relative h-1.5 min-w-0 flex-1 overflow-hidden rounded-full">
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <div className="bg-muted relative h-1.5 min-w-16 flex-1 overflow-hidden rounded-full">
                     <div
                         className={cn('h-full rounded-full transition-all', active ? 'bg-primary/70' : 'bg-primary')}
                         style={{ width: `${progress}%` }}
@@ -134,8 +134,8 @@ function FlowReportCard({ onDownload, onOpen, report }: FlowReportCardProps) {
                     )}
                 </div>
                 <div className="text-muted-foreground shrink-0 text-right text-xs">
-                    <div className="whitespace-nowrap">{counter}</div>
-                    <div className="flex items-center justify-end gap-1 whitespace-nowrap">
+                    <div>{counter}</div>
+                    <div className="flex items-center justify-end gap-1">
                         <TrendingUp className="size-3" />
                         <span>
                             {formatDuration(tookSeconds)}

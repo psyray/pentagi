@@ -23,7 +23,7 @@ function FlowReportSectionRow({ depth, node }: { depth: number; node: ReportOutl
     return (
         <>
             <div
-                className="flex items-center gap-2 text-xs"
+                className="flex min-w-0 items-center gap-2 text-xs"
                 style={{ paddingLeft: `${8 + depth * 14}px` }}
             >
                 <span className="text-muted-foreground w-6 shrink-0 text-right font-mono">
@@ -83,7 +83,7 @@ function FlowReportSections({ reportId }: FlowReportSectionsProps) {
     }
 
     return (
-        <div className="flex flex-col gap-1 px-1 py-2">
+        <div className="flex min-w-0 flex-col gap-1 px-1 py-2">
             {outline.map((node) => (
                 <FlowReportSectionRow
                     depth={0}
