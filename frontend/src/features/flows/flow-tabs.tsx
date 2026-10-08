@@ -8,6 +8,7 @@ import FlowDashboard from '@/features/flows/dashboard/flow-dashboard';
 import FlowFiles from '@/features/flows/files/flow-files';
 import FlowAssistantMessages from '@/features/flows/messages/flow-assistant-messages';
 import FlowAutomationMessages from '@/features/flows/messages/flow-automation-messages';
+import FlowReportingTab from '@/features/flows/reports/flow-reporting-tab';
 import FlowReports from '@/features/flows/reports/flow-reports';
 import FlowScreenshots from '@/features/flows/screenshots/flow-screenshots';
 import FlowShell from '@/features/flows/shell/flow-shell';
@@ -49,6 +50,7 @@ function FlowTabs({ activeTab, onTabChange }: FlowTabsProps) {
                         {!isDesktop && <TabsTrigger value="dashboard">Dashboard</TabsTrigger>}
                         {!isDesktop && <TabsTrigger value="automation">Automation</TabsTrigger>}
                         {!isDesktop && <TabsTrigger value="assistant">Assistant</TabsTrigger>}
+                        {!isDesktop && <TabsTrigger value="reporting">Reporting</TabsTrigger>}
                         <TabsTrigger value="terminal">Terminal</TabsTrigger>
                         <TabsTrigger value="shell">Shell</TabsTrigger>
                         <TabsTrigger value="tasks">Tasks</TabsTrigger>
@@ -77,6 +79,14 @@ function FlowTabs({ activeTab, onTabChange }: FlowTabsProps) {
                     value="assistant"
                 >
                     <FlowAssistantMessages className="pr-4" />
+                </TabsContent>
+            )}
+            {!isDesktop && (
+                <TabsContent
+                    className="mt-1 flex min-h-0 flex-1 flex-col overflow-hidden pr-4"
+                    value="reporting"
+                >
+                    <FlowReportingTab />
                 </TabsContent>
             )}
             {!isDesktop && (

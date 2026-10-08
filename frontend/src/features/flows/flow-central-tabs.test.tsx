@@ -16,6 +16,10 @@ vi.mock('@/features/flows/messages/flow-assistant-messages', () => ({
 vi.mock('@/features/flows/messages/flow-automation-messages', () => ({
     default: () => <div data-slot="panel-automation" />,
 }));
+// The real tab talks to Apollo; the strip behaviour under test does not.
+vi.mock('@/features/flows/reports/flow-reporting-tab', () => ({
+    default: () => <div data-slot="panel-reporting" />,
+}));
 
 import FlowCentralTabs from './flow-central-tabs';
 
@@ -52,7 +56,8 @@ describe('FlowCentralTabs', () => {
         await userEvent.tab();
         expect(screen.getByRole('tab', { name: 'Automation' })).toHaveFocus();
 
-        await userEvent.keyboard('{ArrowRight}{ArrowRight}');
+        // Automation -> Assistant -> Reporting -> Dashboard.
+        await userEvent.keyboard('{ArrowRight}{ArrowRight}{ArrowRight}');
 
         expect(screen.getByRole('tab', { name: 'Dashboard' })).toHaveFocus();
         expect(search()).toContain('tab=automation');
@@ -64,9 +69,15 @@ describe('FlowCentralTabs', () => {
         renderTabs('/flows/1?tab=automation');
 
         await userEvent.tab();
-        await userEvent.keyboard('{ArrowRight}{ArrowRight}{Enter}');
+        await userEvent.keyboard('{ArrowRight}{ArrowRight}{ArrowRight}{Enter}');
 
         expect(search()).toContain('tab=dashboard');
         expect(screen.getByTestId('panel-dashboard')).toBeInTheDocument();
+    });
+
+    it('opens the reporting console when the reader asks for it', async () => {
+        renderTabs('/flows/1?tab=reporting');
+
+        expect(screen.getByTestId('panel-reporting')).toBeInTheDocument();
     });
 });
