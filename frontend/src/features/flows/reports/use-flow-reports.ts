@@ -17,6 +17,7 @@ export interface CreateReportInput {
     additionalInstructions?: null | string;
     contentBudgetSeconds?: null | number;
     controlBudgetSeconds?: null | number;
+    language?: null | string;
     providerName?: null | string;
     templateKey?: null | string;
     title?: null | string;

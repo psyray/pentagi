@@ -1329,6 +1329,7 @@ func (r *mutationResolver) CreateReport(ctx context.Context, flowID int64, input
 		TemplateKey:            deref(input.TemplateKey),
 		ProviderName:           deref(input.ProviderName),
 		Title:                  deref(input.Title),
+		Language:               deref(input.Language),
 		AdditionalInstructions: deref(input.AdditionalInstructions),
 		ControlBudgetSeconds:   derefInt(input.ControlBudgetSeconds),
 		ContentBudgetSeconds:   derefInt(input.ContentBudgetSeconds),
@@ -3413,57 +3414,3 @@ func (r *Resolver) Subscription() SubscriptionResolver { return &subscriptionRes
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type subscriptionResolver struct{ *Resolver }
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//    it when you're done.
-//  - You have helper methods in this file. Move them out to keep these resolver files clean.
-/*
-	func validateReport(
-	ctx context.Context,
-	reports controller.ReportController,
-	reportID int64,
-) (int64, error) {
-	uid, _, err := validatePermission(ctx, "flows.read")
-	if err != nil {
-		return 0, err
-	}
-
-	if _, err := reports.GetReport(ctx, uid, reportID); err != nil {
-		return 0, err
-	}
-
-	return uid, nil
-}
-func validateReportRow(
-	ctx context.Context,
-	reports controller.ReportController,
-	reportID int64,
-) (int64, *database.Report, error) {
-	uid, _, err := validatePermission(ctx, "flows.read")
-	if err != nil {
-		return 0, nil, err
-	}
-
-	report, err := reports.GetReport(ctx, uid, reportID)
-	if err != nil {
-		return 0, nil, err
-	}
-
-	return uid, report, nil
-}
-func deref(value *string) string {
-	if value == nil {
-		return ""
-	}
-	return *value
-}
-func derefInt(value *int) int {
-	if value == nil {
-		return 0
-	}
-	return *value
-}
-*/

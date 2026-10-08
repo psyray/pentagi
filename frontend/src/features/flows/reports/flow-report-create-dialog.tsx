@@ -27,10 +27,16 @@ import { type CreateReportInput, type ReportProgress } from './use-flow-reports'
 const DEFAULT_TEMPLATE_KEY = 'pentagi-default-pentest-report';
 const DEFAULT_TEMPLATE_LABEL = 'PentAGI Penetration Testing Report (Default)';
 
+// Free text on purpose (plan § 6.11): the language is handed to the model as
+// words, not an IETF code. The suggestions are only a convenience, and leaving
+// the field empty falls back to the flow's own language.
+const LANGUAGE_SUGGESTIONS = ['English', 'Français', 'Deutsch', 'Español', 'Italiano', 'Português', 'Nederlands'];
+
 const createFormSchema = z.object({
     additionalInstructions: z.string().max(4000),
     contentBudgetSeconds: z.string(),
     controlBudgetSeconds: z.string(),
+    language: z.string().max(64),
     providerName: z.string(),
     templateKey: z.string(),
     title: z.string().max(256),
@@ -62,6 +68,7 @@ function FlowReportCreateDialog({
             additionalInstructions: '',
             contentBudgetSeconds: '',
             controlBudgetSeconds: '',
+            language: '',
             providerName: '',
             templateKey: DEFAULT_TEMPLATE_KEY,
             title: '',
@@ -83,6 +90,7 @@ function FlowReportCreateDialog({
                 additionalInstructions: values.additionalInstructions.trim() || null,
                 contentBudgetSeconds: budget(values.contentBudgetSeconds),
                 controlBudgetSeconds: budget(values.controlBudgetSeconds),
+                language: values.language.trim() || null,
                 providerName: values.providerName || null,
                 templateKey: values.templateKey || null,
                 title: values.title.trim() || null,
@@ -212,6 +220,36 @@ function FlowReportCreateDialog({
                                             value={field.value ?? ''}
                                         />
                                     </FormControl>
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="language"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Language</FormLabel>
+                                    <FormControl>
+                                        <Input
+                                            {...field}
+                                            list="report-language-suggestions"
+                                            placeholder="The engagement's own language"
+                                            value={field.value ?? ''}
+                                        />
+                                    </FormControl>
+                                    <datalist id="report-language-suggestions">
+                                        {LANGUAGE_SUGGESTIONS.map((language) => (
+                                            <option
+                                                key={language}
+                                                value={language}
+                                            />
+                                        ))}
+                                    </datalist>
+                                    <p className="text-muted-foreground text-xs">
+                                        The agent writes the whole document (template and content) in that language.
+                                        Empty keeps the engagement&apos;s own language, English by default.
+                                    </p>
                                 </FormItem>
                             )}
                         />
