@@ -142,6 +142,9 @@ type Config struct {
 	ReportContentBudgetSec     int  `env:"REPORT_CONTENT_NODE_BUDGET_SECONDS" envDefault:"3600"`
 	ReportStreamIntervalMs     int  `env:"REPORT_STREAM_INTERVAL_MS" envDefault:"1500"`
 	ReportMaxRecordBytes       int  `env:"REPORT_MAX_RECORD_BYTES" envDefault:"196608"`
+	ReportEvidenceItemBytes    int  `env:"REPORT_EVIDENCE_ITEM_BYTES" envDefault:"4000"`
+	ReportEvidenceMaxItems     int  `env:"REPORT_EVIDENCE_MAX_ITEMS" envDefault:"40"`
+	ReportEvidenceMaxBytes     int  `env:"REPORT_EVIDENCE_MAX_BYTES" envDefault:"48000"`
 	ReportMaxConcurrentPerFlow int  `env:"REPORT_MAX_CONCURRENT_PER_FLOW" envDefault:"3"`
 
 	// === LLM Provider: Custom/Self-Hosted ===

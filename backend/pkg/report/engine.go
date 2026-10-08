@@ -95,13 +95,14 @@ type planSection struct {
 }
 
 type planChild struct {
-	Key          string `json:"key,omitempty"`
-	Title        string `json:"title"`
-	Action       string `json:"action,omitempty"`
-	Summary      string `json:"summary,omitempty"`
-	Warning      string `json:"warning,omitempty"`
-	Instructions string `json:"instructions,omitempty"`
-	Length       string `json:"length,omitempty"`
+	Key              string  `json:"key,omitempty"`
+	Title            string  `json:"title"`
+	Action           string  `json:"action,omitempty"`
+	Summary          string  `json:"summary,omitempty"`
+	Warning          string  `json:"warning,omitempty"`
+	Instructions     string  `json:"instructions,omitempty"`
+	Length           string  `json:"length,omitempty"`
+	SourceSubtaskIDs []int64 `json:"source_subtask_ids,omitempty"`
 }
 
 func (p *plan) Validate() error {
@@ -510,7 +511,7 @@ func (w *worker) applyPlan(ctx context.Context, got plan, sections []database.Re
 			if strings.TrimSpace(child.Key) == "" {
 				child.Key = "child-" + outlineSlug(child.Title)
 			}
-			if _, err := w.deps.DB.CreateReportSection(ctx, database.CreateReportSectionParams{
+			created, err := w.deps.DB.CreateReportSection(ctx, database.CreateReportSectionParams{
 				ReportID:     w.report.ID,
 				ParentID:     database.Int64ToNullInt64(&st.ID),
 				Position:     int32(inserted + 1),
@@ -518,8 +519,12 @@ func (w *worker) applyPlan(ctx context.Context, got plan, sections []database.Re
 				Kind:         KindLLM,
 				Title:        child.Title,
 				Instructions: nullInstructionText(planChildInstructions(child)),
-			}); err != nil {
+			})
+			if err != nil {
 				return fmt.Errorf("failed to insert child %q under %s: %w", child.Title, st.Key, err)
+			}
+			if err := w.setSectionSources(ctx, created.ID, child.SourceSubtaskIDs); err != nil {
+				return fmt.Errorf("failed to record sources for child %q: %w", child.Title, err)
 			}
 			inserted++
 		}
@@ -568,6 +573,11 @@ func (w *worker) applyPlan(ctx context.Context, got plan, sections []database.Re
 				ID: alt.ID, Status: status,
 			}); err != nil {
 				return fmt.Errorf("failed to resolve alternative %q: %w", alt.Key, err)
+			}
+			if !skip {
+				if err := w.setSectionSources(ctx, alt.ID, childSources(children, alt.Key)); err != nil {
+					return fmt.Errorf("failed to record sources for alternative %q: %w", alt.Key, err)
+				}
 			}
 		}
 	}
@@ -659,6 +669,29 @@ func outlineSlug(title string) string {
 		}
 	}
 	return strings.Trim(slug.String(), "-")
+}
+
+func childSources(children []planChild, key string) []int64 {
+	for _, child := range children {
+		if child.Key == key {
+			return child.SourceSubtaskIDs
+		}
+	}
+	return nil
+}
+
+// setSectionSources records the finding-to-subtask mapping the curator uses to
+// assemble the section's evidence pack.
+func (w *worker) setSectionSources(ctx context.Context, sectionID int64, sources []int64) error {
+	if len(sources) == 0 {
+		return nil
+	}
+	if _, err := w.deps.DB.SetReportSectionSources(ctx, database.SetReportSectionSourcesParams{
+		ID: sectionID, SourceSubtaskIds: sources,
+	}); err != nil {
+		return err
+	}
+	return nil
 }
 
 func planChildInstructions(child planChild) string {
@@ -817,6 +850,7 @@ func (w *worker) writeSection(ctx context.Context, st database.ReportSection) er
 	}
 
 	sectionContext := w.sectionContext(st)
+	evidenceText, evidenceCandidates := w.evidenceFor(ctx, st)
 
 	if w.digest == "" {
 		digest, _, err := buildDigest(ctx, w.deps.DB, w.deps.Cfg.ReportMaxRecordBytes, w.report.FlowID)
@@ -834,6 +868,7 @@ func (w *worker) writeSection(ctx context.Context, st database.ReportSection) er
 		"Outline":                w.outlineText(),
 		"Record":                 w.digest,
 		"SectionContext":         sectionContext,
+		"Evidence":               evidenceText,
 		"SectionKey":             st.Key,
 		"SectionTitle":           st.Title,
 		"SectionInstructions":    node.Instructions,
@@ -950,6 +985,7 @@ func (w *worker) writeSection(ctx context.Context, st database.ReportSection) er
 		return fmt.Errorf("failed to persist final section content: %w", err)
 	}
 	_ = row
+	w.persistEvidence(st, content, evidenceCandidates)
 	w.bumpDone()
 	w.putLog(LogSection, fmt.Sprintf("Section %q written (%s)", st.Title,
 		humanDuration(contentSeconds)), map[string]any{
@@ -1038,6 +1074,61 @@ func (w *worker) outlineText() string {
 		return ""
 	}
 	return renderOutline(sections, false)
+}
+
+// evidenceFor assembles the section's evidence pack from the subtasks the
+// planner mapped it to. It returns the prompt text and the candidate list used
+// later to resolve the writer's citations into the archive manifest.
+func (w *worker) evidenceFor(ctx context.Context, st database.ReportSection) (string, []EvidenceRef) {
+	if len(st.SourceSubtaskIds) == 0 {
+		return "", nil
+	}
+	pack, candidates, err := buildEvidencePack(ctx, w.deps.DB, st.SourceSubtaskIds, w.evidenceCaps())
+	if err != nil {
+		w.logger.WithError(err).Warn("failed to build the evidence pack")
+		return "", nil
+	}
+	if pack != "" {
+		w.putLog(LogControl, fmt.Sprintf("evidence pack for %q (%d candidates)", st.Title, len(candidates)), map[string]any{
+			"section_id": st.ID, "key": st.Key, "candidates": len(candidates), "bytes": len(pack),
+		})
+	}
+	return pack, candidates
+}
+
+func (w *worker) evidenceCaps() EvidenceCaps {
+	caps := EvidenceCaps{}
+	if w.deps.Cfg != nil {
+		caps.ItemBytes = w.deps.Cfg.ReportEvidenceItemBytes
+		caps.MaxItems = w.deps.Cfg.ReportEvidenceMaxItems
+		caps.PackBytes = w.deps.Cfg.ReportEvidenceMaxBytes
+	}
+	return caps
+}
+
+// persistEvidence resolves the writer's [Ex] citations into the manifest the
+// archive bundles; a section that cited nothing keeps an empty manifest.
+func (w *worker) persistEvidence(st database.ReportSection, content string, candidates []EvidenceRef) {
+	if len(candidates) == 0 {
+		return
+	}
+	refs := resolveCitations(content, candidates)
+	blob, err := encodeEvidenceRefs(refs)
+	if err != nil {
+		w.logger.WithError(err).Warn("failed to encode the evidence manifest")
+		return
+	}
+	if _, err := w.deps.DB.SetReportSectionEvidence(w.stateCtx, database.SetReportSectionEvidenceParams{
+		ID: st.ID, EvidenceRefs: blob,
+	}); err != nil {
+		w.logger.WithError(err).Warn("failed to persist the evidence manifest")
+		return
+	}
+	if len(refs) > 0 {
+		w.putLog(LogSection, fmt.Sprintf("Section %q cites %d evidence items", st.Title, len(refs)), map[string]any{
+			"section_id": st.ID, "key": st.Key, "cited": len(refs),
+		})
+	}
 }
 
 // sectionContext is the per-section extra context (v1 keeps it empty for
