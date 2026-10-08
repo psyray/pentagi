@@ -9,6 +9,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/sqlc-dev/pqtype"
@@ -1062,6 +1063,18 @@ type Report struct {
 	UpdatedAt              sql.NullTime          `json:"updated_at"`
 	FinishedAt             sql.NullTime          `json:"finished_at"`
 	Labels                 pqtype.NullRawMessage `json:"labels"`
+	BrandingTitle          sql.NullString        `json:"branding_title"`
+	BrandingSubtitle       sql.NullString        `json:"branding_subtitle"`
+	BrandingHeader         sql.NullString        `json:"branding_header"`
+	BrandingFooter         sql.NullString        `json:"branding_footer"`
+}
+
+type ReportBrandingLogo struct {
+	ReportID  int64     `json:"report_id"`
+	Data      []byte    `json:"data"`
+	Name      string    `json:"name"`
+	MediaType string    `json:"media_type"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type ReportLog struct {

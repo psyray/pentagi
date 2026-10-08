@@ -636,6 +636,7 @@ func setReportArchiveGroup(parent *gin.RouterGroup, svc *services.ReportArchiveS
 	reportGroup := parent.Group("/flows/:flowID/reports")
 	{
 		reportGroup.GET("/:reportID/archive", svc.ArchiveReport)
+		reportGroup.GET("/:reportID/branding/logo", svc.ReportBrandingLogo)
 	}
 }
 

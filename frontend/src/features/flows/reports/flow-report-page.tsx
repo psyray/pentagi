@@ -14,6 +14,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { ReportSectionStatusType } from '@/graphql/types';
 import { routes } from '@/lib/routes';
 
+import FlowReportBranding from './flow-report-branding';
 import FlowReportDownload from './flow-report-download';
 import FlowReportRun from './flow-report-run';
 import FlowReportSection from './flow-report-section';
@@ -132,6 +133,11 @@ function FlowReportPage() {
                             activeSectionId={activeSectionId}
                             onSelectSection={handleSelectSection}
                             outline={outline}
+                        />
+
+                        <FlowReportBranding
+                            flowId={flowId ?? null}
+                            reportId={reportId || null}
                         />
                     </aside>
 

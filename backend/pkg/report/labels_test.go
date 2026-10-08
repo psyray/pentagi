@@ -70,10 +70,11 @@ func TestRenderLabelKeepsUnknownPlaceholders(t *testing.T) {
 
 func TestComposeDocumentLocalizesComposedSections(t *testing.T) {
 	report := reportWithLabels(t, map[string]string{
-		"cover.generated":    "Généré le [[date]].",
-		"metrics.took":       "Durée",
-		"metrics.sections":   "Sections écrites",
-		"header_footer.line": "En-tête : \"[[title]]\" | Pied : \"PentAGI · [[date]]\"",
+		"cover.generated":           "Généré le [[date]].",
+		"header_footer.footer_text": "Généré par PentAGI · [[date]]",
+		"header_footer.line":        "En-tête : \"[[header]]\" | Pied : \"[[footer]]\"",
+		"metrics.sections":          "Sections écrites",
+		"metrics.took":              "Durée",
 	})
 	sections := []database.ReportSection{
 		composedSection(1, "cover-page", "Page de couverture", 1),

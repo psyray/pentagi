@@ -1,7 +1,8 @@
-import { Document, Font, Page, pdf, StyleSheet, Text, View } from '@react-pdf/renderer';
+import { Document, Font, Image, Page, pdf, StyleSheet, Text, View } from '@react-pdf/renderer';
 import { marked } from 'marked';
 
 import { Log } from '@/lib/log';
+import { resolvePageTokens } from '@/lib/report/report-branding';
 
 import { ReportPaginator } from './report-pagination';
 
@@ -205,6 +206,10 @@ const pdfStyles = StyleSheet.create({
         marginBottom: 4,
         marginLeft: 16,
     },
+    logo: {
+        marginBottom: 12,
+        width: 150,
+    },
     page: {
         backgroundColor: '#ffffff',
         color: '#334155',
@@ -212,6 +217,24 @@ const pdfStyles = StyleSheet.create({
         fontSize: 10,
         lineHeight: 1.5,
         padding: 40,
+    },
+    pageFooter: {
+        bottom: 18,
+        color: '#94a3b8',
+        fontSize: 8,
+        left: 40,
+        position: 'absolute',
+        right: 40,
+        textAlign: 'center',
+    },
+    pageHeader: {
+        color: '#94a3b8',
+        fontSize: 8,
+        left: 40,
+        position: 'absolute',
+        right: 40,
+        textAlign: 'center',
+        top: 18,
     },
     paragraph: {
         color: '#475569',
@@ -630,12 +653,25 @@ const renderPDFContent = (parsed: ParsedContent[], paginate: boolean) => {
     return elements;
 };
 
+export interface PdfBranding {
+    footer?: string;
+    header?: string;
+    logo?: null | PdfBrandingLogo;
+}
+
+// The export branding the PDF carries: the cover logo and the page
+// header/footer repeated on every page.
+export interface PdfBrandingLogo {
+    dataUrl: string;
+}
+
 interface PDFReportDocumentProps {
+    branding?: PdfBranding;
     content: string;
     paginateSections?: boolean;
 }
 
-function PDFReportDocument({ content, paginateSections = false }: PDFReportDocumentProps) {
+function PDFReportDocument({ branding, content, paginateSections = false }: PDFReportDocumentProps) {
     const parsed = parseMarkdownTokens(content);
     const elements = renderPDFContent(parsed, paginateSections);
 
@@ -645,7 +681,31 @@ function PDFReportDocument({ content, paginateSections = false }: PDFReportDocum
                 size="A4"
                 style={pdfStyles.page}
             >
+                {branding?.logo && (
+                    <Image
+                        src={branding.logo.dataUrl}
+                        style={pdfStyles.logo}
+                    />
+                )}
                 {elements}
+                {branding?.header && (
+                    <Text
+                        fixed
+                        render={({ pageNumber, totalPages }) =>
+                            resolvePageTokens(branding.header ?? '', pageNumber, totalPages)
+                        }
+                        style={pdfStyles.pageHeader}
+                    />
+                )}
+                {branding?.footer && (
+                    <Text
+                        fixed
+                        render={({ pageNumber, totalPages }) =>
+                            resolvePageTokens(branding.footer ?? '', pageNumber, totalPages)
+                        }
+                        style={pdfStyles.pageFooter}
+                    />
+                )}
             </Page>
         </Document>
     );
@@ -654,13 +714,14 @@ function PDFReportDocument({ content, paginateSections = false }: PDFReportDocum
 export const generatePDFFromMarkdownNew = async (
     content: string,
     fileName: string,
-    options?: { paginateSections?: boolean },
+    options?: { branding?: PdfBranding; paginateSections?: boolean },
 ): Promise<void> => {
     try {
         ensureFonts(content);
 
         const doc = (
             <PDFReportDocument
+                branding={options?.branding}
                 content={content}
                 paginateSections={options?.paginateSections}
             />

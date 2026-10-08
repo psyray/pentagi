@@ -130,6 +130,10 @@ var ErrFlowFilesInvalidData = NewHttpError(400, "FlowFiles.InvalidData", "invali
 var ErrFlowFilesAlreadyExists = NewHttpError(409, "FlowFiles.AlreadyExists", "flow file already exists")
 var ErrFlowFilesContainerNotRunning = NewHttpError(400, "FlowFiles.ContainerNotRunning", "container is not running")
 
+// report branding
+
+var ErrReportBrandingNotFound = NewHttpError(404, "ReportBranding.NotFound", "report branding logo not found")
+
 // tasks
 
 var ErrTasksInvalidRequest = NewHttpError(400, "Tasks.InvalidRequest", "invalid task request data")

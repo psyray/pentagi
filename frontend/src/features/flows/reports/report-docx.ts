@@ -2,9 +2,13 @@ import {
     AlignmentType,
     BorderStyle,
     Document,
+    Footer,
+    Header,
     HeadingLevel,
+    ImageRun,
     LevelFormat,
     Packer,
+    PageNumber,
     Paragraph,
     ShadingType,
     Table,
@@ -16,6 +20,7 @@ import {
 } from 'docx';
 import { marked } from 'marked';
 
+import { splitPageTokens } from '@/lib/report/report-branding';
 import { headingKind, ReportPaginator } from '@/lib/report/report-pagination';
 
 export type DocxBlock =
@@ -330,7 +335,61 @@ export const renderDocxBlocks = (blocks: readonly DocxBlock[]): DocxChild[] => {
     return out;
 };
 
-export const markdownToDocxBlob = async (markdown: string): Promise<Blob> => {
+export interface DocxBranding {
+    footer?: string;
+    header?: string;
+    logo?: DocxBrandingLogo | null;
+}
+
+// The export branding the Word document carries: the logo on the cover and the
+// page header/footer. The cover's title and subtitle come from the document
+// itself (composed server-side), so they are not repeated here.
+export interface DocxBrandingLogo {
+    dataUrl: string;
+    height: number;
+    width: number;
+}
+
+const brandingRuns = (text: string): TextRun[] =>
+    splitPageTokens(text).map((token) => {
+        if (token.kind === 'page') {
+            return new TextRun({ children: [PageNumber.CURRENT] });
+        }
+
+        if (token.kind === 'pages') {
+            return new TextRun({ children: [PageNumber.TOTAL_PAGES] });
+        }
+
+        return new TextRun(token.value);
+    });
+
+const brandingParagraph = (text: string): Paragraph =>
+    new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: brandingRuns(text),
+        spacing: { after: 0, before: 0 },
+    });
+
+const logoParagraph = (logo: DocxBrandingLogo): Paragraph =>
+    new Paragraph({
+        alignment: AlignmentType.LEFT,
+        children: [
+            new ImageRun({
+                data: logo.dataUrl,
+                transformation: { height: logo.height, width: logo.width },
+                type: logo.dataUrl.startsWith('data:image/jpeg') ? 'jpg' : 'png',
+            }),
+        ],
+        spacing: { after: 240 },
+    });
+
+export const markdownToDocxBlob = async (markdown: string, branding?: DocxBranding): Promise<Blob> => {
+    const children = renderDocxBlocks(parseReportMarkdown(markdown));
+
+    if (branding?.logo) {
+        children.unshift(logoParagraph(branding.logo));
+    }
+
     const doc = new Document({
         features: { updateFields: true },
         numbering: {
@@ -351,7 +410,13 @@ export const markdownToDocxBlob = async (markdown: string): Promise<Blob> => {
         },
         sections: [
             {
-                children: renderDocxBlocks(parseReportMarkdown(markdown)),
+                children,
+                footers: branding?.footer
+                    ? { default: new Footer({ children: [brandingParagraph(branding.footer)] }) }
+                    : undefined,
+                headers: branding?.header
+                    ? { default: new Header({ children: [brandingParagraph(branding.header)] }) }
+                    : undefined,
                 properties: { page: { margin: { bottom: 1134, left: 1134, right: 1134, top: 1134 } } },
             },
         ],

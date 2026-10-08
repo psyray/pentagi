@@ -497,6 +497,7 @@ type ComplexityRoot struct {
 		UpdateKnowledgeDocument func(childComplexity int, id string, input model.UpdateKnowledgeDocumentInput) int
 		UpdatePrompt            func(childComplexity int, promptID int64, template string) int
 		UpdateProvider          func(childComplexity int, providerID int64, name string, agents model.AgentsConfig) int
+		UpdateReportBranding    func(childComplexity int, reportID int64, input model.ReportBrandingInput) int
 		UpdateReportSection     func(childComplexity int, reportID int64, sectionID int64, input model.ReportSectionInput) int
 		ValidatePrompt          func(childComplexity int, typeArg model.PromptType, template string) int
 	}
@@ -630,6 +631,7 @@ type ComplexityRoot struct {
 		Msgchains                       func(childComplexity int, flowID int64) int
 		Providers                       func(childComplexity int) int
 		Report                          func(childComplexity int, reportID int64) int
+		ReportBranding                  func(childComplexity int, reportID int64) int
 		ReportDocument                  func(childComplexity int, reportID int64) int
 		ReportLogs                      func(childComplexity int, reportID int64, limit *int) int
 		ReportSections                  func(childComplexity int, reportID int64) int
@@ -695,6 +697,20 @@ type ComplexityRoot struct {
 		TokensOut              func(childComplexity int) int
 		UpdatedAt              func(childComplexity int) int
 		UserID                 func(childComplexity int) int
+	}
+
+	ReportBranding struct {
+		Footer           func(childComplexity int) int
+		HasLogo          func(childComplexity int) int
+		Header           func(childComplexity int) int
+		LogoMediaType    func(childComplexity int) int
+		LogoName         func(childComplexity int) int
+		ResolvedFooter   func(childComplexity int) int
+		ResolvedHeader   func(childComplexity int) int
+		ResolvedSubtitle func(childComplexity int) int
+		ResolvedTitle    func(childComplexity int) int
+		Subtitle         func(childComplexity int) int
+		Title            func(childComplexity int) int
 	}
 
 	ReportLog struct {
@@ -1045,6 +1061,7 @@ type MutationResolver interface {
 	DeleteKnowledgeDocument(ctx context.Context, id string) (model.ResultType, error)
 	AnonymizeText(ctx context.Context, text string) (string, error)
 	CreateReport(ctx context.Context, flowID int64, input model.CreateReportInput) (*model.Report, error)
+	UpdateReportBranding(ctx context.Context, reportID int64, input model.ReportBrandingInput) (*model.ReportBranding, error)
 	PutReportNote(ctx context.Context, reportID int64, note string) (model.ResultType, error)
 	StopReport(ctx context.Context, reportID int64) (model.ResultType, error)
 	DeleteReport(ctx context.Context, reportID int64) (model.ResultType, error)
@@ -1123,6 +1140,7 @@ type QueryResolver interface {
 	ReportLogs(ctx context.Context, reportID int64, limit *int) ([]*model.ReportLog, error)
 	ReportDocument(ctx context.Context, reportID int64) (string, error)
 	ReportVision(ctx context.Context, flowID int64, providerName *string) (*model.ReportVision, error)
+	ReportBranding(ctx context.Context, reportID int64) (*model.ReportBranding, error)
 }
 type SubscriptionResolver interface {
 	FlowCreated(ctx context.Context) (<-chan *model.Flow, error)
@@ -3545,6 +3563,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.UpdateProvider(childComplexity, args["providerId"].(int64), args["name"].(string), args["agents"].(model.AgentsConfig)), true
 
+	case "Mutation.updateReportBranding":
+		if e.complexity.Mutation.UpdateReportBranding == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateReportBranding_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateReportBranding(childComplexity, args["reportId"].(int64), args["input"].(model.ReportBrandingInput)), true
+
 	case "Mutation.updateReportSection":
 		if e.complexity.Mutation.UpdateReportSection == nil {
 			break
@@ -4400,6 +4430,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.Report(childComplexity, args["reportId"].(int64)), true
 
+	case "Query.reportBranding":
+		if e.complexity.Query.ReportBranding == nil {
+			break
+		}
+
+		args, err := ec.field_Query_reportBranding_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.ReportBranding(childComplexity, args["reportId"].(int64)), true
+
 	case "Query.reportDocument":
 		if e.complexity.Query.ReportDocument == nil {
 			break
@@ -4917,6 +4959,83 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Report.UserID(childComplexity), true
+
+	case "ReportBranding.footer":
+		if e.complexity.ReportBranding.Footer == nil {
+			break
+		}
+
+		return e.complexity.ReportBranding.Footer(childComplexity), true
+
+	case "ReportBranding.hasLogo":
+		if e.complexity.ReportBranding.HasLogo == nil {
+			break
+		}
+
+		return e.complexity.ReportBranding.HasLogo(childComplexity), true
+
+	case "ReportBranding.header":
+		if e.complexity.ReportBranding.Header == nil {
+			break
+		}
+
+		return e.complexity.ReportBranding.Header(childComplexity), true
+
+	case "ReportBranding.logoMediaType":
+		if e.complexity.ReportBranding.LogoMediaType == nil {
+			break
+		}
+
+		return e.complexity.ReportBranding.LogoMediaType(childComplexity), true
+
+	case "ReportBranding.logoName":
+		if e.complexity.ReportBranding.LogoName == nil {
+			break
+		}
+
+		return e.complexity.ReportBranding.LogoName(childComplexity), true
+
+	case "ReportBranding.resolvedFooter":
+		if e.complexity.ReportBranding.ResolvedFooter == nil {
+			break
+		}
+
+		return e.complexity.ReportBranding.ResolvedFooter(childComplexity), true
+
+	case "ReportBranding.resolvedHeader":
+		if e.complexity.ReportBranding.ResolvedHeader == nil {
+			break
+		}
+
+		return e.complexity.ReportBranding.ResolvedHeader(childComplexity), true
+
+	case "ReportBranding.resolvedSubtitle":
+		if e.complexity.ReportBranding.ResolvedSubtitle == nil {
+			break
+		}
+
+		return e.complexity.ReportBranding.ResolvedSubtitle(childComplexity), true
+
+	case "ReportBranding.resolvedTitle":
+		if e.complexity.ReportBranding.ResolvedTitle == nil {
+			break
+		}
+
+		return e.complexity.ReportBranding.ResolvedTitle(childComplexity), true
+
+	case "ReportBranding.subtitle":
+		if e.complexity.ReportBranding.Subtitle == nil {
+			break
+		}
+
+		return e.complexity.ReportBranding.Subtitle(childComplexity), true
+
+	case "ReportBranding.title":
+		if e.complexity.ReportBranding.Title == nil {
+			break
+		}
+
+		return e.complexity.ReportBranding.Title(childComplexity), true
 
 	case "ReportLog.createdAt":
 		if e.complexity.ReportLog.CreatedAt == nil {
@@ -6700,6 +6819,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputKnowledgeFilter,
 		ec.unmarshalInputModelPriceInput,
 		ec.unmarshalInputReasoningConfigInput,
+		ec.unmarshalInputReportBrandingInput,
 		ec.unmarshalInputReportSectionInput,
 		ec.unmarshalInputUpdateAPITokenInput,
 		ec.unmarshalInputUpdateFlowTemplateInput,
@@ -9251,6 +9371,65 @@ func (ec *executionContext) field_Mutation_updateProvider_argsAgents(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_updateReportBranding_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Mutation_updateReportBranding_argsReportID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["reportId"] = arg0
+	arg1, err := ec.field_Mutation_updateReportBranding_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_updateReportBranding_argsReportID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["reportId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("reportId"))
+	if tmp, ok := rawArgs["reportId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateReportBranding_argsInput(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (model.ReportBrandingInput, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["input"]
+	if !ok {
+		var zeroVal model.ReportBrandingInput
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNReportBrandingInput2pentagiᚋpkgᚋgraphᚋmodelᚐReportBrandingInput(ctx, tmp)
+	}
+
+	var zeroVal model.ReportBrandingInput
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Mutation_updateReportSection_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -10479,6 +10658,38 @@ func (ec *executionContext) field_Query_msgchains_argsFlowID(
 
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("flowId"))
 	if tmp, ok := rawArgs["flowId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_reportBranding_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Query_reportBranding_argsReportID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["reportId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_reportBranding_argsReportID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["reportId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("reportId"))
+	if tmp, ok := rawArgs["reportId"]; ok {
 		return ec.unmarshalNID2int64(ctx, tmp)
 	}
 
@@ -27114,6 +27325,85 @@ func (ec *executionContext) fieldContext_Mutation_createReport(ctx context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_updateReportBranding(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateReportBranding(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateReportBranding(rctx, fc.Args["reportId"].(int64), fc.Args["input"].(model.ReportBrandingInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.ReportBranding)
+	fc.Result = res
+	return ec.marshalNReportBranding2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐReportBranding(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateReportBranding(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "title":
+				return ec.fieldContext_ReportBranding_title(ctx, field)
+			case "subtitle":
+				return ec.fieldContext_ReportBranding_subtitle(ctx, field)
+			case "header":
+				return ec.fieldContext_ReportBranding_header(ctx, field)
+			case "footer":
+				return ec.fieldContext_ReportBranding_footer(ctx, field)
+			case "resolvedTitle":
+				return ec.fieldContext_ReportBranding_resolvedTitle(ctx, field)
+			case "resolvedSubtitle":
+				return ec.fieldContext_ReportBranding_resolvedSubtitle(ctx, field)
+			case "resolvedHeader":
+				return ec.fieldContext_ReportBranding_resolvedHeader(ctx, field)
+			case "resolvedFooter":
+				return ec.fieldContext_ReportBranding_resolvedFooter(ctx, field)
+			case "hasLogo":
+				return ec.fieldContext_ReportBranding_hasLogo(ctx, field)
+			case "logoName":
+				return ec.fieldContext_ReportBranding_logoName(ctx, field)
+			case "logoMediaType":
+				return ec.fieldContext_ReportBranding_logoMediaType(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ReportBranding", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateReportBranding_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_putReportNote(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_putReportNote(ctx, field)
 	if err != nil {
@@ -35361,6 +35651,85 @@ func (ec *executionContext) fieldContext_Query_reportVision(ctx context.Context,
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_reportBranding(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_reportBranding(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().ReportBranding(rctx, fc.Args["reportId"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.ReportBranding)
+	fc.Result = res
+	return ec.marshalNReportBranding2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐReportBranding(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_reportBranding(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "title":
+				return ec.fieldContext_ReportBranding_title(ctx, field)
+			case "subtitle":
+				return ec.fieldContext_ReportBranding_subtitle(ctx, field)
+			case "header":
+				return ec.fieldContext_ReportBranding_header(ctx, field)
+			case "footer":
+				return ec.fieldContext_ReportBranding_footer(ctx, field)
+			case "resolvedTitle":
+				return ec.fieldContext_ReportBranding_resolvedTitle(ctx, field)
+			case "resolvedSubtitle":
+				return ec.fieldContext_ReportBranding_resolvedSubtitle(ctx, field)
+			case "resolvedHeader":
+				return ec.fieldContext_ReportBranding_resolvedHeader(ctx, field)
+			case "resolvedFooter":
+				return ec.fieldContext_ReportBranding_resolvedFooter(ctx, field)
+			case "hasLogo":
+				return ec.fieldContext_ReportBranding_hasLogo(ctx, field)
+			case "logoName":
+				return ec.fieldContext_ReportBranding_logoName(ctx, field)
+			case "logoMediaType":
+				return ec.fieldContext_ReportBranding_logoMediaType(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ReportBranding", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_reportBranding_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Query___type(ctx, field)
 	if err != nil {
@@ -36655,6 +37024,472 @@ func (ec *executionContext) fieldContext_Report_finishedAt(_ context.Context, fi
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportBranding_title(ctx context.Context, field graphql.CollectedField, obj *model.ReportBranding) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportBranding_title(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Title, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportBranding_title(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportBranding",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportBranding_subtitle(ctx context.Context, field graphql.CollectedField, obj *model.ReportBranding) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportBranding_subtitle(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Subtitle, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportBranding_subtitle(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportBranding",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportBranding_header(ctx context.Context, field graphql.CollectedField, obj *model.ReportBranding) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportBranding_header(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Header, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportBranding_header(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportBranding",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportBranding_footer(ctx context.Context, field graphql.CollectedField, obj *model.ReportBranding) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportBranding_footer(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Footer, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportBranding_footer(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportBranding",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportBranding_resolvedTitle(ctx context.Context, field graphql.CollectedField, obj *model.ReportBranding) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportBranding_resolvedTitle(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ResolvedTitle, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportBranding_resolvedTitle(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportBranding",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportBranding_resolvedSubtitle(ctx context.Context, field graphql.CollectedField, obj *model.ReportBranding) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportBranding_resolvedSubtitle(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ResolvedSubtitle, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportBranding_resolvedSubtitle(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportBranding",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportBranding_resolvedHeader(ctx context.Context, field graphql.CollectedField, obj *model.ReportBranding) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportBranding_resolvedHeader(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ResolvedHeader, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportBranding_resolvedHeader(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportBranding",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportBranding_resolvedFooter(ctx context.Context, field graphql.CollectedField, obj *model.ReportBranding) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportBranding_resolvedFooter(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ResolvedFooter, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportBranding_resolvedFooter(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportBranding",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportBranding_hasLogo(ctx context.Context, field graphql.CollectedField, obj *model.ReportBranding) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportBranding_hasLogo(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.HasLogo, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportBranding_hasLogo(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportBranding",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportBranding_logoName(ctx context.Context, field graphql.CollectedField, obj *model.ReportBranding) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportBranding_logoName(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.LogoName, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportBranding_logoName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportBranding",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportBranding_logoMediaType(ctx context.Context, field graphql.CollectedField, obj *model.ReportBranding) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportBranding_logoMediaType(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.LogoMediaType, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportBranding_logoMediaType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportBranding",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -51267,6 +52102,68 @@ func (ec *executionContext) unmarshalInputReasoningConfigInput(ctx context.Conte
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputReportBrandingInput(ctx context.Context, obj interface{}) (model.ReportBrandingInput, error) {
+	var it model.ReportBrandingInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"title", "subtitle", "header", "footer", "logo", "logoName"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "title":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("title"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Title = data
+		case "subtitle":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("subtitle"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Subtitle = data
+		case "header":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("header"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Header = data
+		case "footer":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("footer"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Footer = data
+		case "logo":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("logo"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Logo = data
+		case "logoName":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("logoName"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.LogoName = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputReportSectionInput(ctx context.Context, obj interface{}) (model.ReportSectionInput, error) {
 	var it model.ReportSectionInput
 	asMap := map[string]interface{}{}
@@ -54425,6 +55322,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "updateReportBranding":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateReportBranding(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "putReportNote":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_putReportNote(ctx, field)
@@ -56563,6 +57467,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "reportBranding":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_reportBranding(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "__type":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___type(ctx, field)
@@ -56756,6 +57682,77 @@ func (ec *executionContext) _Report(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "finishedAt":
 			out.Values[i] = ec._Report_finishedAt(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var reportBrandingImplementors = []string{"ReportBranding"}
+
+func (ec *executionContext) _ReportBranding(ctx context.Context, sel ast.SelectionSet, obj *model.ReportBranding) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, reportBrandingImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ReportBranding")
+		case "title":
+			out.Values[i] = ec._ReportBranding_title(ctx, field, obj)
+		case "subtitle":
+			out.Values[i] = ec._ReportBranding_subtitle(ctx, field, obj)
+		case "header":
+			out.Values[i] = ec._ReportBranding_header(ctx, field, obj)
+		case "footer":
+			out.Values[i] = ec._ReportBranding_footer(ctx, field, obj)
+		case "resolvedTitle":
+			out.Values[i] = ec._ReportBranding_resolvedTitle(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "resolvedSubtitle":
+			out.Values[i] = ec._ReportBranding_resolvedSubtitle(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "resolvedHeader":
+			out.Values[i] = ec._ReportBranding_resolvedHeader(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "resolvedFooter":
+			out.Values[i] = ec._ReportBranding_resolvedFooter(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "hasLogo":
+			out.Values[i] = ec._ReportBranding_hasLogo(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "logoName":
+			out.Values[i] = ec._ReportBranding_logoName(ctx, field, obj)
+		case "logoMediaType":
+			out.Values[i] = ec._ReportBranding_logoMediaType(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -61110,6 +62107,25 @@ func (ec *executionContext) marshalNReport2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐRe
 		return graphql.Null
 	}
 	return ec._Report(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNReportBranding2pentagiᚋpkgᚋgraphᚋmodelᚐReportBranding(ctx context.Context, sel ast.SelectionSet, v model.ReportBranding) graphql.Marshaler {
+	return ec._ReportBranding(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNReportBranding2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐReportBranding(ctx context.Context, sel ast.SelectionSet, v *model.ReportBranding) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ReportBranding(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNReportBrandingInput2pentagiᚋpkgᚋgraphᚋmodelᚐReportBrandingInput(ctx context.Context, v interface{}) (model.ReportBrandingInput, error) {
+	res, err := ec.unmarshalInputReportBrandingInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNReportLog2pentagiᚋpkgᚋgraphᚋmodelᚐReportLog(ctx context.Context, sel ast.SelectionSet, v model.ReportLog) graphql.Marshaler {

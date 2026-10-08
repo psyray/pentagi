@@ -264,6 +264,15 @@ export enum ReasoningMode {
     Off = 'off',
 }
 
+export type ReportBrandingInput = {
+    footer?: string | null | undefined;
+    header?: string | null | undefined;
+    logo?: string | null | undefined;
+    logoName?: string | null | undefined;
+    subtitle?: string | null | undefined;
+    title?: string | null | undefined;
+};
+
 export enum ReportLogKind {
     Control = 'control',
     Error = 'error',
@@ -1830,6 +1839,33 @@ export type ReportVisionQueryVariables = Exact<{
 }>;
 
 export type ReportVisionQuery = { reportVision: { vision: boolean; error: string | null } };
+
+export type ReportBrandingFragmentFragment = {
+    title: string | null;
+    subtitle: string | null;
+    header: string | null;
+    footer: string | null;
+    resolvedTitle: string;
+    resolvedSubtitle: string;
+    resolvedHeader: string;
+    resolvedFooter: string;
+    hasLogo: boolean;
+    logoName: string | null;
+    logoMediaType: string | null;
+};
+
+export type ReportBrandingQueryVariables = Exact<{
+    reportId: string | number;
+}>;
+
+export type ReportBrandingQuery = { reportBranding: ReportBrandingFragmentFragment };
+
+export type UpdateReportBrandingMutationVariables = Exact<{
+    reportId: string | number;
+    input: ReportBrandingInput;
+}>;
+
+export type UpdateReportBrandingMutation = { updateReportBranding: ReportBrandingFragmentFragment };
 
 export type CreateReportMutationVariables = Exact<{
     flowId: string | number;
@@ -4425,6 +4461,32 @@ export const ReportLogFragmentFragmentDoc = {
         },
     ],
 } as unknown as DocumentNode<ReportLogFragmentFragment, unknown>;
+export const ReportBrandingFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'reportBrandingFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'ReportBranding' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'subtitle' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'header' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'footer' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'resolvedTitle' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'resolvedSubtitle' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'resolvedHeader' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'resolvedFooter' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'hasLogo' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'logoName' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'logoMediaType' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<ReportBrandingFragmentFragment, unknown>;
 export const FlowsDocument = {
     kind: 'Document',
     definitions: [
@@ -15252,6 +15314,139 @@ export const ReportVisionDocument = {
         },
     ],
 } as unknown as DocumentNode<ReportVisionQuery, ReportVisionQueryVariables>;
+export const ReportBrandingDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'reportBranding' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'reportBranding' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'reportId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'reportBrandingFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'reportBrandingFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'ReportBranding' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'subtitle' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'header' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'footer' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'resolvedTitle' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'resolvedSubtitle' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'resolvedHeader' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'resolvedFooter' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'hasLogo' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'logoName' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'logoMediaType' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<ReportBrandingQuery, ReportBrandingQueryVariables>;
+export const UpdateReportBrandingDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'mutation',
+            name: { kind: 'Name', value: 'updateReportBranding' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'input' } },
+                    type: {
+                        kind: 'NonNullType',
+                        type: { kind: 'NamedType', name: { kind: 'Name', value: 'ReportBrandingInput' } },
+                    },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'updateReportBranding' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'reportId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'input' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'input' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'reportBrandingFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'reportBrandingFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'ReportBranding' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'subtitle' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'header' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'footer' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'resolvedTitle' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'resolvedSubtitle' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'resolvedHeader' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'resolvedFooter' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'hasLogo' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'logoName' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'logoMediaType' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<UpdateReportBrandingMutation, UpdateReportBrandingMutationVariables>;
 export const CreateReportDocument = {
     kind: 'Document',
     definitions: [

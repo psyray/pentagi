@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -47,6 +48,61 @@ func NewReportArchiveService(
 		dockerClient: dockerClient,
 		reports:      reports,
 	}
+}
+
+// ReportBrandingLogo streams the report's branding logo. The reader renders it
+// in an <img> (the session cookie authenticates) and the exporters fetch it as
+// a blob; the archive bundles the same bytes as a file.
+// @Summary Download the report branding logo
+// @Description Streams the png/jpeg logo attached to a report's export branding.
+// @Tags Reports
+// @Produce image/png,image/jpeg,json
+// @Security BearerAuth
+// @Param flowID path int true "flow id" minimum(0)
+// @Param reportID path int true "report id" minimum(0)
+// @Success 200 {file} file "report branding logo"
+// @Failure 403 {object} response.errorResp "reading the report not permitted"
+// @Failure 404 {object} response.errorResp "report or logo not found"
+// @Router /flows/{flowID}/reports/{reportID}/branding/logo [get]
+func (s *ReportArchiveService) ReportBrandingLogo(c *gin.Context) {
+	flowID, err := parseFlowIDParam(c)
+	if err != nil {
+		logger.FromContext(c).WithError(err).Error("error parsing flow id")
+		response.Error(c, response.ErrFlowFilesInvalidRequest, err)
+		return
+	}
+
+	reportID, err := strconv.ParseUint(c.Param("reportID"), 10, 64)
+	if err != nil {
+		logger.FromContext(c).WithError(err).Error("error parsing report id")
+		response.Error(c, response.ErrFlowFilesInvalidRequest, err)
+		return
+	}
+
+	privs := c.GetStringSlice("prm")
+	if !slices.Contains(privs, "flows.read") && !slices.Contains(privs, "flows.admin") {
+		response.Error(c, response.ErrNotPermitted, nil)
+		return
+	}
+
+	uid := c.GetUint64("uid")
+	ctx := c.Request.Context()
+
+	name, mediaType, data, err := s.reports.BrandingLogo(ctx, int64(uid), int64(reportID))
+	if err != nil {
+		response.Error(c, response.ErrReportBrandingNotFound, err)
+		return
+	}
+
+	row, err := s.reports.GetReport(ctx, int64(uid), int64(reportID))
+	if err != nil || row.FlowID != int64(flowID) {
+		// An ownership failure and a mismatched flow read the same: no logo here.
+		response.Error(c, response.ErrNotPermitted, err)
+		return
+	}
+
+	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=%q", path.Base(name)))
+	c.Data(http.StatusOK, mediaType, data)
 }
 
 // ArchiveReport downloads the report document and its cited evidence as a ZIP.
@@ -131,6 +187,14 @@ func (s *ReportArchiveService) buildArchive(
 	}
 	if _, err := io.WriteString(doc, document); err != nil {
 		return err
+	}
+
+	// The branding logo travels with the archive: the document cannot carry it
+	// (no binary in markdown), so the bundle is where it is expected to live.
+	if logoName, _, logoData, err := s.reports.BrandingLogo(ctx, row.UserID, row.ID); err == nil && len(logoData) > 0 {
+		if entry, err := zw.Create(path.Join("annexes/branding", path.Base(logoName))); err == nil {
+			_, _ = entry.Write(logoData)
+		}
 	}
 
 	containerName := primaryContainerName(s.tenantPrefix, uint64(row.FlowID))
