@@ -106,7 +106,7 @@ func assignChildren(numberer *numberer, sections []database.ReportSection, paren
 		var number string
 		if parentNumber != "" {
 			_ = i
-			number = fmt.Sprintf("%s%d.", strings.TrimSuffix(parentNumber, "."), i+1)
+			number = fmt.Sprintf("%s%d.", parentNumber, i+1)
 		} else if parentNumber == "" {
 			// Children of unnumbered front matter stay unnumbered.
 			number = ""
