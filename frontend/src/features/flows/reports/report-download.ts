@@ -41,7 +41,8 @@ export const downloadReportMarkdown = (report: ReportFragmentFragment, content: 
 };
 
 export const downloadReportPdf = async (report: ReportFragmentFragment, content: string): Promise<void> => {
-    await generatePDFFromMarkdown(content, reportFileName(report));
+    // The AI report opens chapters and findings on fresh pages, like the DOCX.
+    await generatePDFFromMarkdown(content, reportFileName(report), { paginateSections: true });
 };
 
 // Word and archive builders are heavy (docx/jszip) and only fetched when the

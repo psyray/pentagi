@@ -179,8 +179,12 @@ export const downloadTextFile = (content: string, fileName: string, mimeType = '
 // Lazy-load the PDF generator so @react-pdf/renderer (~1.5 MB) is fetched
 // only when the user actually triggers a PDF export, not on every page that
 // imports report utilities (flow.tsx, flow-report.tsx).
-export const generatePDFFromMarkdown = async (content: string, fileName: string): Promise<void> => {
+export const generatePDFFromMarkdown = async (
+    content: string,
+    fileName: string,
+    options?: { paginateSections?: boolean },
+): Promise<void> => {
     const { generatePDFFromMarkdownNew } = await import('./report-pdf');
 
-    return generatePDFFromMarkdownNew(content, fileName);
+    return generatePDFFromMarkdownNew(content, fileName, options);
 };

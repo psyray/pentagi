@@ -3,6 +3,8 @@ import { marked } from 'marked';
 
 import { Log } from '@/lib/log';
 
+import { ReportPaginator } from './report-pagination';
+
 const CJK_RE =
     /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Bopomofo}\u3000-\u303f\uff00-\uffef]+/gu;
 const HAS_CJK_RE =
@@ -513,9 +515,14 @@ const renderInlineTokens = (tokens: InlineToken[], keyPrefix: string) => {
     });
 };
 
-const renderPDFContent = (parsed: ParsedContent[]) => {
+const renderPDFContent = (parsed: ParsedContent[], paginate: boolean) => {
+    const paginator = paginate ? new ReportPaginator() : null;
     const elements = parsed
         .map((item, index) => {
+            if (item.type !== 'heading') {
+                paginator?.content();
+            }
+
             switch (item.type) {
                 case 'code': {
                     if (!item.content) {
@@ -550,8 +557,12 @@ const renderPDFContent = (parsed: ParsedContent[]) => {
                                     ? pdfStyles.h5
                                     : pdfStyles.h6;
 
+                    const headingText = item.inlineTokens.map((token) => token.text).join('');
+                    const breakBefore = paginator ? paginator.heading(item.level ?? 1, headingText).breakBefore : false;
+
                     return (
                         <Text
+                            break={breakBefore}
                             key={`heading-${index}`}
                             style={style}
                         >
@@ -619,9 +630,14 @@ const renderPDFContent = (parsed: ParsedContent[]) => {
     return elements;
 };
 
-function PDFReportDocument({ content }: { content: string }) {
+interface PDFReportDocumentProps {
+    content: string;
+    paginateSections?: boolean;
+}
+
+function PDFReportDocument({ content, paginateSections = false }: PDFReportDocumentProps) {
     const parsed = parseMarkdownTokens(content);
-    const elements = renderPDFContent(parsed);
+    const elements = renderPDFContent(parsed, paginateSections);
 
     return (
         <Document>
@@ -635,11 +651,20 @@ function PDFReportDocument({ content }: { content: string }) {
     );
 }
 
-export const generatePDFFromMarkdownNew = async (content: string, fileName: string): Promise<void> => {
+export const generatePDFFromMarkdownNew = async (
+    content: string,
+    fileName: string,
+    options?: { paginateSections?: boolean },
+): Promise<void> => {
     try {
         ensureFonts(content);
 
-        const doc = <PDFReportDocument content={content} />;
+        const doc = (
+            <PDFReportDocument
+                content={content}
+                paginateSections={options?.paginateSections}
+            />
+        );
         const blob = await pdf(doc).toBlob();
 
         const url = URL.createObjectURL(blob);
