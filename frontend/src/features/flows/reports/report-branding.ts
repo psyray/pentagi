@@ -2,6 +2,8 @@
 // with the session cookie, so the reader renders it in an <img> and the
 // exporters fetch it as bytes — it never travels through GraphQL.
 
+import { baseUrl } from '@/models/api';
+
 export const BRANDING_LOGO_MAX_BYTES = 256 * 1024;
 export const BRANDING_LOGO_TYPES = ['image/jpeg', 'image/png'];
 export const BRANDING_LOGO_MAX_WIDTH = 150;
@@ -12,8 +14,14 @@ export interface BrandingLogoFile {
     name: string;
 }
 
+// Relative to the axios base URL, for the exporters' `api.get`.
 export const reportBrandingLogoPath = (flowId: null | number | string, reportId: null | number | string): string =>
     `/flows/${flowId}/reports/${reportId}/branding/logo`;
+
+// Absolute, for an <img> that cannot go through axios (the API base has to be
+// part of the URL, or the static handler answers the SPA shell instead).
+export const reportBrandingLogoUrl = (flowId: null | number | string, reportId: null | number | string): string =>
+    `${baseUrl}${reportBrandingLogoPath(flowId, reportId)}`;
 
 // validateBrandingLogoFile mirrors the server's rules so the user learns about a
 // rejected file before the round trip; the server still sniffs the real type.
