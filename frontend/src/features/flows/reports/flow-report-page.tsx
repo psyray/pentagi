@@ -93,7 +93,7 @@ function FlowReportPage() {
                 </div>
             ) : (
                 <div className="flex h-[calc(100dvh-3rem)] min-h-0">
-                    <aside className="flex w-[340px] shrink-0 flex-col gap-4 overflow-auto border-r p-4">
+                    <aside className="flex w-[420px] min-w-0 shrink-0 flex-col gap-4 overflow-auto border-r p-4">
                         <div className="flex flex-col gap-2">
                             <div className="flex items-baseline justify-between text-xs">
                                 <span className="font-medium">

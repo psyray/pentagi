@@ -1,11 +1,14 @@
 import type { ApolloClient } from '@apollo/client';
 
+import type { PdfBranding } from '@/lib/report';
+
 import {
     type ReportBrandingFragmentFragment,
     ReportDocumentDocument,
     type ReportFragmentFragment,
 } from '@/graphql/types';
 import { api } from '@/lib/axios';
+import { Log } from '@/lib/log';
 import { arrayBufferToDataUrl, downloadTextFile, generatePDFFromMarkdown, scaleImage } from '@/lib/report';
 
 import type { DocxBranding } from './report-docx';
@@ -17,7 +20,8 @@ export type ReportDownloadFormat = 'docx' | 'markdown' | 'pdf' | 'zip';
 type ReportBranding = null | ReportBrandingFragmentFragment;
 
 // The logo bytes are fetched from the API (cookie-authenticated), never carried
-// through GraphQL; the renderers take a data URL.
+// through GraphQL; the renderers take a data URL. A logo that cannot be read
+// degrades to a logo-less export rather than failing the whole download.
 const loadBrandingLogo = async (
     report: ReportFragmentFragment,
     branding: ReportBranding,
@@ -27,11 +31,22 @@ const loadBrandingLogo = async (
     }
 
     const mediaType = branding.logoMediaType ?? 'image/png';
-    const buffer = (await api.get(reportBrandingLogoPath(report.flowId, report.id), {
-        responseType: 'arraybuffer',
-    })) as unknown as ArrayBuffer;
 
-    return { dataUrl: arrayBufferToDataUrl(buffer, mediaType), mediaType };
+    if (mediaType !== 'image/jpeg' && mediaType !== 'image/png') {
+        return null;
+    }
+
+    try {
+        const buffer = (await api.get(reportBrandingLogoPath(report.flowId, report.id), {
+            responseType: 'arraybuffer',
+        })) as unknown as ArrayBuffer;
+
+        return { dataUrl: arrayBufferToDataUrl(buffer, mediaType), mediaType };
+    } catch (error) {
+        Log.error('The report logo could not be fetched; exporting without it:', error);
+
+        return null;
+    }
 };
 
 const buildDocxBranding = async (
@@ -65,18 +80,31 @@ const buildDocxBranding = async (
 const buildPdfBranding = async (
     report: ReportFragmentFragment,
     branding: ReportBranding,
-): Promise<undefined | { footer?: string; header?: string; logo?: null | { dataUrl: string } }> => {
+): Promise<PdfBranding | undefined> => {
     if (!branding) {
         return undefined;
     }
 
+    let logo: PdfBranding['logo'] = null;
     const loaded = await loadBrandingLogo(report, branding);
 
-    return {
-        footer: branding.resolvedFooter,
-        header: branding.resolvedHeader,
-        logo: loaded ? { dataUrl: loaded.dataUrl } : null,
-    };
+    if (loaded) {
+        logo = { dataUrl: loaded.dataUrl };
+
+        // Sizing the logo here keeps react-pdf from having to measure it, and
+        // falls back to a width-only image when the browser cannot decode it.
+        try {
+            const size = scaleImage(await measureImage(loaded.dataUrl), BRANDING_LOGO_MAX_WIDTH);
+
+            if (size.width > 0 && size.height > 0) {
+                logo = { dataUrl: loaded.dataUrl, height: size.height, width: size.width };
+            }
+        } catch {
+            logo = { dataUrl: loaded.dataUrl };
+        }
+    }
+
+    return { footer: branding.resolvedFooter, header: branding.resolvedHeader, logo };
 };
 
 // Mirrors the legacy report naming so a user who exports both reads them in the
