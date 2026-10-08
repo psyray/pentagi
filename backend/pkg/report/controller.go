@@ -645,7 +645,20 @@ func (c *Controller) AddReportSection(
 	if err != nil {
 		return nil, fmt.Errorf("failed to add section: %w", err)
 	}
-	c.publish(ctx, userID, reportID, row.ID)
+
+	// The insert shifted every sibling at or past the new position (and, for the
+	// append/parent cases, none), so publish the whole group to keep client
+	// positions in sync.
+	changed := []int64{row.ID}
+	if all, err := c.deps.DB.GetReportSections(ctx, reportID); err == nil {
+		for _, sibling := range all {
+			if sibling.ID != row.ID && sameParent(sibling.ParentID, params.ParentID) {
+				changed = append(changed, sibling.ID)
+			}
+		}
+	}
+	c.publishAll(ctx, userID, reportID, changed)
+
 	return &row, nil
 }
 
@@ -678,15 +691,24 @@ func (c *Controller) shiftPositions(
 
 // publish re-emits one section (and its report row) to the subscribers.
 func (c *Controller) publish(ctx context.Context, userID, reportID, sectionID int64) {
+	c.publishAll(ctx, userID, reportID, []int64{sectionID})
+}
+
+// publishAll re-emits several sections and the report row once. A position shift
+// moves a whole sibling group, so every moved section must be published or a
+// client keeps stale positions and orders the new section against them.
+func (c *Controller) publishAll(ctx context.Context, userID, reportID int64, sectionIDs []int64) {
 	report, err := c.deps.DB.GetReport(ctx, database.GetReportParams{ID: reportID, UserID: userID})
 	if err != nil {
 		return
 	}
 	pub := c.deps.Subs.NewFlowPublisher(userID, report.FlowID)
-	if row, err := c.deps.DB.GetReportSection(ctx, database.GetReportSectionParams{
-		ID: sectionID, ReportID: reportID,
-	}); err == nil {
-		pub.ReportSectionUpdated(ctx, converter.ConvertReportSection(row))
+	for _, sectionID := range sectionIDs {
+		if row, err := c.deps.DB.GetReportSection(ctx, database.GetReportSectionParams{
+			ID: sectionID, ReportID: reportID,
+		}); err == nil {
+			pub.ReportSectionUpdated(ctx, converter.ConvertReportSection(row))
+		}
 	}
 	pub.ReportUpdated(ctx, converter.ConvertReport(report))
 }
