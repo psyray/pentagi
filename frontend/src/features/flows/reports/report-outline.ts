@@ -35,10 +35,10 @@ export const isSectionNotWritten = (section: ReportSectionFragmentFragment): boo
 export const isSectionActive = (section: ReportSectionFragmentFragment): boolean =>
     section.status === ReportSectionStatusType.Queued || section.status === ReportSectionStatusType.Writing;
 
-// The section is part of the document outline (hidden and planner-skipped
-// alternatives stay out of both the TOC and the body).
-const isOutlineSection = (section: ReportSectionFragmentFragment): boolean =>
-    !isSectionHidden(section) && !isSectionSkipped(section);
+// The section is part of the editable outline (planner-skipped alternatives are
+// the only ones dropped). A hidden section stays in the tree so the editor can
+// show it dimmed and offer to unhide it; it is kept out of the numbering.
+const isOutlineSection = (section: ReportSectionFragmentFragment): boolean => !isSectionSkipped(section);
 
 const byPosition = (left: ReportSectionFragmentFragment, right: ReportSectionFragmentFragment): number => {
     if (left.position !== right.position) {
@@ -59,7 +59,8 @@ const buildNode = (
 
 // buildReportOutline turns the flat section list into the document tree, in
 // document order, and assigns the derived numbers (top-level `1.`, children
-// `1.1.`; children of an unnumbered front-matter section stay unnumbered).
+// `1.1.`; children of an unnumbered front-matter section stay unnumbered, and a
+// hidden section is never numbered).
 export const buildReportOutline = (sections: readonly ReportSectionFragmentFragment[]): ReportOutlineNode[] => {
     const visible = sections.filter(isOutlineSection);
     const byParent = new Map<string, ReportSectionFragmentFragment[]>();
@@ -84,7 +85,7 @@ export const buildReportOutline = (sections: readonly ReportSectionFragmentFragm
     let counter = 0;
 
     for (const node of outline) {
-        if (UNNUMBERED_SECTION_KEYS.has(node.section.key)) {
+        if (UNNUMBERED_SECTION_KEYS.has(node.section.key) || isSectionHidden(node.section)) {
             assignNumbers(node, '');
         } else {
             counter += 1;
@@ -95,11 +96,30 @@ export const buildReportOutline = (sections: readonly ReportSectionFragmentFragm
     return outline;
 };
 
-const assignNumbers = (node: ReportOutlineNode, number: string): void => {
-    node.number = number;
-    node.children.forEach((child, index) => {
-        assignNumbers(child, number === '' ? '' : `${number}${index + 1}.`);
-    });
+const assignNumbers = (node: ReportOutlineNode, prefix: string): void => {
+    if (prefix === '' || isSectionHidden(node.section)) {
+        node.number = '';
+        node.children.forEach((child) => assignNumbers(child, ''));
+
+        return;
+    }
+
+    node.number = prefix;
+
+    // Visible children are numbered on their own counter so hiding one never
+    // shifts the numbers of its siblings.
+    let index = 0;
+
+    for (const child of node.children) {
+        if (isSectionHidden(child.section)) {
+            assignNumbers(child, '');
+
+            continue;
+        }
+
+        index += 1;
+        assignNumbers(child, `${prefix}${index}.`);
+    }
 };
 
 // flattenReportOutline walks the tree in document order (a section before its

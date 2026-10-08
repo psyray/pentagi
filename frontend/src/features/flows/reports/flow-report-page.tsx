@@ -21,10 +21,12 @@ import FlowReportToc from './flow-report-toc';
 import { formatDuration, isReportActive } from './report-format';
 import { buildReportOutline, flattenReportOutline } from './report-outline';
 import { useFlowReportDocument } from './use-flow-report-document';
+import { useFlowReportEditor } from './use-flow-report-editor';
 
 function FlowReportPage() {
     const { flowId } = useParams<{ flowId: string }>();
-    const { download, downloading, loading, report, sections } = useFlowReportDocument();
+    const { download, downloading, loading, report, reportId, sections } = useFlowReportDocument();
+    const editor = useFlowReportEditor(reportId || null);
 
     const outline = useMemo(() => buildReportOutline(sections), [sections]);
     const flat = useMemo(() => flattenReportOutline(outline), [outline]);
@@ -43,6 +45,7 @@ function FlowReportPage() {
             ? Math.min(100, Math.round((report.sectionsDone / report.sectionsTotal) * 100))
             : 0;
     const active = report ? isReportActive(report.status) : false;
+    const canEdit = !!report && !active;
     const activeTitle = flat.find((node) => node.section.id === activeSectionId)?.section.title ?? null;
 
     return (
@@ -137,9 +140,12 @@ function FlowReportPage() {
                             <h1 className="mb-6 text-2xl font-bold">{report.title || 'Untitled report'}</h1>
                             {outline.map((node) => (
                                 <FlowReportSection
+                                    canEdit={canEdit}
                                     depth={0}
+                                    editor={editor}
                                     key={node.section.id}
                                     node={node}
+                                    sections={sections}
                                 />
                             ))}
                         </div>

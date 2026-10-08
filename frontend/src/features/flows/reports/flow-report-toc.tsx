@@ -1,4 +1,4 @@
-import { CheckCircle2, ChevronRight, CircleDashed, CircleSlash, XCircle } from 'lucide-react';
+import { CheckCircle2, ChevronRight, CircleDashed, CircleSlash, EyeOff, XCircle } from 'lucide-react';
 import { useState } from 'react';
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -6,7 +6,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { ReportSectionStatusType } from '@/graphql/types';
 import { cn } from '@/lib/utils';
 
-import { isSectionNotWritten, numberedTitle, type ReportOutlineNode } from './report-outline';
+import { isSectionHidden, isSectionNotWritten, numberedTitle, type ReportOutlineNode } from './report-outline';
 
 const StatusIcon = ({ status }: { status: ReportSectionStatusType }) => {
     switch (status) {
@@ -43,7 +43,7 @@ function FlowReportToc({ activeSectionId, onSelectSection, outline }: FlowReport
         .flatMap(function flatten(node): ReportOutlineNode[] {
             return [node, ...node.children.flatMap(flatten)];
         })
-        .filter((node) => isSectionNotWritten(node.section));
+        .filter((node) => isSectionNotWritten(node.section) && !isSectionHidden(node.section));
 
     return (
         <div className="flex flex-col gap-2">
@@ -90,7 +90,9 @@ function FlowReportToc({ activeSectionId, onSelectSection, outline }: FlowReport
 }
 
 function TocList({ activeSectionId, depth, nodes, onSelectSection }: TocListProps) {
-    const visible = nodes.filter((node) => !isSectionNotWritten(node.section));
+    // Not-written sections live in their own group below; a hidden one stays here
+    // (dimmed) so it keeps its place and the unhide control stays in the header.
+    const visible = nodes.filter((node) => !isSectionNotWritten(node.section) || isSectionHidden(node.section));
 
     return (
         <ul className="flex flex-col gap-0.5">
@@ -100,6 +102,7 @@ function TocList({ activeSectionId, depth, nodes, onSelectSection }: TocListProp
                         className={cn(
                             'hover:bg-muted/60 flex w-full items-start gap-2 rounded px-2 py-1 text-left text-xs transition-colors',
                             activeSectionId === node.section.id && 'bg-muted/60',
+                            isSectionHidden(node.section) && 'text-muted-foreground',
                         )}
                         onClick={() => onSelectSection(node.section.id)}
                         style={{ paddingLeft: `${8 + depth * 14}px` }}
@@ -112,6 +115,12 @@ function TocList({ activeSectionId, depth, nodes, onSelectSection }: TocListProp
                             {node.number && <span className="text-muted-foreground mr-1">{node.number}</span>}
                             {node.section.title}
                         </span>
+                        {isSectionHidden(node.section) && (
+                            <EyeOff
+                                aria-label="Hidden from the report"
+                                className="mt-0.5 size-3.5 shrink-0"
+                            />
+                        )}
                     </button>
                     {node.children.length > 0 && (
                         <TocList

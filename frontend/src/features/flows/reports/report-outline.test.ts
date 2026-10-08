@@ -85,7 +85,7 @@ describe('buildReportOutline', () => {
         expect(outline[0]?.children.map(numberedTitle)).toEqual(['Engagement fingerprint']);
     });
 
-    it('drops hidden and planner-skipped sections from the outline', () => {
+    it('drops planner-skipped sections but keeps hidden ones, unnumbered', () => {
         const outline = buildReportOutline([
             section({ id: '1', position: 0, title: 'Kept' }),
             section({ hidden: true, id: '2', position: 1, title: 'Hidden' }),
@@ -93,7 +93,20 @@ describe('buildReportOutline', () => {
             section({ id: '4', position: 3, title: 'Also kept' }),
         ]);
 
-        expect(outline.map(numberedTitle)).toEqual(['1. Kept', '2. Also kept']);
+        // The hidden row stays reachable in the editor but takes no number, and
+        // the following visible section keeps a contiguous number.
+        expect(outline.map(numberedTitle)).toEqual(['1. Kept', 'Hidden', '2. Also kept']);
+    });
+
+    it('numbers visible children on their own counter, skipping hidden ones', () => {
+        const outline = buildReportOutline([
+            section({ id: '1', position: 0, title: 'Findings' }),
+            section({ id: '2', parentId: '1', position: 0, title: 'First' }),
+            section({ hidden: true, id: '3', parentId: '1', position: 1, title: 'Hidden child' }),
+            section({ id: '4', parentId: '1', position: 2, title: 'Second' }),
+        ]);
+
+        expect(outline[0]?.children.map(numberedTitle)).toEqual(['1.1. First', 'Hidden child', '1.2. Second']);
     });
 
     it('sorts siblings by position regardless of the order the rows arrive in', () => {
