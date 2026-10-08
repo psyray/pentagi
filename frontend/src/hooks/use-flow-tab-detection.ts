@@ -9,7 +9,6 @@ export const CENTRAL_TAB_VALUES = ['automation', 'assistant', 'dashboard'];
 
 export const SIDE_TAB_VALUES = [
     'terminal',
-    'shell',
     'tasks',
     'agents',
     'tools',
