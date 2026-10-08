@@ -1073,24 +1073,26 @@ type ReportLog struct {
 }
 
 type ReportSection struct {
-	ID              int64           `json:"id"`
-	ReportID        int64           `json:"report_id"`
-	ParentID        sql.NullInt64   `json:"parent_id"`
-	Position        int32           `json:"position"`
-	Key             string          `json:"key"`
-	Kind            string          `json:"kind"`
-	Title           string          `json:"title"`
-	Status          string          `json:"status"`
-	Content         string          `json:"content"`
-	Instructions    sql.NullString  `json:"instructions"`
-	Variables       json.RawMessage `json:"variables"`
-	Warnings        []string        `json:"warnings"`
-	Hidden          bool            `json:"hidden"`
-	TokensIn        int64           `json:"tokens_in"`
-	TokensOut       int64           `json:"tokens_out"`
-	DurationSeconds float64         `json:"duration_seconds"`
-	CreatedAt       sql.NullTime    `json:"created_at"`
-	UpdatedAt       sql.NullTime    `json:"updated_at"`
+	ID               int64           `json:"id"`
+	ReportID         int64           `json:"report_id"`
+	ParentID         sql.NullInt64   `json:"parent_id"`
+	Position         int32           `json:"position"`
+	Key              string          `json:"key"`
+	Kind             string          `json:"kind"`
+	Title            string          `json:"title"`
+	Status           string          `json:"status"`
+	Content          string          `json:"content"`
+	Instructions     sql.NullString  `json:"instructions"`
+	Variables        json.RawMessage `json:"variables"`
+	Warnings         []string        `json:"warnings"`
+	Hidden           bool            `json:"hidden"`
+	TokensIn         int64           `json:"tokens_in"`
+	TokensOut        int64           `json:"tokens_out"`
+	DurationSeconds  float64         `json:"duration_seconds"`
+	CreatedAt        sql.NullTime    `json:"created_at"`
+	UpdatedAt        sql.NullTime    `json:"updated_at"`
+	SourceSubtaskIds []int64         `json:"source_subtask_ids"`
+	EvidenceRefs     json.RawMessage `json:"evidence_refs"`
 }
 
 type Role struct {
