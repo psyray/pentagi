@@ -660,9 +660,12 @@ export interface PdfBranding {
 }
 
 // The export branding the PDF carries: the cover logo and the page
-// header/footer repeated on every page.
+// header/footer repeated on every page. The size is measured by the caller so
+// react-pdf does not have to decode the image to lay it out.
 export interface PdfBrandingLogo {
     dataUrl: string;
+    height?: number;
+    width?: number;
 }
 
 interface PDFReportDocumentProps {
@@ -684,7 +687,11 @@ function PDFReportDocument({ branding, content, paginateSections = false }: PDFR
                 {branding?.logo && (
                     <Image
                         src={branding.logo.dataUrl}
-                        style={pdfStyles.logo}
+                        style={
+                            branding.logo.width
+                                ? { height: branding.logo.height, width: branding.logo.width }
+                                : pdfStyles.logo
+                        }
                     />
                 )}
                 {elements}

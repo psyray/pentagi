@@ -99,7 +99,7 @@ export function useFlowReportDocument() {
                 }
             } catch (error) {
                 Log.error('Failed to download the report document:', error);
-                toast.error('Failed to download the report');
+                toast.error(error instanceof Error ? error.message : 'Failed to download the report');
             } finally {
                 setDownloading(false);
             }
