@@ -1037,30 +1037,31 @@ type Provider struct {
 }
 
 type Report struct {
-	ID                     int64          `json:"id"`
-	FlowID                 int64          `json:"flow_id"`
-	UserID                 int64          `json:"user_id"`
-	Status                 string         `json:"status"`
-	Title                  string         `json:"title"`
-	TemplateKey            string         `json:"template_key"`
-	TemplateLabel          string         `json:"template_label"`
-	ProviderName           string         `json:"provider_name"`
-	ProviderType           ProviderType   `json:"provider_type"`
-	Language               string         `json:"language"`
-	AdditionalInstructions sql.NullString `json:"additional_instructions"`
-	ControlBudgetSeconds   int32          `json:"control_budget_seconds"`
-	ContentBudgetSeconds   int32          `json:"content_budget_seconds"`
-	ControlUsedSeconds     float64        `json:"control_used_seconds"`
-	ContentUsedSeconds     float64        `json:"content_used_seconds"`
-	SectionsEstimate       int32          `json:"sections_estimate"`
-	SectionsTotal          int32          `json:"sections_total"`
-	SectionsDone           int32          `json:"sections_done"`
-	TokensIn               int64          `json:"tokens_in"`
-	TokensOut              int64          `json:"tokens_out"`
-	Error                  sql.NullString `json:"error"`
-	CreatedAt              sql.NullTime   `json:"created_at"`
-	UpdatedAt              sql.NullTime   `json:"updated_at"`
-	FinishedAt             sql.NullTime   `json:"finished_at"`
+	ID                     int64                 `json:"id"`
+	FlowID                 int64                 `json:"flow_id"`
+	UserID                 int64                 `json:"user_id"`
+	Status                 string                `json:"status"`
+	Title                  string                `json:"title"`
+	TemplateKey            string                `json:"template_key"`
+	TemplateLabel          string                `json:"template_label"`
+	ProviderName           string                `json:"provider_name"`
+	ProviderType           ProviderType          `json:"provider_type"`
+	Language               string                `json:"language"`
+	AdditionalInstructions sql.NullString        `json:"additional_instructions"`
+	ControlBudgetSeconds   int32                 `json:"control_budget_seconds"`
+	ContentBudgetSeconds   int32                 `json:"content_budget_seconds"`
+	ControlUsedSeconds     float64               `json:"control_used_seconds"`
+	ContentUsedSeconds     float64               `json:"content_used_seconds"`
+	SectionsEstimate       int32                 `json:"sections_estimate"`
+	SectionsTotal          int32                 `json:"sections_total"`
+	SectionsDone           int32                 `json:"sections_done"`
+	TokensIn               int64                 `json:"tokens_in"`
+	TokensOut              int64                 `json:"tokens_out"`
+	Error                  sql.NullString        `json:"error"`
+	CreatedAt              sql.NullTime          `json:"created_at"`
+	UpdatedAt              sql.NullTime          `json:"updated_at"`
+	FinishedAt             sql.NullTime          `json:"finished_at"`
+	Labels                 pqtype.NullRawMessage `json:"labels"`
 }
 
 type ReportLog struct {

@@ -23,6 +23,7 @@ import (
 
 	"github.com/invopop/jsonschema"
 	"github.com/sirupsen/logrus"
+	"github.com/sqlc-dev/pqtype"
 	"github.com/vxcontrol/langchaingo/llms"
 	"github.com/vxcontrol/langchaingo/llms/streaming"
 )
@@ -46,11 +47,14 @@ var reflector = &jsonschema.Reflector{
 	ExpandedStruct: true,
 }
 
-// plan is the payload of the single planner tool.
+// plan is the payload of the single planner tool. Labels carries the planner's
+// translation of the fixed composed-section label set into the report language
+// (plan § 6.11); keys it omits keep their English default.
 type plan struct {
-	Title    string        `json:"title"`
-	Estimate int           `json:"sections_estimate"`
-	Sections []planSection `json:"sections"`
+	Title    string            `json:"title"`
+	Estimate int               `json:"sections_estimate"`
+	Sections []planSection     `json:"sections"`
+	Labels   map[string]string `json:"labels,omitempty"`
 }
 
 // UnmarshalJSON accepts the model's two known shapes for the sections field:
@@ -60,6 +64,7 @@ func (p *plan) UnmarshalJSON(blob []byte) error {
 		Title    string          `json:"title"`
 		Estimate int             `json:"sections_estimate"`
 		Sections json.RawMessage `json:"sections"`
+		Labels   json.RawMessage `json:"labels"`
 	}
 
 	parsed := alias{}
@@ -70,6 +75,7 @@ func (p *plan) UnmarshalJSON(blob []byte) error {
 	p.Title = parsed.Title
 	p.Estimate = parsed.Estimate
 	p.Sections = nil
+	p.Labels = decodeLabels(parsed.Labels)
 
 	payload := parsed.Sections
 	if len(payload) > 0 && payload[0] == '"' {
@@ -89,7 +95,10 @@ func (p *plan) UnmarshalJSON(blob []byte) error {
 }
 
 type planSection struct {
-	Key      string      `json:"key"`
+	Key string `json:"key"`
+	// Title is the section's title translated into the report language; empty
+	// keeps the template title (plan § 6.11).
+	Title    string      `json:"title,omitempty"`
 	Action   string      `json:"action"`
 	Children []planChild `json:"children,omitempty"`
 }
@@ -584,23 +593,33 @@ func (w *worker) applyPlan(ctx context.Context, got plan, sections []database.Re
 		}
 	}
 
-	// Top-level decisions (skip includes composed sections until their phase).
-	updated := make(map[int64]struct{}, len(got.Sections))
+	// Top-level decisions: skip what the planner drops and localize the title of
+	// what it keeps into the report language (plan § 6.11).
 	for i := range sections {
 		st := &sections[i]
 		if st.ParentID.Valid {
 			continue
 		}
 		entry, ok := decision[st.Key]
-		if !ok || entry.Action != planActionSkip {
+		if !ok {
 			continue
 		}
-		if _, err := w.deps.DB.SetReportSectionStatus(ctx, database.SetReportSectionStatusParams{
-			ID: st.ID, Status: SectionSkipped,
-		}); err != nil {
-			return fmt.Errorf("failed to skip section %q: %w", st.Key, err)
+		if entry.Action == planActionSkip {
+			if _, err := w.deps.DB.SetReportSectionStatus(ctx, database.SetReportSectionStatusParams{
+				ID: st.ID, Status: SectionSkipped,
+			}); err != nil {
+				return fmt.Errorf("failed to skip section %q: %w", st.Key, err)
+			}
+
+			continue
 		}
-		updated[st.ID] = struct{}{}
+		if title := strings.TrimSpace(entry.Title); title != "" && title != st.Title {
+			if _, err := w.deps.DB.SetReportSectionTitle(ctx, database.SetReportSectionTitleParams{
+				ID: st.ID, Title: title,
+			}); err != nil {
+				return fmt.Errorf("failed to localize section %q: %w", st.Key, err)
+			}
+		}
 	}
 
 	sections, err := w.loadSections()
@@ -635,6 +654,18 @@ func (w *worker) applyPlan(ctx context.Context, got plan, sections []database.Re
 	report, err := w.deps.DB.SetReportPlan(ctx, params)
 	if err != nil {
 		return fmt.Errorf("failed to persist the plan: %w", err)
+	}
+	// The planner's translated label set drives the composed sections; an
+	// omitted or empty map keeps the English wording (plan § 6.11).
+	if len(got.Labels) > 0 {
+		if blob, err := json.Marshal(got.Labels); err == nil {
+			if withLabels, err := w.deps.DB.SetReportLabels(ctx, database.SetReportLabelsParams{
+				ID:     w.report.ID,
+				Labels: pqtype.NullRawMessage{RawMessage: blob, Valid: true},
+			}); err == nil {
+				report = withLabels
+			}
+		}
 	}
 	w.report = report
 	w.doneCount = 0

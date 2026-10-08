@@ -1330,6 +1330,7 @@ func (r *mutationResolver) CreateReport(ctx context.Context, flowID int64, input
 		TemplateKey:            deref(input.TemplateKey),
 		ProviderName:           deref(input.ProviderName),
 		Title:                  deref(input.Title),
+		Language:               deref(input.Language),
 		AdditionalInstructions: deref(input.AdditionalInstructions),
 		ControlBudgetSeconds:   derefInt(input.ControlBudgetSeconds),
 		ContentBudgetSeconds:   derefInt(input.ContentBudgetSeconds),

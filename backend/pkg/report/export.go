@@ -54,12 +54,13 @@ func composeDocument(report database.Report, tpl *Template, sections []database.
 	}
 	fmt.Fprintf(b, "# %s\n\n", title)
 
+	labels := resolveLabels(report)
 	numberer := newNumberer(tpl, sections)
 	for _, st := range orderedSections(sections, sql.NullInt64{}) {
 		if st.Hidden {
 			continue
 		}
-		writeSection(b, numberer, report, st, sections)
+		writeSection(b, numberer, report, labels, st, sections)
 	}
 
 	return normalizeDocument(b.String())
@@ -133,6 +134,7 @@ func writeSection(
 	b *strings.Builder,
 	numberer *numberer,
 	report database.Report,
+	labels map[string]string,
 	st database.ReportSection,
 	sections []database.ReportSection,
 ) {
@@ -142,7 +144,7 @@ func writeSection(
 	case KindComposed, KindAggregate:
 		// Computed at export; aggregate children are written by their owners.
 		if st.Kind == KindComposed {
-			b.WriteString(composeSectionBody(numberer, report, st, sections))
+			b.WriteString(composeSectionBody(numberer, report, labels, st, sections))
 		}
 	default:
 		switch st.Status {
@@ -164,7 +166,7 @@ func writeSection(
 		if child.Hidden {
 			continue
 		}
-		writeSection(b, numberer, report, child, sections)
+		writeSection(b, numberer, report, labels, child, sections)
 	}
 }
 
@@ -174,22 +176,23 @@ func writeSection(
 func composeSectionBody(
 	numberer *numberer,
 	report database.Report,
+	labels map[string]string,
 	st database.ReportSection,
 	sections []database.ReportSection,
 ) string {
 	switch st.Key {
 	case "cover-page":
-		return composeCover(report)
+		return composeCover(report, labels)
 	case "engagement-metrics":
-		return composeMetrics(report)
+		return composeMetrics(report, labels)
 	case "risk-rankings":
-		return composeRankings(numberer, sections)
+		return composeRankings(numberer, labels, sections)
 	case "document-version":
-		return composeVersion(report)
+		return composeVersion(report, labels)
 	case "closing":
-		return composeClosing(report)
+		return composeClosing(report, labels)
 	case "page-header-footer":
-		return composeHeaderFooter(report)
+		return composeHeaderFooter(report, labels)
 	default:
 		return fmt.Sprintf("*Composed from the document when the report is exported (unknown composer %q).*\n\n", st.Key)
 	}
@@ -202,36 +205,54 @@ func nullTimeOrNow(value sql.NullTime) time.Time {
 	return time.Now()
 }
 
-func composeCover(report database.Report) string {
+func composeCover(report database.Report, labels map[string]string) string {
 	b := &strings.Builder{}
 	title := strings.TrimSpace(report.Title)
 	if title == "" {
 		title = strings.TrimSpace(report.TemplateLabel)
 	}
 	fmt.Fprintf(b, "**%s**\n\n", escapeTitle(title))
-	fmt.Fprintf(b, "Engagement: *%s* (flow %d)\n", escapeTitle(report.TemplateLabel), report.ID)
-	fmt.Fprintf(b, "\nGenerated %s.\n", nullTimeOrNow(report.CreatedAt).UTC().Format("2006-01-02 15:04 UTC"))
+	b.WriteString(renderLabel(labels, "cover.engagement", map[string]string{
+		"id":       fmt.Sprintf("%d", report.ID),
+		"template": escapeTitle(report.TemplateLabel),
+	}))
+	b.WriteString("\n\n")
+	b.WriteString(renderLabel(labels, "cover.generated", map[string]string{
+		"date": nullTimeOrNow(report.CreatedAt).UTC().Format("2006-01-02 15:04 UTC"),
+	}))
 	return b.String() + "\n"
 }
 
-func composeMetrics(report database.Report) string {
+func composeMetrics(report database.Report, labels map[string]string) string {
 	b := &strings.Builder{}
-	b.WriteString("| Metric | Value |\n|---|---|\n")
-	fmt.Fprintf(b, "| Took | %s |\n", tookOf(report))
-	fmt.Fprintf(b, "| Agent time | %s |\n", humanDuration(controlPlusContent(report)))
-	fmt.Fprintf(b, "| Tokens | %s in · %s out |\n", humanTokens(report.TokensIn), humanTokens(report.TokensOut))
-	fmt.Fprintf(b, "| Sections | %d of %d (estimate %d) |\n",
-		report.SectionsDone, report.SectionsTotal, report.SectionsEstimate)
+	fmt.Fprintf(b, "| %s | %s |\n|---|---|\n",
+		renderLabel(labels, "metrics.metric", nil), renderLabel(labels, "metrics.value", nil))
+	fmt.Fprintf(b, "| %s | %s |\n", renderLabel(labels, "metrics.took", nil), tookOf(report))
+	fmt.Fprintf(b, "| %s | %s |\n", renderLabel(labels, "metrics.agent_time", nil), humanDuration(controlPlusContent(report)))
+	fmt.Fprintf(b, "| %s | %s |\n", renderLabel(labels, "metrics.tokens", nil),
+		renderLabel(labels, "metrics.tokens_value", map[string]string{
+			"in":  humanTokens(report.TokensIn),
+			"out": humanTokens(report.TokensOut),
+		}))
+	fmt.Fprintf(b, "| %s | %s |\n", renderLabel(labels, "metrics.sections", nil),
+		renderLabel(labels, "metrics.sections_value", map[string]string{
+			"done":     fmt.Sprintf("%d", report.SectionsDone),
+			"estimate": fmt.Sprintf("%d", report.SectionsEstimate),
+			"total":    fmt.Sprintf("%d", report.SectionsTotal),
+		}))
 	return b.String() + "\n"
 }
 
-func composeRankings(numberer *numberer, sections []database.ReportSection) string {
+func composeRankings(numberer *numberer, labels map[string]string, sections []database.ReportSection) string {
 	b := &strings.Builder{}
 	rows := rankingRows(numberer, sections)
 	if len(rows) == 0 {
-		return "*Composed from the document when the report is exported: no ranking material in this document.*\n\n"
+		return renderLabel(labels, "rankings.empty", nil) + "\n\n"
 	}
-	b.WriteString("| Rank | Where to read | Item |\n|---|---|---|\n")
+	fmt.Fprintf(b, "| %s | %s | %s |\n|---|---|---|\n",
+		renderLabel(labels, "rankings.rank", nil),
+		renderLabel(labels, "rankings.where", nil),
+		renderLabel(labels, "rankings.item", nil))
 	for i, row := range rows {
 		fmt.Fprintf(b, "| %d | %s | %s |\n", i+1, escapeTitle(row.where), escapeTitle(row.item))
 	}
@@ -245,7 +266,9 @@ type rankingRow struct {
 
 // rankingRows walks the document for the ranking material: v1 reads the
 // severity mentions out of finding titles (a cheap, explicit heuristic; the
-// richer ranking is carried by the findings themselves).
+// richer ranking is carried by the findings themselves). It matches the parent
+// aggregates by KEY, never by their title text, so a translated report keeps
+// working (plan § 6.11).
 func rankingRows(numberer *numberer, sections []database.ReportSection) []rankingRow {
 	rows := make([]rankingRow, 0, 8)
 	_ = numberer
@@ -254,53 +277,62 @@ func rankingRows(numberer *numberer, sections []database.ReportSection) []rankin
 		if st.Hidden || st.Status != SectionDone || st.Kind != KindLLM {
 			continue
 		}
-		if parent := findTitle(sections, st.ParentID); parent != "" &&
-			(strings.Contains(parent, "Findings") || strings.Contains(parent, "Recommendations")) &&
-			st.ParentID.Valid {
-			rows = append(rows, rankingRow{
-				where: findTitle(sections, st.ParentID),
-				item:  st.Title,
-			})
+		parent := findSection(sections, st.ParentID)
+		if parent == nil || (parent.Key != "detailed-findings" && parent.Key != "recommendations") {
+			continue
 		}
+		rows = append(rows, rankingRow{where: parent.Title, item: st.Title})
 	}
 	return rows
 }
 
-func findTitle(sections []database.ReportSection, id sql.NullInt64) string {
+// findSection returns the section with the given id, or nil.
+func findSection(sections []database.ReportSection, id sql.NullInt64) *database.ReportSection {
 	if !id.Valid {
-		return ""
+		return nil
 	}
 	for i := range sections {
 		if sections[i].ID == id.Int64 {
-			return sections[i].Title
+			return &sections[i]
 		}
+	}
+	return nil
+}
+
+func findTitle(sections []database.ReportSection, id sql.NullInt64) string {
+	if found := findSection(sections, id); found != nil {
+		return found.Title
 	}
 	return ""
 }
 
-func composeVersion(report database.Report) string {
-	return fmt.Sprintf(
-		"- Document version: 1\n- Template: %s (%s)\n- Generated: %s\n",
-		report.TemplateKey, escapeTitle(report.TemplateLabel),
-		nullTimeOrNow(report.CreatedAt).UTC().Format("2006-01-02"),
-	) + "\n"
+func composeVersion(report database.Report, labels map[string]string) string {
+	template := fmt.Sprintf("%s (%s)", report.TemplateKey, escapeTitle(report.TemplateLabel))
+	return renderLabel(labels, "version.document_version", nil) + "\n" +
+		renderLabel(labels, "version.template", map[string]string{"template": template}) + "\n" +
+		renderLabel(labels, "version.generated", map[string]string{
+			"date": nullTimeOrNow(report.CreatedAt).UTC().Format("2006-01-02"),
+		}) + "\n\n"
 }
 
-func composeClosing(report database.Report) string {
-	took := tookOf(report)
-	return fmt.Sprintf("*End of report. The engagement record this document was written from stays with the flow; this run took %s in agent time %s (%s in · %s out).*\n",
-		took, humanDuration(controlPlusContent(report)), humanTokens(report.TokensIn), humanTokens(report.TokensOut),
-	) + "\n"
+func composeClosing(report database.Report, labels map[string]string) string {
+	return renderLabel(labels, "closing.end", map[string]string{
+		"agent_time": humanDuration(controlPlusContent(report)),
+		"tokens_in":  humanTokens(report.TokensIn),
+		"tokens_out": humanTokens(report.TokensOut),
+		"took":       tookOf(report),
+	}) + "\n\n"
 }
 
-func composeHeaderFooter(report database.Report) string {
+func composeHeaderFooter(report database.Report, labels map[string]string) string {
 	title := strings.TrimSpace(report.Title)
 	if title == "" {
 		title = report.TemplateLabel
 	}
-	return fmt.Sprintf("Header: \"%s\" | Footer: \"Generated by PentAGI · %s\"\n",
-		escapeTitle(title), nullTimeOrNow(report.CreatedAt).UTC().Format("2006-01-02"),
-	) + "\n"
+	return renderLabel(labels, "header_footer.line", map[string]string{
+		"date":  nullTimeOrNow(report.CreatedAt).UTC().Format("2006-01-02"),
+		"title": escapeTitle(title),
+	}) + "\n\n"
 }
 
 func tookOf(report database.Report) string {

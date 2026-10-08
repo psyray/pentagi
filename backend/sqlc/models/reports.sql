@@ -67,6 +67,14 @@ SET
 WHERE id = $1
 RETURNING *;
 
+-- name: SetReportLabels :one
+UPDATE reports
+SET
+  labels = $2,
+  updated_at = CURRENT_TIMESTAMP
+WHERE id = $1
+RETURNING *;
+
 -- name: SetReportPlan :one
 UPDATE reports
 SET
@@ -179,6 +187,14 @@ SET
   instructions = $3,
   variables = $4,
   warnings = $5,
+  updated_at = CURRENT_TIMESTAMP
+WHERE id = $1
+RETURNING *;
+
+-- name: SetReportSectionTitle :one
+UPDATE report_sections
+SET
+  title = $2,
   updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
 RETURNING *;

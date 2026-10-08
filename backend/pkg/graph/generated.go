@@ -51054,7 +51054,7 @@ func (ec *executionContext) unmarshalInputCreateReportInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"templateKey", "providerName", "title", "additionalInstructions", "controlBudgetSeconds", "contentBudgetSeconds"}
+	fieldsInOrder := [...]string{"templateKey", "providerName", "title", "language", "additionalInstructions", "controlBudgetSeconds", "contentBudgetSeconds"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -51082,6 +51082,13 @@ func (ec *executionContext) unmarshalInputCreateReportInput(ctx context.Context,
 				return it, err
 			}
 			it.Title = data
+		case "language":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("language"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Language = data
 		case "additionalInstructions":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("additionalInstructions"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
