@@ -703,6 +703,105 @@ func (c *Controller) DeleteReportSection(ctx context.Context, userID, reportID, 
 	return nil
 }
 
+// BrandingParams is the updateReportBranding payload. The four texts are always
+// applied (empty clears the override). A nil Logo keeps the stored one, an
+// empty Logo clears it, anything else is decoded and validated.
+type BrandingParams struct {
+	Title    *string
+	Subtitle *string
+	Header   *string
+	Footer   *string
+	Logo     *string
+	LogoName string
+}
+
+// SetBranding persists the per-report export branding (plan § 6.6 / P6). The
+// branding does not take part in the generation, so it is editable whatever the
+// run status.
+func (c *Controller) SetBranding(
+	ctx context.Context, userID, reportID int64, params BrandingParams,
+) (*database.Report, error) {
+	if _, err := c.GetReport(ctx, userID, reportID); err != nil {
+		return nil, err
+	}
+	if err := ValidateBrandingTexts(params.Title, params.Subtitle, params.Header, params.Footer); err != nil {
+		return nil, err
+	}
+
+	// Decode the logo before touching the row: an invalid upload must not leave
+	// the texts half-saved.
+	var decoded *BrandingLogo
+	if params.Logo != nil && strings.TrimSpace(*params.Logo) != "" {
+		logo, err := DecodeBrandingLogo(*params.Logo, params.LogoName)
+		if err != nil {
+			return nil, err
+		}
+		decoded = logo
+	}
+
+	updated, err := c.deps.DB.SetReportBrandingText(ctx, database.SetReportBrandingTextParams{
+		ID:               reportID,
+		BrandingFooter:   brandingTextOrNull(params.Footer),
+		BrandingHeader:   brandingTextOrNull(params.Header),
+		BrandingSubtitle: brandingTextOrNull(params.Subtitle),
+		BrandingTitle:    brandingTextOrNull(params.Title),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to save the report branding: %w", err)
+	}
+
+	if params.Logo == nil {
+		return &updated, nil
+	}
+	if decoded == nil {
+		if err := c.deps.DB.ClearReportBrandingLogo(ctx, reportID); err != nil {
+			return nil, fmt.Errorf("failed to clear the report logo: %w", err)
+		}
+		return &updated, nil
+	}
+
+	if err := c.deps.DB.SetReportBrandingLogo(ctx, database.SetReportBrandingLogoParams{
+		ReportID:  reportID,
+		Data:      decoded.Bytes,
+		Name:      decoded.Name,
+		MediaType: decoded.MediaType,
+	}); err != nil {
+		return nil, fmt.Errorf("failed to save the report logo: %w", err)
+	}
+
+	return &updated, nil
+}
+
+// ErrNoBrandingLogo reports that the report carries no logo.
+var ErrNoBrandingLogo = errors.New("report has no branding logo")
+
+// BrandingLogo returns the stored logo bytes for the download endpoint.
+func (c *Controller) BrandingLogo(
+	ctx context.Context, userID, reportID int64,
+) (name, mediaType string, data []byte, err error) {
+	report, err := c.GetReport(ctx, userID, reportID)
+	if err != nil {
+		return "", "", nil, err
+	}
+
+	logo, err := c.deps.DB.GetReportBrandingLogo(ctx, report.ID)
+	if err != nil {
+		return "", "", nil, ErrNoBrandingLogo
+	}
+	return logo.Name, logo.MediaType, logo.Data, nil
+}
+
+// BrandingLogoInfo tells whether a logo exists without reading its bytes.
+func (c *Controller) BrandingLogoInfo(
+	ctx context.Context, reportID int64,
+) (name, mediaType string, err error) {
+	info, err := c.deps.DB.GetReportBrandingLogoInfo(ctx, reportID)
+	if err != nil {
+		return "", "", ErrNoBrandingLogo
+	}
+	return info.Name, info.MediaType, nil
+}
+
 func (c *Controller) shiftPositions(
 	ctx context.Context, reportID int64, parent sql.NullInt64, from int32,
 ) error {

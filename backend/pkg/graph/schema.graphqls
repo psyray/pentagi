@@ -1079,6 +1079,8 @@ type Query {
   reportDocument(reportId: ID!): String!
   # reportVision probes whether the provider a report would use can read images.
   reportVision(flowId: ID!, providerName: String): ReportVision!
+  # The per-report export branding (plan § 6.6 / P6).
+  reportBranding(reportId: ID!): ReportBranding!
 
 }
 
@@ -1133,6 +1135,7 @@ type Mutation {
 
   # Reports (fork extended-version, section 6)
   createReport(flowId: ID!, input: CreateReportInput!): Report!
+  updateReportBranding(reportId: ID!, input: ReportBrandingInput!): ReportBranding!
   putReportNote(reportId: ID!, note: String!): ResultType!
   stopReport(reportId: ID!): ResultType!
   deleteReport(reportId: ID!): ResultType!
@@ -1285,6 +1288,33 @@ type ReportVariable {
 type ReportVision {
   vision: Boolean!
   error: String
+}
+
+# The per-report branding the exports print (fork extended-version, P6).
+type ReportBranding {
+  # The stored overrides, empty when unset: the edit form's values.
+  title: String
+  subtitle: String
+  header: String
+  footer: String
+  # The values an export prints: the override, else the localized default.
+  resolvedTitle: String!
+  resolvedSubtitle: String!
+  resolvedHeader: String!
+  resolvedFooter: String!
+  hasLogo: Boolean!
+  logoName: String
+  logoMediaType: String
+}
+
+input ReportBrandingInput {
+  title: String
+  subtitle: String
+  header: String
+  footer: String
+  # A data URL or raw base64 png/jpeg. An empty string clears the logo; null keeps it.
+  logo: String
+  logoName: String
 }
 
 type ReportSection {

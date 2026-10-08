@@ -491,6 +491,29 @@ type Report struct {
 	FinishedAt             *time.Time       `json:"finishedAt,omitempty"`
 }
 
+type ReportBranding struct {
+	Title            *string `json:"title,omitempty"`
+	Subtitle         *string `json:"subtitle,omitempty"`
+	Header           *string `json:"header,omitempty"`
+	Footer           *string `json:"footer,omitempty"`
+	ResolvedTitle    string  `json:"resolvedTitle"`
+	ResolvedSubtitle string  `json:"resolvedSubtitle"`
+	ResolvedHeader   string  `json:"resolvedHeader"`
+	ResolvedFooter   string  `json:"resolvedFooter"`
+	HasLogo          bool    `json:"hasLogo"`
+	LogoName         *string `json:"logoName,omitempty"`
+	LogoMediaType    *string `json:"logoMediaType,omitempty"`
+}
+
+type ReportBrandingInput struct {
+	Title    *string `json:"title,omitempty"`
+	Subtitle *string `json:"subtitle,omitempty"`
+	Header   *string `json:"header,omitempty"`
+	Footer   *string `json:"footer,omitempty"`
+	Logo     *string `json:"logo,omitempty"`
+	LogoName *string `json:"logoName,omitempty"`
+}
+
 type ReportLog struct {
 	ID        int64                  `json:"id"`
 	ReportID  int64                  `json:"reportId"`

@@ -1340,6 +1340,28 @@ func (r *mutationResolver) CreateReport(ctx context.Context, flowID int64, input
 	return converter.ConvertReport(*report), nil
 }
 
+// UpdateReportBranding is the resolver for the updateReportBranding field.
+func (r *mutationResolver) UpdateReportBranding(ctx context.Context, reportID int64, input model.ReportBrandingInput) (*model.ReportBranding, error) {
+	uid, err := validateReport(ctx, r.ReportsCtrl, reportID)
+	if err != nil {
+		return nil, err
+	}
+
+	view, err := r.ReportsCtrl.SetBranding(ctx, uid, reportID, controller.BrandingParams{
+		Title:    input.Title,
+		Subtitle: input.Subtitle,
+		Header:   input.Header,
+		Footer:   input.Footer,
+		Logo:     input.Logo,
+		LogoName: deref(input.LogoName),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return brandingModel(view), nil
+}
+
 // PutReportNote is the resolver for the putReportNote field.
 func (r *mutationResolver) PutReportNote(ctx context.Context, reportID int64, note string) (model.ResultType, error) {
 	uid, err := validateReport(ctx, r.ReportsCtrl, reportID)
@@ -2868,6 +2890,21 @@ func (r *queryResolver) ReportVision(ctx context.Context, flowID int64, provider
 	}
 
 	return out, nil
+}
+
+// ReportBranding is the resolver for the reportBranding field.
+func (r *queryResolver) ReportBranding(ctx context.Context, reportID int64) (*model.ReportBranding, error) {
+	uid, err := validateReport(ctx, r.ReportsCtrl, reportID)
+	if err != nil {
+		return nil, err
+	}
+
+	view, err := r.ReportsCtrl.GetBranding(ctx, uid, reportID)
+	if err != nil {
+		return nil, err
+	}
+
+	return brandingModel(view), nil
 }
 
 // FlowCreated is the resolver for the flowCreated field.

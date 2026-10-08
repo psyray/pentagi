@@ -12,6 +12,7 @@ import (
 type Querier interface {
 	AddFavoriteFlow(ctx context.Context, arg AddFavoriteFlowParams) (UserPreference, error)
 	AppendReportSectionWarning(ctx context.Context, arg AppendReportSectionWarningParams) (ReportSection, error)
+	ClearReportBrandingLogo(ctx context.Context, reportID int64) error
 	// Pulls the siblings after a removed section back by one so positions stay
 	// contiguous across add/delete cycles (IS NOT DISTINCT FROM for the NULL parent).
 	CompactReportSectionPositions(ctx context.Context, arg CompactReportSectionPositionsParams) error
@@ -156,6 +157,8 @@ type Querier interface {
 	GetProviders(ctx context.Context) ([]Provider, error)
 	GetProvidersByType(ctx context.Context, type_ ProviderType) ([]Provider, error)
 	GetReport(ctx context.Context, arg GetReportParams) (Report, error)
+	GetReportBrandingLogo(ctx context.Context, reportID int64) (GetReportBrandingLogoRow, error)
+	GetReportBrandingLogoInfo(ctx context.Context, reportID int64) (GetReportBrandingLogoInfoRow, error)
 	GetReportByID(ctx context.Context, id int64) (Report, error)
 	GetReportLogs(ctx context.Context, arg GetReportLogsParams) ([]ReportLog, error)
 	GetReportSection(ctx context.Context, arg GetReportSectionParams) (ReportSection, error)
@@ -291,6 +294,8 @@ type Querier interface {
 	// lim          maximum number of rows to return
 	// user_id      owner filter as a decimal text string (e.g. "42")
 	SearchUserKnowledgeDocuments(ctx context.Context, arg SearchUserKnowledgeDocumentsParams) ([]SearchUserKnowledgeDocumentsRow, error)
+	SetReportBrandingLogo(ctx context.Context, arg SetReportBrandingLogoParams) error
+	SetReportBrandingText(ctx context.Context, arg SetReportBrandingTextParams) (Report, error)
 	SetReportEstimate(ctx context.Context, arg SetReportEstimateParams) (Report, error)
 	SetReportLabels(ctx context.Context, arg SetReportLabelsParams) (Report, error)
 	SetReportPlan(ctx context.Context, arg SetReportPlanParams) (Report, error)
