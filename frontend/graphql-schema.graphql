@@ -1815,6 +1815,13 @@ query reportDocument($reportId: ID!) {
     reportDocument(reportId: $reportId)
 }
 
+query reportVision($flowId: ID!, $providerName: String) {
+    reportVision(flowId: $flowId, providerName: $providerName) {
+        vision
+        error
+    }
+}
+
 mutation createReport($flowId: ID!, $input: CreateReportInput!) {
     createReport(flowId: $flowId, input: $input) {
         ...reportFragment

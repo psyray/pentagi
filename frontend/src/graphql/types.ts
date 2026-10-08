@@ -1823,6 +1823,13 @@ export type ReportDocumentQueryVariables = Exact<{
 
 export type ReportDocumentQuery = { reportDocument: string };
 
+export type ReportVisionQueryVariables = Exact<{
+    flowId: string | number;
+    providerName?: string | null | undefined;
+}>;
+
+export type ReportVisionQuery = { reportVision: { vision: boolean; error: string | null } };
+
 export type CreateReportMutationVariables = Exact<{
     flowId: string | number;
     input: CreateReportInput;
@@ -15194,6 +15201,56 @@ export const ReportDocumentDocument = {
         },
     ],
 } as unknown as DocumentNode<ReportDocumentQuery, ReportDocumentQueryVariables>;
+export const ReportVisionDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'reportVision' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'providerName' } },
+                    type: { kind: 'NamedType', name: { kind: 'Name', value: 'String' } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'reportVision' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'flowId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'flowId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'providerName' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'providerName' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'vision' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'error' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<ReportVisionQuery, ReportVisionQueryVariables>;
 export const CreateReportDocument = {
     kind: 'Document',
     definitions: [
