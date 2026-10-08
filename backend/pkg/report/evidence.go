@@ -27,11 +27,12 @@ const (
 // ([E1], [E2], ...). When the writer cites a candidate, the resolved ref is what
 // the archive bundles (plan § 6.10).
 type EvidenceRef struct {
-	Index        int          `json:"index"` // 1-based; [E1] is Index 1
-	Kind         EvidenceKind `json:"kind"`
-	Label        string       `json:"label"`
-	Path         string       `json:"path,omitempty"`         // container path when a file is referenced
-	ScreenshotID int64        `json:"screenshotId,omitempty"` // set for screenshot candidates
+	Index          int          `json:"index"` // 1-based; [E1] is Index 1
+	Kind           EvidenceKind `json:"kind"`
+	Label          string       `json:"label"`
+	Path           string       `json:"path,omitempty"`           // container path when a file is referenced
+	ScreenshotID   int64        `json:"screenshotId,omitempty"`   // set for screenshot candidates
+	ScreenshotName string       `json:"screenshotName,omitempty"` // screenshot file name, for the archive
 }
 
 // EvidenceCaps bound one pack so a chatty engagement cannot overflow the
@@ -169,8 +170,9 @@ func buildEvidencePack(
 			}
 			add(fmt.Sprintf("screenshot:%d", shot.ID), fmt.Sprintf("screenshot %q (id %d)", label, shot.ID),
 				fmt.Sprintf("Screenshot captured during the subtask: %s.", label), EvidenceRef{
-					Kind:         EvidenceKindScreenshot,
-					ScreenshotID: shot.ID,
+					Kind:           EvidenceKindScreenshot,
+					ScreenshotID:   shot.ID,
+					ScreenshotName: shot.Name,
 				})
 		}
 	}
@@ -239,4 +241,41 @@ func encodeEvidenceRefs(refs []EvidenceRef) (json.RawMessage, error) {
 		return nil, fmt.Errorf("failed to encode evidence refs: %w", err)
 	}
 	return blob, nil
+}
+
+// evidenceRefKey identifies a ref for deduplication across sections: one entry
+// per container path or per screenshot.
+func evidenceRefKey(ref EvidenceRef) string {
+	if ref.Kind == EvidenceKindScreenshot {
+		return fmt.Sprintf("screenshot:%d", ref.ScreenshotID)
+	}
+	return "file:" + ref.Path
+}
+
+// DecodeEvidenceRefs parses a persisted manifest, tolerating an empty column.
+func DecodeEvidenceRefs(blob json.RawMessage) ([]EvidenceRef, error) {
+	if len(blob) == 0 {
+		return nil, nil
+	}
+	var refs []EvidenceRef
+	if err := json.Unmarshal(blob, &refs); err != nil {
+		return nil, fmt.Errorf("failed to decode evidence refs: %w", err)
+	}
+	return refs, nil
+}
+
+// DedupeEvidenceRefs keeps one ref per container path or screenshot, in the
+// order they were first seen.
+func DedupeEvidenceRefs(refs []EvidenceRef) []EvidenceRef {
+	seen := make(map[string]struct{}, len(refs))
+	out := make([]EvidenceRef, 0, len(refs))
+	for _, ref := range refs {
+		key := evidenceRefKey(ref)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		out = append(out, ref)
+	}
+	return out
 }

@@ -785,3 +785,24 @@ func (c *Controller) ListLogs(ctx context.Context, reportID int64, limit int) ([
 func (c *Controller) Document(ctx context.Context, reportID int64) (string, error) {
 	return BuildDocument(ctx, c.deps.DB, reportID)
 }
+
+// EvidenceRefs returns the evidence the report's sections cited, deduplicated
+// across sections (plan § 6.10). The archive bundles what it holds.
+func (c *Controller) EvidenceRefs(ctx context.Context, reportID int64) ([]EvidenceRef, error) {
+	sections, err := c.deps.DB.GetReportSections(ctx, reportID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load report %d sections: %w", reportID, err)
+	}
+
+	all := make([]EvidenceRef, 0, len(sections))
+	for i := range sections {
+		refs, err := DecodeEvidenceRefs(sections[i].EvidenceRefs)
+		if err != nil {
+			// A malformed manifest must not sink the archive: skip that section.
+			continue
+		}
+		all = append(all, refs...)
+	}
+
+	return DedupeEvidenceRefs(all), nil
+}
