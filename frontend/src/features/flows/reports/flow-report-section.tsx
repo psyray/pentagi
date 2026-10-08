@@ -1,3 +1,5 @@
+import { TriangleAlert } from 'lucide-react';
+
 import Markdown from '@/components/shared/markdown';
 import { Badge } from '@/components/ui/badge';
 import { ReportSectionStatusType } from '@/graphql/types';
@@ -27,6 +29,15 @@ function FlowReportSection({ depth, node }: FlowReportSectionProps) {
             <div className={cn('flex items-center gap-2', depth === 0 ? 'mt-8 mb-3 first:mt-0' : 'mt-6 mb-2')}>
                 <Heading className={cn('min-w-0', headingClass(depth))}>{numberedTitle(node)}</Heading>
                 {sectionStatusBadge(section.status)}
+                {section.warnings && section.warnings.length > 0 && (
+                    <span
+                        className="flex shrink-0 items-center gap-1 text-xs text-amber-500"
+                        title={section.warnings.join('\n')}
+                    >
+                        <TriangleAlert className="size-3.5" />
+                        {section.warnings.length}
+                    </span>
+                )}
             </div>
 
             <div className="text-sm">{sectionBody(node)}</div>

@@ -14,6 +14,48 @@ import (
 	"github.com/sqlc-dev/pqtype"
 )
 
+const appendReportSectionWarning = `-- name: AppendReportSectionWarning :one
+UPDATE report_sections
+SET
+  warnings = array_append(COALESCE(warnings, '{}'), $2),
+  updated_at = CURRENT_TIMESTAMP
+WHERE id = $1
+RETURNING id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs
+`
+
+type AppendReportSectionWarningParams struct {
+	ID          int64  `json:"id"`
+	ArrayAppend string `json:"array_append"`
+}
+
+func (q *Queries) AppendReportSectionWarning(ctx context.Context, arg AppendReportSectionWarningParams) (ReportSection, error) {
+	row := q.db.QueryRowContext(ctx, appendReportSectionWarning, arg.ID, arg.ArrayAppend)
+	var i ReportSection
+	err := row.Scan(
+		&i.ID,
+		&i.ReportID,
+		&i.ParentID,
+		&i.Position,
+		&i.Key,
+		&i.Kind,
+		&i.Title,
+		&i.Status,
+		&i.Content,
+		&i.Instructions,
+		&i.Variables,
+		pq.Array(&i.Warnings),
+		&i.Hidden,
+		&i.TokensIn,
+		&i.TokensOut,
+		&i.DurationSeconds,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		pq.Array(&i.SourceSubtaskIds),
+		&i.EvidenceRefs,
+	)
+	return i, err
+}
+
 const createReport = `-- name: CreateReport :one
 INSERT INTO reports (
   flow_id,
