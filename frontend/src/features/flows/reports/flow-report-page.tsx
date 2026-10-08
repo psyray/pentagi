@@ -136,7 +136,7 @@ function FlowReportPage() {
                     </aside>
 
                     <div className="min-w-0 flex-1 overflow-auto">
-                        <div className="mx-auto w-[80%] max-w-[1500px] p-8">
+                        <div className="mx-auto w-[95%] max-w-[1500px] p-8 xl:w-[80%]">
                             <h1 className="mb-6 text-2xl font-bold">{report.title || 'Untitled report'}</h1>
                             {outline.map((node) => (
                                 <FlowReportSection
