@@ -326,9 +326,13 @@ func composeClosing(report database.Report, labels map[string]string) string {
 
 func composeHeaderFooter(report database.Report, labels map[string]string) string {
 	branding := ResolveReportBranding(report)
+	// title and date travel alongside header/footer so a label stored before the
+	// header_text/footer_text keys existed still resolves its placeholders.
 	return renderLabel(labels, "header_footer.line", map[string]string{
+		"date":   nullTimeOrNow(report.CreatedAt).UTC().Format("2006-01-02"),
 		"footer": escapeTitle(branding.Footer),
 		"header": escapeTitle(branding.Header),
+		"title":  escapeTitle(branding.Title),
 	}) + "\n\n"
 }
 
