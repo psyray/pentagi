@@ -67,6 +67,38 @@ SET
 WHERE id = $1
 RETURNING *;
 
+-- name: SetReportBrandingText :one
+UPDATE reports
+SET
+  branding_title = $2,
+  branding_subtitle = $3,
+  branding_header = $4,
+  branding_footer = $5,
+  updated_at = CURRENT_TIMESTAMP
+WHERE id = $1
+RETURNING *;
+
+-- name: SetReportBrandingLogo :exec
+INSERT INTO report_branding_logos (report_id, data, name, media_type)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (report_id) DO UPDATE SET
+  data = EXCLUDED.data,
+  name = EXCLUDED.name,
+  media_type = EXCLUDED.media_type,
+  updated_at = CURRENT_TIMESTAMP;
+
+-- name: ClearReportBrandingLogo :exec
+DELETE FROM report_branding_logos
+WHERE report_id = $1;
+
+-- name: GetReportBrandingLogo :one
+SELECT data, name, media_type FROM report_branding_logos
+WHERE report_id = $1;
+
+-- name: GetReportBrandingLogoInfo :one
+SELECT name, media_type FROM report_branding_logos
+WHERE report_id = $1;
+
 -- name: SetReportLabels :one
 UPDATE reports
 SET

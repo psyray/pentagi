@@ -5,6 +5,7 @@ import (
 
 	"pentagi/pkg/controller"
 	"pentagi/pkg/database"
+	"pentagi/pkg/graph/model"
 )
 
 // These helpers back the Report resolvers. They live in a hand-written file:
@@ -64,4 +65,30 @@ func derefInt(value *int) int {
 		return 0
 	}
 	return *value
+}
+
+// optionalString returns nil for an empty value, so an unset branding override
+// reads as null rather than an empty string.
+func optionalString(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
+}
+
+// brandingModel maps the controller's branding view onto the GraphQL type.
+func brandingModel(view controller.BrandingView) *model.ReportBranding {
+	return &model.ReportBranding{
+		Title:            optionalString(view.Title),
+		Subtitle:         optionalString(view.Subtitle),
+		Header:           optionalString(view.Header),
+		Footer:           optionalString(view.Footer),
+		ResolvedTitle:    view.ResolvedTitle,
+		ResolvedSubtitle: view.ResolvedSubtitle,
+		ResolvedHeader:   view.ResolvedHeader,
+		ResolvedFooter:   view.ResolvedFooter,
+		HasLogo:          view.HasLogo,
+		LogoName:         optionalString(view.LogoName),
+		LogoMediaType:    optionalString(view.LogoMediaType),
+	}
 }

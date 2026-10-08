@@ -38,6 +38,13 @@ type ReportController interface {
 	Stop(ctx context.Context, userID, reportID int64) error
 	Delete(ctx context.Context, userID, reportID int64) error
 
+	// GetBranding returns the report's export branding (stored overrides + the
+	// values the exports print). SetBranding persists it. BrandingLogo returns
+	// the stored logo bytes.
+	GetBranding(ctx context.Context, userID, reportID int64) (BrandingView, error)
+	SetBranding(ctx context.Context, userID, reportID int64, params BrandingParams) (BrandingView, error)
+	BrandingLogo(ctx context.Context, userID, reportID int64) (name, mediaType string, data []byte, err error)
+
 	UpdateSection(
 		ctx context.Context, userID, reportID, sectionID int64,
 		title string,
@@ -64,6 +71,35 @@ type CreateReportParams struct {
 	AdditionalInstructions string
 	ControlBudgetSeconds   int
 	ContentBudgetSeconds   int
+}
+
+// BrandingView is the resolver-facing branding of one report: the stored
+// overrides (empty when unset) plus the values every export prints.
+type BrandingView struct {
+	Title    string
+	Subtitle string
+	Header   string
+	Footer   string
+
+	ResolvedTitle    string
+	ResolvedSubtitle string
+	ResolvedHeader   string
+	ResolvedFooter   string
+
+	HasLogo       bool
+	LogoName      string
+	LogoMediaType string
+}
+
+// BrandingParams is the updateReportBranding payload. The four texts are always
+// applied; a nil Logo keeps the stored one, an empty Logo clears it.
+type BrandingParams struct {
+	Title    *string
+	Subtitle *string
+	Header   *string
+	Footer   *string
+	Logo     *string
+	LogoName string
 }
 
 type reportControllerAdapter struct {
@@ -185,6 +221,58 @@ func (a *reportControllerAdapter) Stop(ctx context.Context, userID, reportID int
 
 func (a *reportControllerAdapter) Delete(ctx context.Context, userID, reportID int64) error {
 	return a.ctrl.DeleteReport(ctx, userID, reportID)
+}
+
+func (a *reportControllerAdapter) GetBranding(
+	ctx context.Context, userID, reportID int64,
+) (BrandingView, error) {
+	report, err := a.ctrl.GetReport(ctx, userID, reportID)
+	if err != nil {
+		return BrandingView{}, err
+	}
+	return a.brandingView(ctx, *report), nil
+}
+
+func (a *reportControllerAdapter) SetBranding(
+	ctx context.Context, userID, reportID int64, params BrandingParams,
+) (BrandingView, error) {
+	report, err := a.ctrl.SetBranding(ctx, userID, reportID, report.BrandingParams{
+		Title:    params.Title,
+		Subtitle: params.Subtitle,
+		Header:   params.Header,
+		Footer:   params.Footer,
+		Logo:     params.Logo,
+		LogoName: params.LogoName,
+	})
+	if err != nil {
+		return BrandingView{}, err
+	}
+	return a.brandingView(ctx, *report), nil
+}
+
+func (a *reportControllerAdapter) BrandingLogo(
+	ctx context.Context, userID, reportID int64,
+) (string, string, []byte, error) {
+	return a.ctrl.BrandingLogo(ctx, userID, reportID)
+}
+
+func (a *reportControllerAdapter) brandingView(ctx context.Context, row database.Report) BrandingView {
+	effective := report.ResolveReportBranding(row)
+	name, mediaType, err := a.ctrl.BrandingLogoInfo(ctx, row.ID)
+
+	return BrandingView{
+		Title:            row.BrandingTitle.String,
+		Subtitle:         row.BrandingSubtitle.String,
+		Header:           row.BrandingHeader.String,
+		Footer:           row.BrandingFooter.String,
+		ResolvedTitle:    effective.Title,
+		ResolvedSubtitle: effective.Subtitle,
+		ResolvedHeader:   effective.Header,
+		ResolvedFooter:   effective.Footer,
+		HasLogo:          err == nil,
+		LogoName:         name,
+		LogoMediaType:    mediaType,
+	}
 }
 
 func (a *reportControllerAdapter) UpdateSection(

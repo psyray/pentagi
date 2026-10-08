@@ -207,11 +207,11 @@ func nullTimeOrNow(value sql.NullTime) time.Time {
 
 func composeCover(report database.Report, labels map[string]string) string {
 	b := &strings.Builder{}
-	title := strings.TrimSpace(report.Title)
-	if title == "" {
-		title = strings.TrimSpace(report.TemplateLabel)
+	branding := ResolveReportBranding(report)
+	fmt.Fprintf(b, "**%s**\n\n", escapeTitle(branding.Title))
+	if branding.Subtitle != "" {
+		fmt.Fprintf(b, "*%s*\n\n", escapeTitle(branding.Subtitle))
 	}
-	fmt.Fprintf(b, "**%s**\n\n", escapeTitle(title))
 	b.WriteString(renderLabel(labels, "cover.engagement", map[string]string{
 		"id":       fmt.Sprintf("%d", report.ID),
 		"template": escapeTitle(report.TemplateLabel),
@@ -325,13 +325,10 @@ func composeClosing(report database.Report, labels map[string]string) string {
 }
 
 func composeHeaderFooter(report database.Report, labels map[string]string) string {
-	title := strings.TrimSpace(report.Title)
-	if title == "" {
-		title = report.TemplateLabel
-	}
+	branding := ResolveReportBranding(report)
 	return renderLabel(labels, "header_footer.line", map[string]string{
-		"date":  nullTimeOrNow(report.CreatedAt).UTC().Format("2006-01-02"),
-		"title": escapeTitle(title),
+		"footer": escapeTitle(branding.Footer),
+		"header": escapeTitle(branding.Header),
 	}) + "\n\n"
 }
 
