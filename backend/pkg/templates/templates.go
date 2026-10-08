@@ -460,6 +460,7 @@ var PromptVariables = map[PromptType][]string{
 		"SectionKey",
 		"SectionTitle",
 		"SectionInstructions",
+		"Evidence",
 	},
 }
 
@@ -511,9 +512,15 @@ type ToolsPrompts struct {
 	TaskAssignmentWrapper    Prompt
 }
 
+type ReportPrompts struct {
+	Planner Prompt
+	Writer  Prompt
+}
+
 type DefaultPrompts struct {
 	AgentsPrompts AgentsPrompts
 	ToolsPrompts  ToolsPrompts
+	ReportPrompts ReportPrompts
 }
 
 func GetDefaultPrompts() (*DefaultPrompts, error) {
@@ -614,6 +621,10 @@ func GetDefaultPrompts() (*DefaultPrompts, error) {
 			QuestionExecutionMonitor: getPrompt(PromptTypeQuestionExecutionMonitor),
 			QuestionTaskPlanner:      getPrompt(PromptTypeQuestionTaskPlanner),
 			TaskAssignmentWrapper:    getPrompt(PromptTypeTaskAssignmentWrapper),
+		},
+		ReportPrompts: ReportPrompts{
+			Planner: getPrompt(PromptTypeReportPlanner),
+			Writer:  getPrompt(PromptTypeReportWriter),
 		},
 	}, nil
 }

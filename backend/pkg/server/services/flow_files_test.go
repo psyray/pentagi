@@ -3671,6 +3671,11 @@ func (p *captureFlowPublisher) AssistantLogUpdated(_ context.Context, _ database
 }
 func (p *captureFlowPublisher) KnowledgeDocumentCreated(_ context.Context, _ *model.KnowledgeDocument) {
 }
+func (p *captureFlowPublisher) ReportCreated(_ context.Context, _ *model.Report)               {}
+func (p *captureFlowPublisher) ReportUpdated(_ context.Context, _ *model.Report)               {}
+func (p *captureFlowPublisher) ReportDeleted(_ context.Context, _ *model.Report)               {}
+func (p *captureFlowPublisher) ReportSectionUpdated(_ context.Context, _ *model.ReportSection) {}
+func (p *captureFlowPublisher) ReportLogAdded(_ context.Context, _ *model.ReportLog)           {}
 
 // captureResourcePublisherForFlow records the Resource events AddResourceFromFlow emits.
 type captureResourcePublisherForFlow struct {

@@ -45,12 +45,15 @@ func templatesCaseName(promptType templates.PromptType) string {
 func TestTemplates_GetDefaultPrompts_DeclaresExactlyTheVariablesEachPromptUses(t *testing.T) {
 	prompts := templatesShippedPrompts(t)
 
-	agents, tools := 0, 0
+	agents, tools, report := 0, 0, 0
 	shipped := map[templates.PromptType]bool{}
 	for name, prompt := range prompts {
-		if strings.HasPrefix(name, "DefaultPrompts.AgentsPrompts.") {
+		switch {
+		case strings.HasPrefix(name, "DefaultPrompts.AgentsPrompts."):
 			agents++
-		} else {
+		case strings.HasPrefix(name, "DefaultPrompts.ReportPrompts."):
+			report++
+		default:
 			tools++
 		}
 		shipped[prompt.Type] = true
@@ -69,6 +72,7 @@ func TestTemplates_GetDefaultPrompts_DeclaresExactlyTheVariablesEachPromptUses(t
 
 	assert.Equal(t, 27, agents, "agent prompts")
 	assert.Equal(t, 12, tools, "tool prompts")
+	assert.Equal(t, 2, report, "report prompts")
 	for promptType := range templates.PromptVariables {
 		assert.True(t, shipped[promptType], "PromptVariables holds %s, which no shipped prompt has", promptType)
 	}
