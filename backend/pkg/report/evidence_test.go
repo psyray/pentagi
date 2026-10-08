@@ -70,7 +70,7 @@ func TestBuildEvidencePack_CollectsToolcallsTermlogsAndScreenshots(t *testing.T)
 	require.Len(t, candidates, 3)
 	assert.Equal(t, EvidenceRef{Index: 1, Kind: EvidenceKindToolcall, Label: `toolcall "terminal"`, Path: "/work/results/foothold.txt"}, candidates[0])
 	assert.Equal(t, EvidenceKindTermlog, candidates[1].Kind)
-	assert.Equal(t, EvidenceRef{Index: 3, Kind: EvidenceKindScreenshot, Label: `screenshot "foothold as lp" (id 12)`, ScreenshotID: 12}, candidates[2])
+	assert.Equal(t, EvidenceRef{Index: 3, Kind: EvidenceKindScreenshot, Label: `screenshot "foothold as lp" (id 12)`, ScreenshotID: 12, ScreenshotName: "foothold as lp"}, candidates[2])
 }
 
 func TestBuildEvidencePack_DeduplicatesRepeatedCandidates(t *testing.T) {

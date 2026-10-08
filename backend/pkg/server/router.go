@@ -209,6 +209,7 @@ func NewRouter(
 	settingsService := services.NewSettingsService(cfg)
 	flowService := services.NewFlowService(orm, db, providers, controller, subscriptions)
 	flowFileService := services.NewFlowFileService(orm, cfg.DataDir, cfg.TenantPrefix(), dockerClient, subscriptions)
+	reportArchiveService := services.NewReportArchiveService(cfg.DataDir, cfg.TenantPrefix(), dockerClient, reports)
 	resourceService := services.NewResourceService(orm, cfg.DataDir, subscriptions)
 	taskService := services.NewTaskService(orm)
 	subtaskService := services.NewSubtaskService(orm)
@@ -313,31 +314,32 @@ func NewRouter(
 	privateUserGroup.Use(authMiddleware.AuthUserRequired)
 
 	registerPrivateRoutes(privateGroup, privateUserGroup, privateServices{
-		agentlog:     agentlogService,
-		analytics:    analyticsService,
-		anonymizer:   anonymizerService,
-		assistant:    assistantService,
-		assistantlog: assistantlogService,
-		container:    containerService,
-		flow:         flowService,
-		flowFile:     flowFileService,
-		graphql:      graphqlService,
-		knowledge:    knowledgeService,
-		msglog:       msglogService,
-		prompt:       promptService,
-		provider:     providerService,
-		resource:     resourceService,
-		role:         roleService,
-		screenshot:   screenshotService,
-		searchlog:    searchlogService,
-		settings:     settingsService,
-		subtask:      subtaskService,
-		task:         taskService,
-		termlog:      termlogService,
-		token:        tokenService,
-		toolcall:     toolcallService,
-		user:         userService,
-		vecstorelog:  vecstorelogService,
+		agentlog:      agentlogService,
+		analytics:     analyticsService,
+		anonymizer:    anonymizerService,
+		assistant:     assistantService,
+		assistantlog:  assistantlogService,
+		container:     containerService,
+		flow:          flowService,
+		flowFile:      flowFileService,
+		graphql:       graphqlService,
+		knowledge:     knowledgeService,
+		msglog:        msglogService,
+		prompt:        promptService,
+		provider:      providerService,
+		resource:      resourceService,
+		reportArchive: reportArchiveService,
+		role:          roleService,
+		screenshot:    screenshotService,
+		searchlog:     searchlogService,
+		settings:      settingsService,
+		subtask:       subtaskService,
+		task:          taskService,
+		termlog:       termlogService,
+		token:         tokenService,
+		toolcall:      toolcallService,
+		user:          userService,
+		vecstorelog:   vecstorelogService,
 	})
 
 	if cfg.StaticURL != nil && cfg.StaticURL.Scheme != "" && cfg.StaticURL.Host != "" {
@@ -447,31 +449,32 @@ func setSettingsGroup(parent *gin.RouterGroup, svc *services.SettingsService) {
 }
 
 type privateServices struct {
-	agentlog     *services.AgentlogService
-	analytics    *services.AnalyticsService
-	anonymizer   *services.AnonymizerService
-	assistant    *services.AssistantService
-	assistantlog *services.AssistantlogService
-	container    *services.ContainerService
-	flow         *services.FlowService
-	flowFile     *services.FlowFileService
-	graphql      *services.GraphqlService
-	knowledge    *services.KnowledgeService
-	msglog       *services.MsglogService
-	prompt       *services.PromptService
-	provider     *services.ProviderService
-	resource     *services.ResourceService
-	role         *services.RoleService
-	screenshot   *services.ScreenshotService
-	searchlog    *services.SearchlogService
-	settings     *services.SettingsService
-	subtask      *services.SubtaskService
-	task         *services.TaskService
-	termlog      *services.TermlogService
-	token        *services.TokenService
-	toolcall     *services.ToolcallService
-	user         *services.UserService
-	vecstorelog  *services.VecstorelogService
+	agentlog      *services.AgentlogService
+	analytics     *services.AnalyticsService
+	anonymizer    *services.AnonymizerService
+	assistant     *services.AssistantService
+	assistantlog  *services.AssistantlogService
+	container     *services.ContainerService
+	flow          *services.FlowService
+	flowFile      *services.FlowFileService
+	graphql       *services.GraphqlService
+	knowledge     *services.KnowledgeService
+	msglog        *services.MsglogService
+	prompt        *services.PromptService
+	provider      *services.ProviderService
+	resource      *services.ResourceService
+	reportArchive *services.ReportArchiveService
+	role          *services.RoleService
+	screenshot    *services.ScreenshotService
+	searchlog     *services.SearchlogService
+	settings      *services.SettingsService
+	subtask       *services.SubtaskService
+	task          *services.TaskService
+	termlog       *services.TermlogService
+	token         *services.TokenService
+	toolcall      *services.ToolcallService
+	user          *services.UserService
+	vecstorelog   *services.VecstorelogService
 }
 
 func registerAuthRoutes(authGroup *gin.RouterGroup, authService *services.AuthService) {
@@ -494,6 +497,7 @@ func registerPrivateRoutes(tokenTier, userTier *gin.RouterGroup, svc privateServ
 	setFlowsGroup(tokenTier, svc.flow)
 	setFlowFilesGroup(tokenTier, svc.flowFile)
 	setResourcesGroup(tokenTier, svc.resource)
+	setReportArchiveGroup(tokenTier, svc.reportArchive)
 	setTasksGroup(tokenTier, svc.task)
 	setSubtasksGroup(tokenTier, svc.subtask)
 	setContainersGroup(tokenTier, svc.container)
@@ -581,6 +585,13 @@ func setFlowFilesGroup(parent *gin.RouterGroup, svc *services.FlowFileService) {
 		flowFilesGroup.POST("/pull", svc.PullFlowFiles)
 		flowFilesGroup.POST("/resources", svc.AddResourcesToFlow)
 		flowFilesGroup.POST("/to-resources", svc.AddResourceFromFlow)
+	}
+}
+
+func setReportArchiveGroup(parent *gin.RouterGroup, svc *services.ReportArchiveService) {
+	reportGroup := parent.Group("/flows/:flowID/reports")
+	{
+		reportGroup.GET("/:reportID/archive", svc.ArchiveReport)
 	}
 }
 

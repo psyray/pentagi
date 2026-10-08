@@ -68,6 +68,12 @@ export function useFlowReportDocument() {
             setDownloading(true);
 
             try {
+                if (format === 'zip') {
+                    await downloadReportZip(report);
+
+                    return;
+                }
+
                 const content = await fetchReportDocument(client, reportId);
 
                 if (!content.trim()) {
@@ -80,8 +86,6 @@ export function useFlowReportDocument() {
                     await downloadReportPdf(report, content);
                 } else if (format === 'docx') {
                     await downloadReportDocx(report, content);
-                } else if (format === 'zip') {
-                    await downloadReportZip(report, content);
                 } else {
                     downloadReportMarkdown(report, content);
                 }

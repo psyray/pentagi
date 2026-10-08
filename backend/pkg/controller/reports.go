@@ -29,6 +29,8 @@ type ReportController interface {
 	ListReportSections(ctx context.Context, userID, reportID int64) ([]database.ReportSection, error)
 	ListReportLogs(ctx context.Context, userID, reportID int64, limit int) ([]database.ReportLog, error)
 	Document(ctx context.Context, userID, reportID int64) (string, error)
+	// EvidenceRefs returns the evidence the report's sections cited (archive manifest).
+	EvidenceRefs(ctx context.Context, userID, reportID int64) ([]report.EvidenceRef, error)
 
 	PutNote(ctx context.Context, userID, reportID int64, note string) error
 	Stop(ctx context.Context, userID, reportID int64) error
@@ -152,6 +154,15 @@ func (a *reportControllerAdapter) Document(
 		return "", err
 	}
 	return a.ctrl.Document(ctx, reportID)
+}
+
+func (a *reportControllerAdapter) EvidenceRefs(
+	ctx context.Context, userID, reportID int64,
+) ([]report.EvidenceRef, error) {
+	if _, err := a.ctrl.GetReport(ctx, userID, reportID); err != nil {
+		return nil, err
+	}
+	return a.ctrl.EvidenceRefs(ctx, reportID)
 }
 
 func (a *reportControllerAdapter) PutNote(ctx context.Context, userID, reportID int64, note string) error {
