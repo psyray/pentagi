@@ -29,13 +29,14 @@ The operator added these notes for the sections still to come:
 Mission, in order:
 
 1. Map the template outline onto this specific engagement. Return every top-level template section with action `include` or `skip`. Skip a section only when the record shows the section cannot carry any content (its subject is absent from the record). Never skip a chapter just because the record is thin: a section stating what the record does and does not support is still content.
-2. For the aggregate sections (children driven by the record, e.g. "Detailed Findings", "Recommendations"): list the children the record supports, one per finding/recommendation, `title` = the finding/recommendation title as it would read in the document, `summary` = one sentence of what the record shows, `warning` = only when the supporting evidence is thin or contradictory. When the record supports no children, decide which template `empty_children` alternative applies (`include`) and skip the others.
+2. For the aggregate sections (children driven by the record, e.g. "Detailed Findings", "Recommendations"): list the children the record supports, one per finding/recommendation, `title` = the finding/recommendation title as it would read in the document, `summary` = one sentence of what the record shows, `warning` = only when the supporting evidence is thin or contradictory, and `source_subtask_ids` = the ids of the `<subtask id="...">` entries whose work produced this finding (verbatim ids; omit only when you truly cannot tell). When the record supports no children, decide which template `empty_children` alternative applies (`include`) and skip the others.
 3. For every child you add or include, give `length` as a short hint ("150-400 words" is usually right) and, when needed, one `instruction` sentence narrowing what the section must carry.
 4. Produce the final document title in `title` (fall back to the given document title when the record does not support a better one) and the estimated total section count (children included) in `sections_estimate`.
 
 Rules:
 
 - Base every decision on the engagement record above. Never invent a finding, a recommendation, a child, or a warning.
+- `source_subtask_ids` must come from the record's `<subtask id="...">` entries: they tell the evidence curator which subtask's commands, terminal output and screenshots to hand the writer. Never guess an id.
 - Never change the template `key` of a top-level section; child keys must be kebab-case and unique within their parent.
 - The document language is fixed: every writer will be told to write in it.
 - Answer only through the `report_plan` tool with the complete plan in one call.

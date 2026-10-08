@@ -26,6 +26,10 @@ type fakeQuerier struct {
 	sections  map[int64]database.ReportSection
 	nextSecID int64
 	logs      []database.ReportLog
+
+	toolcalls map[int64][]database.Toolcall
+	termlogs  map[int64][]database.Termlog
+	shots     map[int64][]database.Screenshot
 }
 
 func (q *fakeQuerier) GetFlow(_ context.Context, flowID int64) (database.Flow, error) {
@@ -49,6 +53,38 @@ func (q *fakeQuerier) GetFlowMsgLogs(_ context.Context, flowID int64) ([]databas
 
 func (q *fakeQuerier) GetFlowScreenshots(_ context.Context, flowID int64) ([]database.Screenshot, error) {
 	return q.screens, nil
+}
+
+func (q *fakeQuerier) GetSubtaskToolcalls(_ context.Context, subtaskID sql.NullInt64) ([]database.Toolcall, error) {
+	return q.toolcalls[subtaskID.Int64], nil
+}
+
+func (q *fakeQuerier) GetSubtaskTermLogs(_ context.Context, subtaskID sql.NullInt64) ([]database.Termlog, error) {
+	return q.termlogs[subtaskID.Int64], nil
+}
+
+func (q *fakeQuerier) GetSubtaskScreenshots(_ context.Context, subtaskID sql.NullInt64) ([]database.Screenshot, error) {
+	return q.shots[subtaskID.Int64], nil
+}
+
+func (q *fakeQuerier) SetReportSectionSources(_ context.Context, arg database.SetReportSectionSourcesParams) (database.ReportSection, error) {
+	row, ok := q.sections[arg.ID]
+	if !ok {
+		return database.ReportSection{}, fmt.Errorf("section %d not found", arg.ID)
+	}
+	row.SourceSubtaskIds = arg.SourceSubtaskIds
+	q.sections[arg.ID] = row
+	return row, nil
+}
+
+func (q *fakeQuerier) SetReportSectionEvidence(_ context.Context, arg database.SetReportSectionEvidenceParams) (database.ReportSection, error) {
+	row, ok := q.sections[arg.ID]
+	if !ok {
+		return database.ReportSection{}, fmt.Errorf("section %d not found", arg.ID)
+	}
+	row.EvidenceRefs = arg.EvidenceRefs
+	q.sections[arg.ID] = row
+	return row, nil
 }
 
 func (q *fakeQuerier) GetReport(_ context.Context, arg database.GetReportParams) (database.Report, error) {
@@ -354,7 +390,7 @@ func TestApplyPlan_InstantiatesChildrenAndSkipsAlternatives(t *testing.T) {
 				Key:    "detailed-findings",
 				Action: planActionInclude,
 				Children: []planChild{
-					{Title: "SQL injection on /users", Summary: "A confirmed injection."},
+					{Title: "SQL injection on /users", Summary: "A confirmed injection.", SourceSubtaskIDs: []int64{11, 12}},
 					{Title: "Weak TLS configuration", Summary: "TLS 1.0 accepted."},
 				},
 			},
@@ -371,6 +407,7 @@ func TestApplyPlan_InstantiatesChildrenAndSkipsAlternatives(t *testing.T) {
 	assert.Equal(t, KindLLM, child1.Kind)
 	assert.Equal(t, int32(1), child1.Position)
 	assert.Contains(t, child1.Instructions.String, "Record summary: A confirmed injection.")
+	assert.Equal(t, []int64{11, 12}, child1.SourceSubtaskIds)
 
 	child2 := q.sections[5]
 	assert.Equal(t, int32(2), child2.Position)

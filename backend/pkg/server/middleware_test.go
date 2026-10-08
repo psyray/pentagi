@@ -157,7 +157,7 @@ func middlewareCompressionEngine(t *testing.T) *gin.Engine {
 	api := engine.Group(baseURL)
 
 	setGraphqlGroup(api, services.NewGraphqlService(
-		nil, &config.Config{}, baseURL, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, &config.Config{}, baseURL, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	))
 
 	api.GET("/flows/:flowID/screenshots/:screenshotID/file", func(c *gin.Context) {
