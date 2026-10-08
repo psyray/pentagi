@@ -35,15 +35,10 @@ function FlowReportSection({ canEdit, depth, editor, node, sections }: FlowRepor
 
     return (
         <section
-            className={cn('scroll-mt-4', hidden && 'opacity-60')}
+            className={cn('scroll-mt-4', hidden && 'opacity-60', depth === 0 ? 'mt-12' : 'mt-8 first:mt-0')}
             id={`report-section-${section.id}`}
         >
-            <div
-                className={cn(
-                    'group/report-section flex items-start gap-2',
-                    depth === 0 ? 'mt-12 mb-4 first:mt-0' : 'mt-10 mb-3',
-                )}
-            >
+            <div className="group/report-section mb-3 flex items-start gap-2">
                 <Heading className={cn('min-w-0 flex-1', headingClass(depth))}>{numberedTitle(node)}</Heading>
                 {hidden && (
                     <Badge
