@@ -8,43 +8,11 @@ import { cn } from '@/lib/utils';
 
 import type { ReportProgress } from './use-flow-reports';
 
+import { formatDuration, formatTokens, isReportActive } from './report-format';
+
 const TICK_INTERVAL_MS = 15_000;
 
-const formatDuration = (seconds: number): string => {
-    if (!Number.isFinite(seconds) || seconds < 0) {
-        return '-';
-    }
-
-    if (seconds < 60) {
-        return `${Math.round(seconds)}s`;
-    }
-
-    const totalMinutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.round(seconds % 60);
-
-    if (totalMinutes < 60) {
-        return remainingSeconds > 0 ? `${totalMinutes}m ${remainingSeconds}s` : `${totalMinutes}m`;
-    }
-
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-
-    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
-};
-
-const formatTokens = (tokens: number): string => {
-    if (tokens >= 1_000_000) {
-        return `${(tokens / 1_000_000).toFixed(2)}M`;
-    }
-
-    if (tokens >= 1_000) {
-        return `${(tokens / 1_000).toFixed(1)}K`;
-    }
-
-    return `${tokens}`;
-};
-
-const isRunActive = (report: ReportProgress): boolean => ['created', 'generating', 'planning'].includes(report.status);
+const isRunActive = (report: ReportProgress): boolean => isReportActive(report.status);
 
 const statusIconClass = (report: ReportProgress): string => {
     switch (report.status) {
@@ -114,10 +82,9 @@ function FlowReportCard({ onDownload, onOpen, report }: FlowReportCardProps) {
                 <div className="flex shrink-0 items-center gap-1">
                     <Button
                         aria-label="Open report"
-                        disabled
                         onClick={() => onOpen(report)}
                         size="icon"
-                        title="Open report (arriving with the full-page view)"
+                        title="Open report"
                         variant="ghost"
                     >
                         <ExternalLink />

@@ -140,6 +140,11 @@ export const subscriptionToCacheFieldMap: Record<string, string> = {
 
 const payloadOwnedArgs: Record<string, readonly string[]> = {
     assistantLogs: ['assistantId'],
+    // Reports: the list queries key on a different argument than the flow-scoped
+    // subscriptions. The subscription payload carries the owning id, so the frame
+    // lands in its report's list and never in a sibling report's.
+    reportLogs: ['reportId'],
+    reportSections: ['reportId'],
 };
 
 const matchesCacheVariant = (
