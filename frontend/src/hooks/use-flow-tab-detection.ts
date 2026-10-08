@@ -5,7 +5,8 @@ import { useSearchParamTab } from '@/hooks/use-search-param-tab';
 import { getLatestSearchParams } from '@/lib/url-params';
 import { useFlow } from '@/providers/flow-provider';
 
-export const CENTRAL_TAB_VALUES = ['automation', 'assistant', 'dashboard'];
+// Reporting sits between Assistant and Dashboard, as in the enterprise edition.
+export const CENTRAL_TAB_VALUES = ['automation', 'assistant', 'reporting', 'dashboard'];
 
 export const SIDE_TAB_VALUES = [
     'terminal',

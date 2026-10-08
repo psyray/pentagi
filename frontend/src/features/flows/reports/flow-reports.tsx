@@ -7,7 +7,6 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ReportVisionDocument } from '@/graphql/types';
 import { Log } from '@/lib/log';
 import { routes } from '@/lib/routes';
 import { useFlow } from '@/providers/flow-provider';
@@ -22,7 +21,7 @@ interface FlowReportsProps {
 }
 
 function FlowReports({ className }: FlowReportsProps) {
-    const { createReport, loading, reports } = useFlowReports();
+    const { checkVision, createReport, loading, reports } = useFlowReports();
     const { flowId } = useFlow();
     const navigate = useNavigate();
     const client = useApolloClient();
@@ -57,31 +56,6 @@ function FlowReports({ className }: FlowReportsProps) {
             }
         },
         [client],
-    );
-
-    // Probed from the dialog before creating: warns when the chosen model
-    // cannot read images, so screenshots would not be analysed (plan § 6.10).
-    const checkVision = useCallback(
-        async (providerName: null | string): Promise<{ error?: null | string; vision: boolean }> => {
-            if (!flowId) {
-                return { vision: false };
-            }
-
-            try {
-                const response = await client.query({
-                    fetchPolicy: 'network-only',
-                    query: ReportVisionDocument,
-                    variables: { flowId, providerName },
-                });
-
-                return response.data?.reportVision ?? { vision: false };
-            } catch (error) {
-                Log.error('Failed to probe the report provider vision:', error);
-
-                return { error: 'the provider probe failed', vision: false };
-            }
-        },
-        [client, flowId],
     );
 
     return (

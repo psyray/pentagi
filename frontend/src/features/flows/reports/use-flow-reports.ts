@@ -8,6 +8,7 @@ import {
     ReportCreatedDocument,
     ReportDeletedDocument,
     ReportUpdatedDocument,
+    ReportVisionDocument,
 } from '@/graphql/types';
 import { type ReportFragmentFragment } from '@/graphql/types';
 import { Log } from '@/lib/log';
@@ -24,6 +25,11 @@ export interface CreateReportInput {
 }
 
 export type ReportProgress = ReportFragmentFragment;
+
+export interface ReportVisionProbe {
+    error?: null | string;
+    vision: boolean;
+}
 
 // sortReports keeps the list stable as live events land (newest first).
 const sortReports = (reports: readonly ReportProgress[]): ReportProgress[] =>
@@ -142,6 +148,31 @@ export function useFlowReports() {
 
     const [createMutation] = useMutation(CreateReportDocument);
 
+    // Probed before creating a report: warns when the chosen model cannot read
+    // images, so screenshots would not be analysed (plan § 6.10).
+    const checkVision = useCallback(
+        async (providerName: null | string): Promise<ReportVisionProbe> => {
+            if (!flowId) {
+                return { vision: false };
+            }
+
+            try {
+                const response = await client.query({
+                    fetchPolicy: 'network-only',
+                    query: ReportVisionDocument,
+                    variables: { flowId, providerName },
+                });
+
+                return response.data?.reportVision ?? { vision: false };
+            } catch (error) {
+                Log.error('Failed to probe the report provider vision:', error);
+
+                return { error: 'the provider probe failed', vision: false };
+            }
+        },
+        [client, flowId],
+    );
+
     const createReport = useCallback(
         async (input: CreateReportInput): Promise<null | ReportProgress> => {
             if (!flowId) {
@@ -169,6 +200,7 @@ export function useFlowReports() {
     );
 
     return {
+        checkVision,
         createReport,
         loading: loading,
         refetch,
