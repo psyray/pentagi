@@ -1034,7 +1034,7 @@ func (q *Queries) SetReportSectionStatus(ctx context.Context, arg SetReportSecti
 const shiftReportSectionPositions = `-- name: ShiftReportSectionPositions :exec
 UPDATE report_sections
 SET position = position + 1
-WHERE report_id = $1 AND parent_id = $2 AND position >= $3
+WHERE report_id = $1 AND parent_id IS NOT DISTINCT FROM $2 AND position >= $3
 `
 
 type ShiftReportSectionPositionsParams struct {
@@ -1043,6 +1043,9 @@ type ShiftReportSectionPositionsParams struct {
 	Position int32         `json:"position"`
 }
 
+// IS NOT DISTINCT FROM so a NULL parent (top-level sections) matches the NULL
+// argument: `parent_id = NULL` never matched and silently skipped the shift,
+// leaving the new section on top of an existing position.
 func (q *Queries) ShiftReportSectionPositions(ctx context.Context, arg ShiftReportSectionPositionsParams) error {
 	_, err := q.db.ExecContext(ctx, shiftReportSectionPositions, arg.ReportID, arg.ParentID, arg.Position)
 	return err

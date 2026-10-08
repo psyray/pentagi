@@ -41,7 +41,7 @@ function FlowReportSection({ canEdit, depth, editor, node, sections }: FlowRepor
             <div
                 className={cn(
                     'group/report-section flex items-start gap-2',
-                    depth === 0 ? 'mt-8 mb-3 first:mt-0' : 'mt-6 mb-2',
+                    depth === 0 ? 'mt-12 mb-4 first:mt-0' : 'mt-10 mb-3',
                 )}
             >
                 <Heading className={cn('min-w-0 flex-1', headingClass(depth))}>{numberedTitle(node)}</Heading>
@@ -89,16 +89,20 @@ function FlowReportSection({ canEdit, depth, editor, node, sections }: FlowRepor
                 </>
             )}
 
-            {node.children.map((child) => (
-                <FlowReportSection
-                    canEdit={canEdit}
-                    depth={depth + 1}
-                    editor={editor}
-                    key={child.section.id}
-                    node={child}
-                    sections={sections}
-                />
-            ))}
+            {node.children.length > 0 && (
+                <div className="border-border/60 mt-3 flex flex-col border-l pl-5">
+                    {node.children.map((child) => (
+                        <FlowReportSection
+                            canEdit={canEdit}
+                            depth={depth + 1}
+                            editor={editor}
+                            key={child.section.id}
+                            node={child}
+                            sections={sections}
+                        />
+                    ))}
+                </div>
+            )}
         </section>
     );
 }

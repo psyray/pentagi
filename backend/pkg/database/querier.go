@@ -296,6 +296,9 @@ type Querier interface {
 	SetReportSectionPosition(ctx context.Context, arg SetReportSectionPositionParams) (ReportSection, error)
 	SetReportSectionSources(ctx context.Context, arg SetReportSectionSourcesParams) (ReportSection, error)
 	SetReportSectionStatus(ctx context.Context, arg SetReportSectionStatusParams) (ReportSection, error)
+	// IS NOT DISTINCT FROM so a NULL parent (top-level sections) matches the NULL
+	// argument: `parent_id = NULL` never matched and silently skipped the shift,
+	// leaving the new section on top of an existing position.
 	ShiftReportSectionPositions(ctx context.Context, arg ShiftReportSectionPositionsParams) error
 	UpdateAPIToken(ctx context.Context, arg UpdateAPITokenParams) (ApiToken, error)
 	UpdateAssistant(ctx context.Context, arg UpdateAssistantParams) (Assistant, error)
