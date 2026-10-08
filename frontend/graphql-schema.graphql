@@ -1127,20 +1127,8 @@ mutation renameFlow($flowId: ID!, $title: String!) {
     renameFlow(flowId: $flowId, title: $title)
 }
 
-mutation createAssistant(
-    $flowId: ID!
-    $modelProvider: String!
-    $input: String!
-    $useAgents: Boolean!
-    $resourceIds: [ID!]
-) {
-    createAssistant(
-        flowId: $flowId
-        modelProvider: $modelProvider
-        input: $input
-        useAgents: $useAgents
-        resourceIds: $resourceIds
-    ) {
+mutation createAssistant($flowId: ID!, $modelProvider: String!, $input: String!, $useAgents: Boolean!, $resourceIds: [ID!]) {
+    createAssistant(flowId: $flowId, modelProvider: $modelProvider, input: $input, useAgents: $useAgents, resourceIds: $resourceIds) {
         flow {
             ...flowFragment
         }
@@ -1151,13 +1139,7 @@ mutation createAssistant(
 }
 
 mutation callAssistant($flowId: ID!, $assistantId: ID!, $input: String!, $useAgents: Boolean!, $resourceIds: [ID!]) {
-    callAssistant(
-        flowId: $flowId
-        assistantId: $assistantId
-        input: $input
-        useAgents: $useAgents
-        resourceIds: $resourceIds
-    )
+    callAssistant(flowId: $flowId, assistantId: $assistantId, input: $input, useAgents: $useAgents, resourceIds: $resourceIds)
 }
 
 mutation stopAssistant($flowId: ID!, $assistantId: ID!) {
@@ -1170,12 +1152,7 @@ mutation deleteAssistant($flowId: ID!, $assistantId: ID!) {
     deleteAssistant(flowId: $flowId, assistantId: $assistantId)
 }
 
-mutation testAgent(
-    $type: ProviderType!
-    $agentType: AgentConfigType!
-    $agent: AgentConfigInput!
-    $simple: AgentConfigInput
-) {
+mutation testAgent($type: ProviderType!, $agentType: AgentConfigType!, $agent: AgentConfigInput!, $simple: AgentConfigInput) {
     testAgent(type: $type, agentType: $agentType, agent: $agent, simple: $simple) {
         ...agentTestResultFragment
     }
@@ -1481,179 +1458,6 @@ subscription knowledgeDocumentDeleted {
     }
 }
 
-# ==================== Knowledge-graph dashboard (Graphiti / Neo4j) =========
-
-fragment attackGraphNodeFragment on AttackGraphNode {
-    uuid
-    labels
-    name
-    summary
-    createdAt
-}
-
-fragment attackGraphEdgeFragment on AttackGraphEdge {
-    uuid
-    type
-    fact
-    sourceUUID
-    targetUUID
-    createdAt
-}
-
-fragment attackGraphFragment on AttackGraph {
-    nodes {
-        ...attackGraphNodeFragment
-    }
-    edges {
-        ...attackGraphEdgeFragment
-    }
-    totalNodes
-    totalEdges
-    truncated
-}
-
-fragment graphitiTagStatFragment on GraphitiTagStat {
-    tag
-    count
-}
-
-fragment attackSurfaceItemFragment on AttackSurfaceItem {
-    type
-    name
-    summary
-    createdAt
-}
-
-fragment credentialStatusRowFragment on CredentialStatusRow {
-    status
-    count
-    examples
-}
-
-fragment validAccessRowFragment on ValidAccessRow {
-    access
-    account
-    host
-    service
-    summary
-}
-
-fragment infraMapRowFragment on InfraMapRow {
-    host
-    port
-    service
-}
-
-fragment openPortRowFragment on OpenPortRow {
-    port
-    service
-    host
-}
-
-fragment vulnBreakdownRowFragment on VulnBreakdownRow {
-    category
-    count
-    examples
-}
-
-fragment detectedCVERowFragment on DetectedCVERow {
-    cve
-    foundOn
-    source
-}
-
-fragment graphitiToolUsageRowFragment on GraphitiToolUsageRow {
-    tool
-    executions
-}
-
-fragment artifactRowFragment on ArtifactRow {
-    artifact
-    producedBy
-    summary
-}
-
-query kgDashboardEnabled {
-    kgDashboardEnabled
-}
-
-query flowAttackGraph($flowId: ID!, $view: AttackGraphView!) {
-    flowAttackGraph(flowId: $flowId, view: $view) {
-        ...attackGraphFragment
-    }
-}
-
-fragment graphitiPropertyFragment on GraphitiProperty {
-    key
-    value
-}
-
-query flowGraphNodeProperties($flowId: ID!, $uuid: String!) {
-    flowGraphNodeProperties(flowId: $flowId, uuid: $uuid) {
-        ...graphitiPropertyFragment
-    }
-}
-
-query flowGraphitiTagStats($flowId: ID!) {
-    flowGraphitiTagStats(flowId: $flowId) {
-        ...graphitiTagStatFragment
-    }
-}
-
-query flowAttackSurface($flowId: ID!) {
-    flowAttackSurface(flowId: $flowId) {
-        ...attackSurfaceItemFragment
-    }
-}
-
-query flowCredentialsStatus($flowId: ID!) {
-    flowCredentialsStatus(flowId: $flowId) {
-        ...credentialStatusRowFragment
-    }
-}
-
-query flowValidAccesses($flowId: ID!) {
-    flowValidAccesses(flowId: $flowId) {
-        ...validAccessRowFragment
-    }
-}
-
-query flowInfrastructureMap($flowId: ID!) {
-    flowInfrastructureMap(flowId: $flowId) {
-        ...infraMapRowFragment
-    }
-}
-
-query flowOpenPorts($flowId: ID!) {
-    flowOpenPorts(flowId: $flowId) {
-        ...openPortRowFragment
-    }
-}
-
-query flowVulnerabilityBreakdown($flowId: ID!) {
-    flowVulnerabilityBreakdown(flowId: $flowId) {
-        ...vulnBreakdownRowFragment
-    }
-}
-
-query flowDetectedCVEs($flowId: ID!) {
-    flowDetectedCVEs(flowId: $flowId) {
-        ...detectedCVERowFragment
-    }
-}
-
-query flowGraphitiToolUsage($flowId: ID!) {
-    flowGraphitiToolUsage(flowId: $flowId) {
-        ...graphitiToolUsageRowFragment
-    }
-}
-
-query flowArtifacts($flowId: ID!) {
-    flowArtifacts(flowId: $flowId) {
-        ...artifactRowFragment
-    }
-}
-
 # ==================== Reports (fork extended-version, section 6) ====================
 
 fragment reportFragment on Report {
@@ -1743,6 +1547,13 @@ query reportLogs($reportId: ID!, $limit: Int) {
 
 query reportDocument($reportId: ID!) {
     reportDocument(reportId: $reportId)
+}
+
+query reportVision($flowId: ID!, $providerName: String) {
+    reportVision(flowId: $flowId, providerName: $providerName) {
+        vision
+        error
+    }
 }
 
 mutation createReport($flowId: ID!, $input: CreateReportInput!) {

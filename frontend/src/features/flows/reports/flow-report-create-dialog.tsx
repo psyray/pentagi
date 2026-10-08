@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { FilePlus2 } from 'lucide-react';
+import { FilePlus2, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -18,6 +19,7 @@ import { FormSubmitButton } from '@/components/ui/form-submit-button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Log } from '@/lib/log';
 import { useProviders } from '@/providers/providers-provider';
 
 import { type CreateReportInput, type ReportProgress } from './use-flow-reports';
@@ -37,15 +39,23 @@ const createFormSchema = z.object({
 type CreateFormValues = z.infer<typeof createFormSchema>;
 
 interface FlowReportCreateDialogProps {
+    onCheckVision: (providerName: null | string) => Promise<{ error?: null | string; vision: boolean }>;
     onCreate: (input: CreateReportInput) => Promise<null | ReportProgress>;
     onCreated?: (report: ReportProgress) => void;
     onOpenChange: (open: boolean) => void;
     open: boolean;
 }
 
-function FlowReportCreateDialog({ onCreate, onCreated, onOpenChange, open }: FlowReportCreateDialogProps) {
+function FlowReportCreateDialog({
+    onCheckVision,
+    onCreate,
+    onCreated,
+    onOpenChange,
+    open,
+}: FlowReportCreateDialogProps) {
     const { providers } = useProviders();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [visionWarning, setVisionWarning] = useState<null | { error?: null | string }>(null);
 
     const form = useForm<CreateFormValues>({
         defaultValues: {
@@ -59,7 +69,7 @@ function FlowReportCreateDialog({ onCreate, onCreated, onOpenChange, open }: Flo
         resolver: zodResolver(createFormSchema),
     });
 
-    const handleSubmit = form.handleSubmit(async (values) => {
+    const submitReport = async (values: CreateFormValues) => {
         setIsSubmitting(true);
 
         try {
@@ -82,10 +92,35 @@ function FlowReportCreateDialog({ onCreate, onCreated, onOpenChange, open }: Flo
                 onCreated?.(report);
                 onOpenChange(false);
                 form.reset();
+                setVisionWarning(null);
             }
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const handleSubmit = form.handleSubmit(async (values) => {
+        // Probe the chosen model once, so a text-only one warns before the run
+        // rather than silently dropping the screenshots (plan § 6.10, P7.4).
+        if (!visionWarning) {
+            setIsSubmitting(true);
+
+            try {
+                const vision = await onCheckVision(values.providerName || null);
+
+                if (!vision.vision) {
+                    setVisionWarning({ error: vision.error });
+
+                    return;
+                }
+            } catch (error) {
+                Log.error('Report vision probe failed:', error);
+            } finally {
+                setIsSubmitting(false);
+            }
+        }
+
+        await submitReport(values);
     });
 
     return (
@@ -139,7 +174,10 @@ function FlowReportCreateDialog({ onCreate, onCreated, onOpenChange, open }: Flo
                                 <FormItem>
                                     <FormLabel>LLM provider</FormLabel>
                                     <Select
-                                        onValueChange={field.onChange}
+                                        onValueChange={(value) => {
+                                            field.onChange(value);
+                                            setVisionWarning(null);
+                                        }}
                                         value={field.value || ''}
                                     >
                                         <SelectTrigger className="w-full">
@@ -233,6 +271,18 @@ function FlowReportCreateDialog({ onCreate, onCreated, onOpenChange, open }: Flo
                             />
                         </div>
 
+                        {visionWarning && (
+                            <Alert variant="destructive">
+                                <TriangleAlert />
+                                <AlertTitle>This model cannot read images</AlertTitle>
+                                <AlertDescription>
+                                    Screenshots cited by the report will not be analysed.
+                                    {visionWarning.error ? ` (${visionWarning.error})` : ''} Choose a vision-capable
+                                    model, or create the report without image analysis.
+                                </AlertDescription>
+                            </Alert>
+                        )}
+
                         <DialogFooter>
                             <Button
                                 onClick={() => onOpenChange(false)}
@@ -247,7 +297,7 @@ function FlowReportCreateDialog({ onCreate, onCreated, onOpenChange, open }: Flo
                                 type="submit"
                             >
                                 <FilePlus2 className="size-4" />
-                                Create report
+                                {visionWarning ? 'Create report anyway' : 'Create report'}
                             </FormSubmitButton>
                         </DialogFooter>
                     </form>
