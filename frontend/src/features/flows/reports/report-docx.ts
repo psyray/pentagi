@@ -16,6 +16,8 @@ import {
 } from 'docx';
 import { marked } from 'marked';
 
+import { headingKind, ReportPaginator } from '@/lib/report/report-pagination';
+
 export type DocxBlock =
     | { header: string[]; rows: string[][]; type: 'table' }
     | { items: DocxInline[][]; ordered: boolean; type: 'list' }
@@ -133,31 +135,6 @@ export interface ReportTocEntry {
     title: string;
 }
 
-// The server writes every section as a level-2 heading; the outline is carried
-// by the number, not the depth: "7. Title" is a chapter, "7.1. Title" is a
-// finding (or recommendation), and an unnumbered level-2 section is front
-// matter. Level 3+ headings belong to a section's body, never the outline.
-type HeadingKind = 'chapter' | 'content' | 'front' | 'subsection' | 'title';
-
-const DOTTED_NUMBER = /^\d+\.\d/;
-const SINGLE_NUMBER = /^\d+\./;
-
-const headingKind = (block: Extract<DocxBlock, { type: 'heading' }>): HeadingKind => {
-    if (block.level === 1) {
-        return 'title';
-    }
-
-    if (block.level >= 3) {
-        return 'content';
-    }
-
-    if (DOTTED_NUMBER.test(block.text)) {
-        return 'subsection';
-    }
-
-    return SINGLE_NUMBER.test(block.text) ? 'chapter' : 'front';
-};
-
 // reportTocEntries lists the document outline (chapters at level 1, findings
 // and recommendations at level 2), skipping the document title and the cover
 // section, which is the document's own cover page.
@@ -176,7 +153,7 @@ export const reportTocEntries = (blocks: readonly DocxBlock[]): ReportTocEntry[]
             continue;
         }
 
-        entries.push({ level: DOTTED_NUMBER.test(block.text) ? 2 : 1, title: block.text });
+        entries.push({ level: headingKind(block.level, block.text) === 'subsection' ? 2 : 1, title: block.text });
     }
 
     return entries;
@@ -299,12 +276,15 @@ export type DocxChild = Paragraph | Table | TableOfContents;
 export const renderDocxBlocks = (blocks: readonly DocxBlock[]): DocxChild[] => {
     const out: DocxChild[] = [];
     const entries = reportTocEntries(blocks);
-    let level2Seen = 0;
-    let pendingChild = false;
+    const paginator = new ReportPaginator();
 
     for (const block of blocks) {
         if (block.type === 'heading') {
-            const kind = headingKind(block);
+            const { breakBefore, insertTocBefore, kind } = paginator.heading(block.level, block.text);
+
+            if (insertTocBefore) {
+                out.push(...tocBlocks(entries));
+            }
 
             if (kind === 'title') {
                 out.push(new Paragraph({ children: [new TextRun(block.text)], heading: HeadingLevel.TITLE }));
@@ -312,7 +292,6 @@ export const renderDocxBlocks = (blocks: readonly DocxBlock[]): DocxChild[] => {
             }
 
             if (kind === 'content') {
-                pendingChild = false;
                 out.push(contentHeading(block.text));
                 continue;
             }
@@ -322,35 +301,29 @@ export const renderDocxBlocks = (blocks: readonly DocxBlock[]): DocxChild[] => {
                     new Paragraph({
                         children: [new TextRun(block.text)],
                         heading: HeadingLevel.HEADING_2,
-                        pageBreakBefore: !pendingChild,
+                        pageBreakBefore: breakBefore,
                     }),
                 );
-                pendingChild = false;
                 continue;
-            }
-
-            level2Seen += 1;
-
-            if (level2Seen === 2) {
-                out.push(...tocBlocks(entries));
             }
 
             out.push(
                 new Paragraph({
                     children: [new TextRun(block.text)],
                     heading: HeadingLevel.HEADING_1,
-                    pageBreakBefore: level2Seen > 1,
+                    pageBreakBefore: breakBefore,
                 }),
             );
-            pendingChild = true;
             continue;
-        } else if (block.type === 'list') {
-            pendingChild = false;
+        }
+
+        paginator.content();
+
+        if (block.type === 'list') {
             out.push(...block.items.map((item) => listParagraph(item, block.ordered)));
             continue;
         }
 
-        pendingChild = false;
         out.push(renderLeaf(block));
     }
 
