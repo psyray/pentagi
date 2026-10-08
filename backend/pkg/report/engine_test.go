@@ -454,6 +454,35 @@ func TestComposeDocument_Rendering(t *testing.T) {
 	assert.Contains(t, doc, "Took")
 }
 
+func TestComposeDocument_NumbersChildrenUnderTheirParent(t *testing.T) {
+	numbered := true
+	tpl := &Template{
+		Key: "test-template", Label: "Test Template",
+		Sections: []SectionNode{
+			{Key: "findings", Kind: KindLLM, Title: "Findings", Numbered: &numbered},
+		},
+	}
+	report := database.Report{
+		ID: 5, FlowID: 1, UserID: 2, Status: StatusCompleted, Title: "The title",
+		TemplateKey: tpl.Key, TemplateLabel: tpl.Label, Language: "English",
+	}
+	sections := []database.ReportSection{
+		{ID: 1, ReportID: 5, Key: "findings", Kind: KindLLM, Title: "Findings", Status: SectionDone, Position: 1},
+		{ID: 2, ReportID: 5, ParentID: int64Null(1), Key: "child-a", Kind: KindLLM,
+			Title: "Child A", Status: SectionDone, Position: 1, Content: "a"},
+		{ID: 3, ReportID: 5, ParentID: int64Null(1), Key: "child-b", Kind: KindLLM,
+			Title: "Child B", Status: SectionDone, Position: 2, Content: "b"},
+	}
+
+	doc := composeDocument(report, tpl, sections)
+
+	assert.Contains(t, doc, "## 1. Findings")
+	// Children carry the parent's number as a dotted prefix ("1.1."), not a
+	// concatenation ("11.").
+	assert.Contains(t, doc, "## 1.1. Child A")
+	assert.Contains(t, doc, "## 1.2. Child B")
+}
+
 func rawVariables(values map[string]any) []byte {
 	type variable struct {
 		Name  string `json:"name"`
