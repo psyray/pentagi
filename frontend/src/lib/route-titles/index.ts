@@ -50,7 +50,9 @@ export const routeTitles = {
     flowReportDocument: {
         title: apolloTitle({
             document: FlowReportsDocument,
-            select: (data, { reportId }) => data?.reports?.find((report) => report.id === reportId)?.title || 'Report',
+            select: (data, { reportId }) =>
+                // GraphQL `ID` arrives as an integer while the route param is a string.
+                data?.reports?.find((report) => String(report.id) === String(reportId))?.title || 'Report',
             variables: ({ flowId }) => (flowId ? { flowId } : null),
         }),
     },

@@ -17,6 +17,7 @@ import {
     fetchReportDocument,
     type ReportDownloadFormat,
 } from './report-download';
+import { findReportById } from './report-outline';
 
 /**
  * Live view of one report document. The report row comes from the flow's report
@@ -51,7 +52,7 @@ export function useFlowReportDocument() {
     useSubscription(ReportSectionUpdatedDocument, { skip: subscriptionSkip, variables: subscriptionVariables });
 
     const report = useMemo(
-        () => (reportsQuery.data?.reports ?? []).find((row) => row.id === reportId) ?? null,
+        () => findReportById(reportsQuery.data?.reports ?? [], reportId),
         [reportId, reportsQuery.data?.reports],
     );
     const sections = sectionsQuery.data?.reportSections ?? [];
