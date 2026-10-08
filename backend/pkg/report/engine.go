@@ -1011,6 +1011,7 @@ func (w *worker) writeSection(ctx context.Context, st database.ReportSection) er
 	}
 	_ = row
 	w.persistEvidence(st, content, evidenceCandidates)
+	w.evidenceGate(st, content, evidenceCandidates)
 	w.bumpDone()
 	w.putLog(LogSection, fmt.Sprintf("Section %q written (%s)", st.Title,
 		humanDuration(contentSeconds)), map[string]any{
@@ -1163,6 +1164,30 @@ func (w *worker) evidenceCaps() EvidenceCaps {
 	return caps
 }
 
+// evidenceGate warns when a section that was given evidence candidates produced
+// no "### Evidence" subsection (plan § 6.10, P7.5), so an operator can spot a run
+// that ignored them.
+func (w *worker) evidenceGate(st database.ReportSection, content string, candidates []EvidenceRef) {
+	if len(candidates) == 0 || hasEvidenceSection(content) {
+		return
+	}
+
+	w.putLog(LogSection, fmt.Sprintf("Section %q has no ### Evidence subsection despite %d candidate(s)", st.Title, len(candidates)), map[string]any{
+		"section_id": st.ID, "key": st.Key, "status": SectionDone, "candidates": len(candidates),
+	})
+	if _, err := w.deps.DB.AppendReportSectionWarning(w.stateCtx, database.AppendReportSectionWarningParams{
+		ID: st.ID, ArrayAppend: "no Evidence subsection despite available evidence",
+	}); err != nil {
+		w.logger.WithError(err).Warn("failed to record the evidence warning")
+	}
+}
+
+// hasEvidenceSection reports whether the writer produced the mandatory Evidence
+// subsection (the heading level is not fixed, the words are).
+func hasEvidenceSection(content string) bool {
+	return strings.Contains(strings.ToLower(content), "### evidence")
+}
+
 // persistEvidence resolves the writer's [Ex] citations into the manifest the
 // archive bundles; a section that cited nothing keeps an empty manifest.
 func (w *worker) persistEvidence(st database.ReportSection, content string, candidates []EvidenceRef) {
@@ -1293,7 +1318,12 @@ func (w *worker) finish(status string, errText string) {
 	if errText != "" {
 		message += fmt.Sprintf(" (%s)", errText)
 	}
-	w.putLog(LogStatus, message, map[string]any{"status": status, "error": errText})
+	w.putLog(LogStatus, message, map[string]any{
+		"status": status, "error": errText,
+		"tokens_in": w.tokensIn, "tokens_out": w.tokensOut,
+		"control_seconds": w.controlUsed, "content_seconds": w.contentUsed,
+		"sections_done": report.SectionsDone, "sections_total": report.SectionsTotal,
+	})
 	w.refreshProgress(w.ctx)
 	w.publishRun()
 }

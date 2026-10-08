@@ -11,6 +11,7 @@ import (
 
 type Querier interface {
 	AddFavoriteFlow(ctx context.Context, arg AddFavoriteFlowParams) (UserPreference, error)
+	AppendReportSectionWarning(ctx context.Context, arg AppendReportSectionWarningParams) (ReportSection, error)
 	CountAPITokens(ctx context.Context) (int64, error)
 	CountActiveFlows(ctx context.Context) (int64, error)
 	CountAssistants(ctx context.Context) (int64, error)

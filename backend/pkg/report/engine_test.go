@@ -87,6 +87,16 @@ func (q *fakeQuerier) SetReportSectionEvidence(_ context.Context, arg database.S
 	return row, nil
 }
 
+func (q *fakeQuerier) AppendReportSectionWarning(_ context.Context, arg database.AppendReportSectionWarningParams) (database.ReportSection, error) {
+	row, ok := q.sections[arg.ID]
+	if !ok {
+		return database.ReportSection{}, fmt.Errorf("section %d not found", arg.ID)
+	}
+	row.Warnings = append(row.Warnings, arg.ArrayAppend)
+	q.sections[arg.ID] = row
+	return row, nil
+}
+
 func (q *fakeQuerier) GetReport(_ context.Context, arg database.GetReportParams) (database.Report, error) {
 	row, ok := q.reports[arg.ID]
 	if !ok {
@@ -489,6 +499,13 @@ func TestComposeDocument_Rendering(t *testing.T) {
 	// failed section still occupies its number).
 	assert.Contains(t, doc, "## 3. Engagement Metrics")
 	assert.Contains(t, doc, "Took")
+}
+
+func TestHasEvidenceSection(t *testing.T) {
+	assert.True(t, hasEvidenceSection("Intro.\n\n### Evidence\n```\nnmap output\n```"))
+	assert.True(t, hasEvidenceSection("### evidence\n..."), "the heading match is case-insensitive")
+	assert.False(t, hasEvidenceSection("Intro without an evidence subsection."))
+	assert.False(t, hasEvidenceSection(""), "an empty body never passes the gate")
 }
 
 func TestComposeDocument_NumbersChildrenUnderTheirParent(t *testing.T) {

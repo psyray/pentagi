@@ -209,6 +209,14 @@ SET
 WHERE id = $1
 RETURNING *;
 
+-- name: AppendReportSectionWarning :one
+UPDATE report_sections
+SET
+  warnings = array_append(COALESCE(warnings, '{}'), $2),
+  updated_at = CURRENT_TIMESTAMP
+WHERE id = $1
+RETURNING *;
+
 -- name: GetReportLogs :many
 SELECT * FROM report_logs
 WHERE report_id = $1
