@@ -12,8 +12,10 @@ import {
 import { Log } from '@/lib/log';
 
 import {
+    downloadReportDocx,
     downloadReportMarkdown,
     downloadReportPdf,
+    downloadReportZip,
     fetchReportDocument,
     type ReportDownloadFormat,
 } from './report-download';
@@ -76,6 +78,10 @@ export function useFlowReportDocument() {
 
                 if (format === 'pdf') {
                     await downloadReportPdf(report, content);
+                } else if (format === 'docx') {
+                    await downloadReportDocx(report, content);
+                } else if (format === 'zip') {
+                    await downloadReportZip(report, content);
                 } else {
                     downloadReportMarkdown(report, content);
                 }
