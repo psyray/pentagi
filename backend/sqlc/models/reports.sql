@@ -193,6 +193,22 @@ RETURNING *;
 DELETE FROM report_sections
 WHERE id = $1 AND report_id = $2;
 
+-- name: SetReportSectionSources :one
+UPDATE report_sections
+SET
+  source_subtask_ids = $2,
+  updated_at = CURRENT_TIMESTAMP
+WHERE id = $1
+RETURNING *;
+
+-- name: SetReportSectionEvidence :one
+UPDATE report_sections
+SET
+  evidence_refs = $2,
+  updated_at = CURRENT_TIMESTAMP
+WHERE id = $1
+RETURNING *;
+
 -- name: GetReportLogs :many
 SELECT * FROM report_logs
 WHERE report_id = $1
