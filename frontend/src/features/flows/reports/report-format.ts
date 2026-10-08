@@ -64,3 +64,21 @@ const SECTION_STATUS_LABELS: Record<ReportSectionStatusType, string> = {
 };
 
 export const sectionStatusLabel = (status: ReportSectionStatusType): string => SECTION_STATUS_LABELS[status] ?? status;
+
+// formatBytes renders a content size the way the report card shows it: coarse,
+// UTF-8 aware, never noisy (1 KB rather than 1.0 KB).
+const encoder = new TextEncoder();
+
+export const formatBytes = (text: string): string => {
+    const bytes = encoder.encode(text).length;
+
+    if (bytes < 1024) {
+        return `${bytes} B`;
+    }
+
+    if (bytes < 1024 * 1024) {
+        return `${Math.round(bytes / 1024)} KB`;
+    }
+
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};

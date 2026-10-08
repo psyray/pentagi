@@ -1,12 +1,13 @@
-import { useApolloClient } from '@apollo/client/react';
+import { useApolloClient, useSubscription } from '@apollo/client/react';
 import { FileText, Plus } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ReportSectionUpdatedDocument } from '@/graphql/types';
 import { Log } from '@/lib/log';
 import { routes } from '@/lib/routes';
 import { useFlow } from '@/providers/flow-provider';
@@ -26,6 +27,12 @@ function FlowReports({ className }: FlowReportsProps) {
     const navigate = useNavigate();
     const client = useApolloClient();
     const [createOpen, setCreateOpen] = useState(false);
+
+    // Keeps whatever expanded card's section list live; the cache link routes the
+    // frame into reportSections(reportId) by the payload's reportId.
+    const subscriptionVariables = useMemo(() => ({ flowId: flowId ?? '' }), [flowId]);
+
+    useSubscription(ReportSectionUpdatedDocument, { skip: !flowId, variables: subscriptionVariables });
 
     const handleOpen = useCallback(
         (report: ReportProgress) => {

@@ -109,6 +109,27 @@ describe('buildReportOutline', () => {
         expect(outline[0]?.children.map(numberedTitle)).toEqual(['1.1. First', 'Hidden child', '1.2. Second']);
     });
 
+    it('keeps planner-skipped sections, unnumbered, when the caller asks for them', () => {
+        const sections = [
+            section({ id: '1', position: 0, title: 'Kept' }),
+            section({ id: '2', kind: ReportSectionKind.Aggregate, position: 1, title: 'Findings' }),
+            section({ id: '3', parentId: '2', position: 0, title: 'Finding A' }),
+            section({
+                id: '4',
+                parentId: '2',
+                position: 1,
+                status: ReportSectionStatusType.Skipped,
+                title: 'No findings',
+            }),
+            section({ id: '5', position: 2, title: 'Closing' }),
+        ];
+
+        const outline = buildReportOutline(sections, { includeSkipped: true });
+
+        expect(outline.map(numberedTitle)).toEqual(['1. Kept', '2. Findings', '3. Closing']);
+        expect(outline[1]?.children.map(numberedTitle)).toEqual(['2.1. Finding A', 'No findings']);
+    });
+
     it('sorts siblings by position regardless of the order the rows arrive in', () => {
         const outline = buildReportOutline([
             section({ id: '2', position: 5, title: 'Second' }),
