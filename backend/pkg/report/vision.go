@@ -98,16 +98,28 @@ func probeVision(ctx context.Context, prv provider.Provider) (bool, error) {
 	}
 
 	answer := strings.ToLower(resp.Choices[0].Content)
+
+	if !evaluateVisionAnswer(answer, order) {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+// evaluateVisionAnswer reports whether the model named the grid's four colours in
+// the expected reading order. A blind model names them in some other order, which
+// fails the sequence check.
+func evaluateVisionAnswer(answer string, order []string) bool {
 	cursor := 0
 	for _, name := range order {
 		index := strings.Index(answer[cursor:], name)
 		if index < 0 {
-			return false, nil
+			return false
 		}
 		cursor += index + len(name)
 	}
 
-	return true, nil
+	return true
 }
 
 // CheckVision probes whether the provider a report would use can read images, so
