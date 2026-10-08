@@ -9,6 +9,7 @@ import {
     ShadingType,
     Table,
     TableCell,
+    TableOfContents,
     TableRow,
     TextRun,
     WidthType,
@@ -34,6 +35,8 @@ export interface DocxInline {
     link?: string;
     text: string;
 }
+
+export type DocxLeafBlock = Extract<DocxBlock, { type: 'code' | 'hr' | 'paragraph' | 'quote' | 'table' }>;
 
 const inlineRuns = (text: string): DocxInline[] => {
     const [first] = marked.lexer(text, { breaks: false });
@@ -124,6 +127,61 @@ export const parseReportMarkdown = (markdown: string): DocxBlock[] => {
     return blocks;
 };
 
+// Shape of a table-of-contents entry (docx's ToCEntry is not exported).
+export interface ReportTocEntry {
+    level: number;
+    title: string;
+}
+
+// The server writes every section as a level-2 heading; the outline is carried
+// by the number, not the depth: "7. Title" is a chapter, "7.1. Title" is a
+// finding (or recommendation), and an unnumbered level-2 section is front
+// matter. Level 3+ headings belong to a section's body, never the outline.
+type HeadingKind = 'chapter' | 'content' | 'front' | 'subsection' | 'title';
+
+const DOTTED_NUMBER = /^\d+\.\d/;
+const SINGLE_NUMBER = /^\d+\./;
+
+const headingKind = (block: Extract<DocxBlock, { type: 'heading' }>): HeadingKind => {
+    if (block.level === 1) {
+        return 'title';
+    }
+
+    if (block.level >= 3) {
+        return 'content';
+    }
+
+    if (DOTTED_NUMBER.test(block.text)) {
+        return 'subsection';
+    }
+
+    return SINGLE_NUMBER.test(block.text) ? 'chapter' : 'front';
+};
+
+// reportTocEntries lists the document outline (chapters at level 1, findings
+// and recommendations at level 2), skipping the document title and the cover
+// section, which is the document's own cover page.
+export const reportTocEntries = (blocks: readonly DocxBlock[]): ReportTocEntry[] => {
+    const entries: ReportTocEntry[] = [];
+    let level2Seen = 0;
+
+    for (const block of blocks) {
+        if (block.type !== 'heading' || block.level !== 2) {
+            continue;
+        }
+
+        level2Seen += 1;
+
+        if (level2Seen === 1) {
+            continue;
+        }
+
+        entries.push({ level: DOTTED_NUMBER.test(block.text) ? 2 : 1, title: block.text });
+    }
+
+    return entries;
+};
+
 const BODY_FONT = 'Calibri';
 const MONO_FONT = 'Consolas';
 const CODE_FILL = 'F4F5F7';
@@ -131,23 +189,10 @@ const HEADER_FILL = 'EDEFF2';
 const BORDER_COLOR = 'D0D5DD';
 const TEXT_COLOR = '1F2937';
 const HEADING_COLOR = '1F3864';
+const SUBHEADING_COLOR = '344054';
 const ORDERED_REFERENCE = 'report-ordered';
 
 const thinBorder = { color: BORDER_COLOR, size: 4, style: BorderStyle.SINGLE } as const;
-
-// depth 1 is the document title, 2 a section, 3+ sub-sections.
-const HEADING_LEVELS = [
-    HeadingLevel.TITLE,
-    HeadingLevel.HEADING_1,
-    HeadingLevel.HEADING_2,
-    HeadingLevel.HEADING_3,
-    HeadingLevel.HEADING_4,
-    HeadingLevel.HEADING_5,
-    HeadingLevel.HEADING_6,
-];
-
-const headingLevel = (depth: number): (typeof HEADING_LEVELS)[number] =>
-    HEADING_LEVELS[Math.min(Math.max(depth, 1), HEADING_LEVELS.length) - 1] ?? HeadingLevel.HEADING_6;
 
 const toRun = (run: DocxInline): TextRun =>
     new TextRun({
@@ -185,12 +230,18 @@ const headerCell = (text: string): TableCell =>
 const bodyCell = (text: string): TableCell =>
     new TableCell({ children: [new Paragraph({ children: [new TextRun(text)], spacing: { after: 0 } })] });
 
-const renderBlock = (block: Exclude<DocxBlock, { type: 'list' }>): Paragraph | Table => {
+// A heading inside a section body stays a bold paragraph rather than a real
+// heading style, so it never lands in the table of contents.
+const contentHeading = (text: string): Paragraph =>
+    new Paragraph({
+        children: [new TextRun({ bold: true, color: SUBHEADING_COLOR, size: 24, text })],
+        spacing: { after: 80, before: 200 },
+    });
+
+const renderLeaf = (block: DocxLeafBlock): Paragraph | Table => {
     switch (block.type) {
         case 'code':
             return codeParagraph(block.text);
-        case 'heading':
-            return new Paragraph({ children: [new TextRun(block.text)], heading: headingLevel(block.level) });
         case 'hr':
             return new Paragraph({
                 border: { bottom: { color: BORDER_COLOR, size: 6, style: BorderStyle.SINGLE } },
@@ -220,27 +271,95 @@ const renderBlock = (block: Exclude<DocxBlock, { type: 'list' }>): Paragraph | T
     }
 };
 
-// Lists become one paragraph per item with a real bullet or number and a
-// hanging indent, so wrapped lines align under the text, not the marker.
-const renderDocxBlocks = (blocks: DocxBlock[]): (Paragraph | Table)[] =>
-    blocks.flatMap((block): (Paragraph | Table)[] => {
-        if (block.type === 'list') {
-            return block.items.map(
-                (item) =>
+const listParagraph = (item: DocxInline[], ordered: boolean): Paragraph =>
+    new Paragraph({
+        children: toRuns(item),
+        ...(ordered ? { numbering: { level: 0, reference: ORDERED_REFERENCE } } : { bullet: { level: 0 } }),
+    });
+
+const tocBlocks = (entries: readonly ReportTocEntry[]): (Paragraph | TableOfContents)[] => [
+    new Paragraph({
+        children: [new TextRun({ bold: true, color: HEADING_COLOR, size: 30, text: 'Table of Contents' })],
+        pageBreakBefore: true,
+        spacing: { after: 200, before: 0 },
+    }),
+    new TableOfContents('', {
+        beginDirty: true,
+        cachedEntries: entries,
+        headingStyleRange: '1-2',
+        hyperlink: true,
+    }),
+];
+
+export type DocxChild = Paragraph | Table | TableOfContents;
+
+// Chapters and findings each start on a fresh page: a page break precedes every
+// level-2 heading but the cover, and every subsection but the first of its
+// chapter (already at the top of the page its chapter opened).
+export const renderDocxBlocks = (blocks: readonly DocxBlock[]): DocxChild[] => {
+    const out: DocxChild[] = [];
+    const entries = reportTocEntries(blocks);
+    let level2Seen = 0;
+    let pendingChild = false;
+
+    for (const block of blocks) {
+        if (block.type === 'heading') {
+            const kind = headingKind(block);
+
+            if (kind === 'title') {
+                out.push(new Paragraph({ children: [new TextRun(block.text)], heading: HeadingLevel.TITLE }));
+                continue;
+            }
+
+            if (kind === 'content') {
+                pendingChild = false;
+                out.push(contentHeading(block.text));
+                continue;
+            }
+
+            if (kind === 'subsection') {
+                out.push(
                     new Paragraph({
-                        children: toRuns(item),
-                        ...(block.ordered
-                            ? { numbering: { level: 0, reference: ORDERED_REFERENCE } }
-                            : { bullet: { level: 0 } }),
+                        children: [new TextRun(block.text)],
+                        heading: HeadingLevel.HEADING_2,
+                        pageBreakBefore: !pendingChild,
                     }),
+                );
+                pendingChild = false;
+                continue;
+            }
+
+            level2Seen += 1;
+
+            if (level2Seen === 2) {
+                out.push(...tocBlocks(entries));
+            }
+
+            out.push(
+                new Paragraph({
+                    children: [new TextRun(block.text)],
+                    heading: HeadingLevel.HEADING_1,
+                    pageBreakBefore: level2Seen > 1,
+                }),
             );
+            pendingChild = true;
+            continue;
+        } else if (block.type === 'list') {
+            pendingChild = false;
+            out.push(...block.items.map((item) => listParagraph(item, block.ordered)));
+            continue;
         }
 
-        return [renderBlock(block)];
-    });
+        pendingChild = false;
+        out.push(renderLeaf(block));
+    }
+
+    return out;
+};
 
 export const markdownToDocxBlob = async (markdown: string): Promise<Blob> => {
     const doc = new Document({
+        features: { updateFields: true },
         numbering: {
             config: [
                 {
@@ -270,22 +389,13 @@ export const markdownToDocxBlob = async (markdown: string): Promise<Blob> => {
                     run: { color: TEXT_COLOR, font: BODY_FONT, size: 22 },
                 },
                 heading1: {
-                    paragraph: { spacing: { after: 120, before: 280 } },
+                    paragraph: { spacing: { after: 120, before: 0 } },
                     run: { bold: true, color: HEADING_COLOR, size: 30 },
                 },
                 heading2: {
-                    paragraph: { spacing: { after: 100, before: 240 } },
+                    paragraph: { spacing: { after: 100, before: 160 } },
                     run: { bold: true, color: HEADING_COLOR, size: 26 },
                 },
-                heading3: {
-                    paragraph: { spacing: { after: 80, before: 200 } },
-                    run: { bold: true, color: '344054', size: 24 },
-                },
-                heading4: {
-                    paragraph: { spacing: { after: 80, before: 180 } },
-                    run: { bold: true, color: '344054', size: 22 },
-                },
-                heading5: { run: { bold: true, color: '344054', size: 22 } },
                 listParagraph: { paragraph: { spacing: { after: 60 } } },
                 title: {
                     paragraph: { alignment: AlignmentType.LEFT, spacing: { after: 240 } },
