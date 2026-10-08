@@ -1,10 +1,11 @@
-import { ChevronDown, Download, FileText } from 'lucide-react';
+import { ChevronDown, Download, FileArchive, FileCode2, FileText, FileType2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuLabel,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Spinner } from '@/components/ui/spinner';
@@ -17,8 +18,8 @@ interface FlowReportDownloadProps {
     onDownload: (format: ReportDownloadFormat) => void;
 }
 
-// Menu mirror of the enterprise edition: Markdown and PDF in v1; Word (DOCX)
-// and Archive (ZIP) land with the finishing phase (plan § 6.6 / § 6.9).
+// Menu mirrored on the enterprise edition: Markdown, PDF, Word (DOCX) and the
+// archive. The archive is the document plus the files attached to its sections.
 function FlowReportDownload({ canDownload, downloading, onDownload }: FlowReportDownloadProps) {
     return (
         <DropdownMenu>
@@ -35,13 +36,23 @@ function FlowReportDownload({ canDownload, downloading, onDownload }: FlowReport
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Download</DropdownMenuLabel>
                 <DropdownMenuItem onSelect={() => onDownload('markdown')}>
                     <FileText className="size-4" />
                     Markdown
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => onDownload('pdf')}>
-                    <FileText className="size-4" />
+                    <FileType2 className="size-4" />
                     PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onDownload('docx')}>
+                    <FileCode2 className="size-4" />
+                    Word (DOCX)
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onDownload('zip')}>
+                    <FileArchive className="size-4" />
+                    Archive (ZIP)
+                    <span className="text-muted-foreground ml-auto pl-3 text-xs">with files</span>
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
