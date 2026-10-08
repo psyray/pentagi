@@ -21,6 +21,7 @@ export const routes = {
 
     flow: (id: number | string, { tab }: { tab?: string } = {}) => withQuery(`/flows/${id}`, { tab }),
     flowReport: (id: number | string) => `/flows/${id}/report`,
+    flowReportDocument: (flowId: number | string, reportId: number | string) => `/flows/${flowId}/reports/${reportId}`,
     flows: '/flows',
 
     knowledge: (id: number | string) => `/knowledges/${id}`,
