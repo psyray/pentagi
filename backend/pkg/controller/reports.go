@@ -60,6 +60,7 @@ type CreateReportParams struct {
 	TemplateKey            string
 	ProviderName           string
 	Title                  string
+	Language               string
 	AdditionalInstructions string
 	ControlBudgetSeconds   int
 	ContentBudgetSeconds   int
@@ -101,6 +102,7 @@ func (a *reportControllerAdapter) CreateReport(
 		TemplateKey:            params.TemplateKey,
 		ProviderName:           params.ProviderName,
 		Title:                  params.Title,
+		Language:               params.Language,
 		AdditionalInstructions: params.AdditionalInstructions,
 		ControlBudgetSeconds:   params.ControlBudgetSeconds,
 		ContentBudgetSeconds:   params.ContentBudgetSeconds,

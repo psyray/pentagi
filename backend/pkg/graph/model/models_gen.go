@@ -166,6 +166,7 @@ type CreateReportInput struct {
 	TemplateKey            *string `json:"templateKey,omitempty"`
 	ProviderName           *string `json:"providerName,omitempty"`
 	Title                  *string `json:"title,omitempty"`
+	Language               *string `json:"language,omitempty"`
 	AdditionalInstructions *string `json:"additionalInstructions,omitempty"`
 	ControlBudgetSeconds   *int    `json:"controlBudgetSeconds,omitempty"`
 	ContentBudgetSeconds   *int    `json:"contentBudgetSeconds,omitempty"`

@@ -35,9 +35,11 @@ var ErrForbidden = errors.New("forbidden")
 // CreateParams is the CreateReport mutation payload; provider resolution and
 // budget defaults happen in the controller.
 type CreateParams struct {
-	TemplateKey            string
-	ProviderName           string
-	Title                  string
+	TemplateKey  string
+	ProviderName string
+	Title        string
+	// Empty falls back to the flow's language, then to English.
+	Language               string
 	AdditionalInstructions string
 	// 0 = use the configured default; values > 0 override the env defaults.
 	ControlBudgetSeconds int
@@ -128,8 +130,11 @@ func (c *Controller) CreateReport(
 		contentBudget = params.ContentBudgetSeconds
 	}
 
-	language := flow.Language
-	if strings.TrimSpace(language) == "" {
+	language := strings.TrimSpace(params.Language)
+	if language == "" {
+		language = strings.TrimSpace(flow.Language)
+	}
+	if language == "" {
 		language = "English"
 	}
 

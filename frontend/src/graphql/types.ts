@@ -97,6 +97,7 @@ export type CreateReportInput = {
     additionalInstructions?: string | null | undefined;
     contentBudgetSeconds?: number | null | undefined;
     controlBudgetSeconds?: number | null | undefined;
+    language?: string | null | undefined;
     providerName?: string | null | undefined;
     templateKey?: string | null | undefined;
     title?: string | null | undefined;

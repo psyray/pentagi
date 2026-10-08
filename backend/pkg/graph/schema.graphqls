@@ -1322,6 +1322,8 @@ input CreateReportInput {
   templateKey: String
   providerName: String
   title: String
+  # Empty falls back to the flow's language, then to English (plan § 6.11).
+  language: String
   additionalInstructions: String
   controlBudgetSeconds: Int
   contentBudgetSeconds: Int
