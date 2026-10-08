@@ -3209,6 +3209,28 @@ func (r *queryResolver) ReportDocument(ctx context.Context, reportID int64) (str
 	return r.ReportsCtrl.Document(ctx, uid, report.ID)
 }
 
+// ReportVision is the resolver for the reportVision field.
+func (r *queryResolver) ReportVision(ctx context.Context, flowID int64, providerName *string) (*model.ReportVision, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "flows.read", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+
+	name := ""
+	if providerName != nil {
+		name = *providerName
+	}
+
+	vision, err := r.ReportsCtrl.CheckVision(ctx, uid, flowID, name)
+	out := &model.ReportVision{Vision: vision}
+	if err != nil {
+		message := err.Error()
+		out.Error = &message
+	}
+
+	return out, nil
+}
+
 // FlowCreated is the resolver for the flowCreated field.
 func (r *subscriptionResolver) FlowCreated(ctx context.Context) (<-chan *model.Flow, error) {
 	uid, admin, err := validatePermission(ctx, "flows.subscribe")
@@ -3753,10 +3775,3 @@ func (r *Resolver) Subscription() SubscriptionResolver { return &subscriptionRes
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type subscriptionResolver struct{ *Resolver }
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//    it when you're done.
-//  - You have helper methods in this file. Move them out to keep these resolver files clean.

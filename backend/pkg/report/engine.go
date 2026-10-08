@@ -271,6 +271,8 @@ type worker struct {
 	tokensOut   int64
 	doneCount   int32
 	mx          sync.Mutex
+	visionOnce  sync.Once
+	vision      bool
 	logger      *logrus.Entry
 }
 
@@ -851,6 +853,8 @@ func (w *worker) writeSection(ctx context.Context, st database.ReportSection) er
 
 	sectionContext := w.sectionContext(st)
 	evidenceText, evidenceCandidates := w.evidenceFor(ctx, st)
+	shots := screenshotCandidates(evidenceCandidates)
+	attachScreenshots := len(shots) > 0 && w.visionCapable(ctx)
 
 	if w.digest == "" {
 		digest, _, err := buildDigest(ctx, w.deps.DB, w.deps.Cfg.ReportMaxRecordBytes, w.report.FlowID)
@@ -869,6 +873,7 @@ func (w *worker) writeSection(ctx context.Context, st database.ReportSection) er
 		"Record":                 w.digest,
 		"SectionContext":         sectionContext,
 		"Evidence":               evidenceText,
+		"ScreenshotsAttached":    attachScreenshots,
 		"SectionKey":             st.Key,
 		"SectionTitle":           st.Title,
 		"SectionInstructions":    node.Instructions,
@@ -887,10 +892,30 @@ func (w *worker) writeSection(ctx context.Context, st database.ReportSection) er
 	})
 	w.publishSection(st.ID)
 
+	humanParts := []llms.ContentPart{
+		llms.TextContent{Text: fmt.Sprintf("Write the body of the section %q now, then stop.", st.Title)},
+	}
+	if attachScreenshots {
+		attached := 0
+		for _, ref := range shots {
+			if attached >= maxScreenshotsPerSection {
+				break
+			}
+			if url := screenshotDataURL(w.deps.Cfg.DataDir, w.report.FlowID, ref.ScreenshotName); url != "" {
+				humanParts = append(humanParts, llms.ImageURLContent{URL: url})
+				attached++
+			}
+		}
+		if attached > 0 {
+			w.putLog(LogControl, fmt.Sprintf("attached %d screenshot(s) to section %q", attached, st.Title), map[string]any{
+				"section_id": st.ID, "key": st.Key, "screenshots": attached,
+			})
+		}
+	}
+
 	chain := []llms.MessageContent{
-		llms.TextParts(llms.ChatMessageTypeSystem, system),
-		llms.TextParts(llms.ChatMessageTypeHuman,
-			fmt.Sprintf("Write the body of the section %q now, then stop.", st.Title)),
+		{Role: llms.ChatMessageTypeSystem, Parts: []llms.ContentPart{llms.TextContent{Text: system}}},
+		{Role: llms.ChatMessageTypeHuman, Parts: humanParts},
 	}
 
 	var (
@@ -1074,6 +1099,38 @@ func (w *worker) outlineText() string {
 		return ""
 	}
 	return renderOutline(sections, false)
+}
+
+// visionCapable probes the report's provider once and caches the answer, so the
+// writers know whether to attach screenshot images (plan § 6.10, P7.4).
+func (w *worker) visionCapable(ctx context.Context) bool {
+	w.visionOnce.Do(func() {
+		ok, err := probeVision(ctx, w.prv)
+		if err != nil {
+			w.logger.WithError(err).Info("vision probe: the model did not answer with an image")
+		}
+		w.vision = ok
+		state := "will not"
+		if ok {
+			state = "will"
+		}
+		w.putLog(LogControl, fmt.Sprintf("vision probe: screenshots %s be analysed", state), map[string]any{
+			"vision": ok,
+		})
+	})
+
+	return w.vision
+}
+
+// screenshotCandidates keeps the screenshot evidence a section can attach.
+func screenshotCandidates(refs []EvidenceRef) []EvidenceRef {
+	out := make([]EvidenceRef, 0, len(refs))
+	for _, ref := range refs {
+		if ref.Kind == EvidenceKindScreenshot && ref.ScreenshotName != "" {
+			out = append(out, ref)
+		}
+	}
+	return out
 }
 
 // evidenceFor assembles the section's evidence pack from the subtasks the

@@ -461,6 +461,7 @@ var PromptVariables = map[PromptType][]string{
 		"SectionTitle",
 		"SectionInstructions",
 		"Evidence",
+		"ScreenshotsAttached",
 	},
 }
 

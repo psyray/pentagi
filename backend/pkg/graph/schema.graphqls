@@ -1279,6 +1279,8 @@ type Query {
   reportSections(reportId: ID!): [ReportSection!]!
   reportLogs(reportId: ID!, limit: Int): [ReportLog!]!
   reportDocument(reportId: ID!): String!
+  # reportVision probes whether the provider a report would use can read images.
+  reportVision(flowId: ID!, providerName: String): ReportVision!
 
 }
 
@@ -1480,6 +1482,11 @@ type Report {
 type ReportVariable {
   name: String!
   value: String!
+}
+
+type ReportVision {
+  vision: Boolean!
+  error: String
 }
 
 type ReportSection {
