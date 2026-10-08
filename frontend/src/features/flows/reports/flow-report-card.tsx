@@ -1,13 +1,15 @@
-import { CheckCircle2, CircleSlash, Download, ExternalLink, TrendingUp, XCircle } from 'lucide-react';
+import { CheckCircle2, ChevronRight, CircleSlash, Download, ExternalLink, TrendingUp, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
 
 import type { ReportProgress } from './use-flow-reports';
 
+import FlowReportSections from './flow-report-sections';
 import { formatDuration, formatTokens, isReportActive } from './report-format';
 
 const TICK_INTERVAL_MS = 15_000;
@@ -35,6 +37,7 @@ interface FlowReportCardProps {
 function FlowReportCard({ onDownload, onOpen, report }: FlowReportCardProps) {
     const active = isRunActive(report);
     const [now, setNow] = useState(() => Date.now());
+    const [expanded, setExpanded] = useState(false);
 
     useEffect(() => {
         if (!active) {
@@ -65,8 +68,23 @@ function FlowReportCard({ onDownload, onOpen, report }: FlowReportCardProps) {
         : `${report.sectionsDone} of ${report.sectionsTotal} sections`;
 
     return (
-        <div className="bg-card rounded-lg border p-4">
+        <Collapsible
+            className="bg-card rounded-lg border p-4"
+            onOpenChange={setExpanded}
+            open={expanded}
+        >
             <div className="flex items-center gap-3">
+                <CollapsibleTrigger asChild>
+                    <Button
+                        aria-label={expanded ? 'Collapse the report sections' : 'Expand the report sections'}
+                        className="shrink-0"
+                        size="icon-sm"
+                        title={expanded ? 'Collapse sections' : 'Show sections'}
+                        variant="ghost"
+                    >
+                        <ChevronRight className={cn('transition-transform', expanded && 'rotate-90')} />
+                    </Button>
+                </CollapsibleTrigger>
                 <div className="min-w-0 flex-1">
                     <div className="flex min-w-0 items-center gap-2">
                         {reportStatusIcon(report)}
@@ -131,7 +149,13 @@ function FlowReportCard({ onDownload, onOpen, report }: FlowReportCardProps) {
             </div>
 
             {report.error && <div className="mt-2 text-xs text-red-500">{report.error}</div>}
-        </div>
+
+            <CollapsibleContent>
+                <div className="mt-2 border-t pt-1">
+                    {expanded && <FlowReportSections reportId={String(report.id)} />}
+                </div>
+            </CollapsibleContent>
+        </Collapsible>
     );
 }
 

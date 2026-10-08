@@ -69,4 +69,10 @@ describe('FlowReportCard', () => {
 
         expect(screen.getByText('planner call failed: boom')).toBeInTheDocument();
     });
+
+    it('exposes the sections expander on the card', () => {
+        card();
+
+        expect(screen.getByRole('button', { name: 'Expand the report sections' })).toBeInTheDocument();
+    });
 });
