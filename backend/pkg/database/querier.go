@@ -292,12 +292,14 @@ type Querier interface {
 	// user_id      owner filter as a decimal text string (e.g. "42")
 	SearchUserKnowledgeDocuments(ctx context.Context, arg SearchUserKnowledgeDocumentsParams) ([]SearchUserKnowledgeDocumentsRow, error)
 	SetReportEstimate(ctx context.Context, arg SetReportEstimateParams) (Report, error)
+	SetReportLabels(ctx context.Context, arg SetReportLabelsParams) (Report, error)
 	SetReportPlan(ctx context.Context, arg SetReportPlanParams) (Report, error)
 	SetReportSectionEvidence(ctx context.Context, arg SetReportSectionEvidenceParams) (ReportSection, error)
 	SetReportSectionHidden(ctx context.Context, arg SetReportSectionHiddenParams) (ReportSection, error)
 	SetReportSectionPosition(ctx context.Context, arg SetReportSectionPositionParams) (ReportSection, error)
 	SetReportSectionSources(ctx context.Context, arg SetReportSectionSourcesParams) (ReportSection, error)
 	SetReportSectionStatus(ctx context.Context, arg SetReportSectionStatusParams) (ReportSection, error)
+	SetReportSectionTitle(ctx context.Context, arg SetReportSectionTitleParams) (ReportSection, error)
 	// IS NOT DISTINCT FROM so a NULL parent (top-level sections) matches the NULL
 	// argument: `parent_id = NULL` never matched and silently skipped the shift,
 	// leaving the new section on top of an existing position.
