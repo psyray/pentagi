@@ -348,6 +348,7 @@ func CreateDummyTemplateData() map[string]any {
 		"LengthHint":             "150-300 words",
 		"SectionContext":         "Test per-section context",
 		"Evidence":               "[E1] toolcall \"nmap\"\n22/tcp open ssh",
+		"ScreenshotsAttached":    true,
 	}
 }
 

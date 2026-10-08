@@ -533,6 +533,11 @@ type ReportVariable struct {
 	Value string `json:"value"`
 }
 
+type ReportVision struct {
+	Vision bool    `json:"vision"`
+	Error  *string `json:"error,omitempty"`
+}
+
 type Screenshot struct {
 	ID        int64     `json:"id"`
 	FlowID    int64     `json:"flowId"`

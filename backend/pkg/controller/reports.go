@@ -25,6 +25,8 @@ type ReportController interface {
 	LoadReports(ctx context.Context) error
 	ListFlowReports(ctx context.Context, userID, flowID int64) ([]database.Report, error)
 	ListReportTemplates() ([]report.TemplateInfo, error)
+	// CheckVision probes whether the provider a report would use can read images.
+	CheckVision(ctx context.Context, userID, flowID int64, providerName string) (bool, error)
 	GetReport(ctx context.Context, userID, reportID int64) (*database.Report, error)
 	ListReportSections(ctx context.Context, userID, reportID int64) ([]database.ReportSection, error)
 	ListReportLogs(ctx context.Context, userID, reportID int64, limit int) ([]database.ReportLog, error)
@@ -163,6 +165,12 @@ func (a *reportControllerAdapter) EvidenceRefs(
 		return nil, err
 	}
 	return a.ctrl.EvidenceRefs(ctx, reportID)
+}
+
+func (a *reportControllerAdapter) CheckVision(
+	ctx context.Context, userID, flowID int64, providerName string,
+) (bool, error) {
+	return a.ctrl.CheckVision(ctx, userID, flowID, providerName)
 }
 
 func (a *reportControllerAdapter) PutNote(ctx context.Context, userID, reportID int64, note string) error {
