@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 
 import {
     FlowReportsDocument,
+    ReportBrandingDocument,
     ReportSectionsDocument,
     ReportSectionUpdatedDocument,
     ReportUpdatedDocument,
@@ -47,6 +48,12 @@ export function useFlowReportDocument() {
         variables: { reportId: reportId ?? '' },
     });
 
+    // The exports carry the branding; the panel reads the same cached query.
+    const brandingQuery = useQuery(ReportBrandingDocument, {
+        skip: !reportId,
+        variables: { reportId: reportId ?? '' },
+    });
+
     const subscriptionVariables = useMemo(() => ({ flowId: flowId ?? '' }), [flowId]);
     const subscriptionSkip = !flowId;
 
@@ -58,6 +65,7 @@ export function useFlowReportDocument() {
         [reportId, reportsQuery.data?.reports],
     );
     const sections = sectionsQuery.data?.reportSections ?? [];
+    const branding = brandingQuery.data?.reportBranding ?? null;
 
     const download = useCallback(
         async (format: ReportDownloadFormat): Promise<void> => {
@@ -83,9 +91,9 @@ export function useFlowReportDocument() {
                 }
 
                 if (format === 'pdf') {
-                    await downloadReportPdf(report, content);
+                    await downloadReportPdf(report, content, branding);
                 } else if (format === 'docx') {
-                    await downloadReportDocx(report, content);
+                    await downloadReportDocx(report, content, branding);
                 } else {
                     downloadReportMarkdown(report, content);
                 }
@@ -96,7 +104,7 @@ export function useFlowReportDocument() {
                 setDownloading(false);
             }
         },
-        [client, flowId, report, reportId],
+        [branding, client, flowId, report, reportId],
     );
 
     return {

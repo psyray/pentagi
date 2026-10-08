@@ -1556,6 +1556,32 @@ query reportVision($flowId: ID!, $providerName: String) {
     }
 }
 
+fragment reportBrandingFragment on ReportBranding {
+    title
+    subtitle
+    header
+    footer
+    resolvedTitle
+    resolvedSubtitle
+    resolvedHeader
+    resolvedFooter
+    hasLogo
+    logoName
+    logoMediaType
+}
+
+query reportBranding($reportId: ID!) {
+    reportBranding(reportId: $reportId) {
+        ...reportBrandingFragment
+    }
+}
+
+mutation updateReportBranding($reportId: ID!, $input: ReportBrandingInput!) {
+    updateReportBranding(reportId: $reportId, input: $input) {
+        ...reportBrandingFragment
+    }
+}
+
 mutation createReport($flowId: ID!, $input: CreateReportInput!) {
     createReport(flowId: $flowId, input: $input) {
         ...reportFragment

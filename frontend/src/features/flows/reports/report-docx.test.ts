@@ -1,6 +1,28 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseReportMarkdown, reportTocEntries } from './report-docx';
+import { markdownToDocxBlob, parseReportMarkdown, reportTocEntries } from './report-docx';
+
+// A one-pixel transparent PNG, enough for Packer to embed an image.
+const PNG_DATA_URL =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+describe('markdownToDocxBlob', () => {
+    it('builds a document with a branding header, footer and logo', async () => {
+        const blob = await markdownToDocxBlob('## Cover Page\n\n**Acme**\n', {
+            footer: 'Confidential · [[page]]/[[pages]]',
+            header: 'Acme',
+            logo: { dataUrl: PNG_DATA_URL, height: 12, width: 12 },
+        });
+
+        expect(blob.size).toBeGreaterThan(0);
+    });
+
+    it('builds a plain document when there is no branding', async () => {
+        const blob = await markdownToDocxBlob('## Cover Page\n\nBody\n');
+
+        expect(blob.size).toBeGreaterThan(0);
+    });
+});
 
 describe('parseReportMarkdown', () => {
     it('maps headings and inline emphasis', () => {
