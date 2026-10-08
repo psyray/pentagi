@@ -1,6 +1,7 @@
 import type { ApolloClient } from '@apollo/client';
 
 import { ReportDocumentDocument, type ReportFragmentFragment } from '@/graphql/types';
+import { api } from '@/lib/axios';
 import { downloadTextFile, generatePDFFromMarkdown } from '@/lib/report';
 
 export type ReportDownloadFormat = 'docx' | 'markdown' | 'pdf' | 'zip';
@@ -45,18 +46,23 @@ export const downloadReportPdf = async (report: ReportFragmentFragment, content:
     await generatePDFFromMarkdown(content, reportFileName(report), { paginateSections: true });
 };
 
-// Word and archive builders are heavy (docx/jszip) and only fetched when the
-// user actually picks the format, not on every page that imports this module.
+// The Word builder is heavy (docx) and only fetched when the user actually
+// picks the format, not on every page that imports this module.
 export const downloadReportDocx = async (report: ReportFragmentFragment, content: string): Promise<void> => {
     const { markdownToDocxBlob } = await import('./report-docx');
 
     triggerBlobDownload(await markdownToDocxBlob(content), `${reportFileName(report)}.docx`);
 };
 
-export const downloadReportZip = async (report: ReportFragmentFragment, content: string): Promise<void> => {
-    const { buildReportArchiveBlob } = await import('./report-zip');
+// The archive is assembled server-side: the document plus the container files
+// and screenshots its sections cited (plan § 6.10). Streaming the ZIP from the
+// server keeps the container reads on the backend.
+export const downloadReportZip = async (report: ReportFragmentFragment): Promise<void> => {
+    const blob = (await api.get<Blob>(`/flows/${report.flowId}/reports/${report.id}/archive`, {
+        responseType: 'blob',
+    })) as unknown as Blob;
 
-    triggerBlobDownload(await buildReportArchiveBlob(reportFileName(report), content), `${reportFileName(report)}.zip`);
+    triggerBlobDownload(blob, `${reportFileName(report)}_annexes.zip`);
 };
 
 // Fetches the server-assembled document (numbered sections, resolved
