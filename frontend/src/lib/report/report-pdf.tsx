@@ -219,22 +219,18 @@ const pdfStyles = StyleSheet.create({
         padding: 40,
     },
     pageFooter: {
-        bottom: 18,
         color: '#94a3b8',
         fontSize: 8,
-        left: 40,
-        position: 'absolute',
-        right: 40,
+        marginBottom: 6,
+        marginTop: 6,
         textAlign: 'center',
     },
     pageHeader: {
         color: '#94a3b8',
         fontSize: 8,
-        left: 40,
-        position: 'absolute',
-        right: 40,
+        marginBottom: 6,
+        marginTop: 6,
         textAlign: 'center',
-        top: 18,
     },
     paragraph: {
         color: '#475569',
@@ -694,7 +690,6 @@ function PDFReportDocument({ branding, content, paginateSections = false }: PDFR
                         }
                     />
                 )}
-                {elements}
                 {branding?.header && (
                     <Text
                         fixed
@@ -704,6 +699,7 @@ function PDFReportDocument({ branding, content, paginateSections = false }: PDFR
                         style={pdfStyles.pageHeader}
                     />
                 )}
+                {elements}
                 {branding?.footer && (
                     <Text
                         fixed

@@ -9,7 +9,7 @@ import {
 } from '@/graphql/types';
 import { Log } from '@/lib/log';
 
-import { reportBrandingLogoPath } from './report-branding';
+import { reportBrandingLogoUrl } from './report-branding';
 
 export interface SaveBrandingInput {
     footer: string;
@@ -86,7 +86,7 @@ export function useFlowReportBranding(reportId: null | string, flowId: null | st
     return {
         branding,
         loading,
-        logoUrl: reportId && flowId ? reportBrandingLogoPath(flowId, reportId) : '',
+        logoUrl: reportId && flowId ? reportBrandingLogoUrl(flowId, reportId) : '',
         save,
         saving,
     };
