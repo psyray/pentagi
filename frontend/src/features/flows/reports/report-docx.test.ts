@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseReportMarkdown } from './report-docx';
+import { parseReportMarkdown, reportTocEntries } from './report-docx';
 
 describe('parseReportMarkdown', () => {
     it('maps headings and inline emphasis', () => {
@@ -41,5 +41,40 @@ describe('parseReportMarkdown', () => {
 
         expect(blocks[0]?.type).toBe('code');
         expect((blocks[0] as { text: string }).text).toContain('uid=0(root)');
+    });
+});
+
+describe('reportTocEntries', () => {
+    it('lists chapters at level 1 and findings at level 2, skipping the cover and body headings', () => {
+        const blocks = parseReportMarkdown(
+            [
+                '# Paperwork report',
+                '## Cover Page',
+                'Cover text.',
+                '## Limitations and Disclaimer',
+                'text',
+                '## 1. Executive Summary',
+                'text',
+                '## 7. Detailed Findings',
+                '## 7.1. Weak TLS',
+                '### What it takes to implement',
+                'text',
+                '## 7.2. SQL Injection',
+                '## 8. Recommendations',
+                '## 8.1. Patch the gateway',
+                '## Page Header and Footer',
+            ].join('\n\n'),
+        );
+
+        expect(reportTocEntries(blocks)).toEqual([
+            { level: 1, title: 'Limitations and Disclaimer' },
+            { level: 1, title: '1. Executive Summary' },
+            { level: 1, title: '7. Detailed Findings' },
+            { level: 2, title: '7.1. Weak TLS' },
+            { level: 2, title: '7.2. SQL Injection' },
+            { level: 1, title: '8. Recommendations' },
+            { level: 2, title: '8.1. Patch the gateway' },
+            { level: 1, title: 'Page Header and Footer' },
+        ]);
     });
 });
