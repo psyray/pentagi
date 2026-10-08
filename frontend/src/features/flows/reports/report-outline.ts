@@ -12,6 +12,18 @@ export interface ReportOutlineNode {
     section: ReportSectionFragmentFragment;
 }
 
+// GraphQL `ID` values reach the client as numbers while route params are
+// strings; compare them as text so a lookup never misses on type alone.
+export const sameReportId = (
+    left: null | number | string | undefined,
+    right: null | number | string | undefined,
+): boolean => left != null && right != null && String(left) === String(right);
+
+export const findReportById = <T extends { id: number | string }>(
+    reports: readonly T[],
+    reportId: null | number | string | undefined,
+): null | T => reports.find((report) => sameReportId(report.id, reportId)) ?? null;
+
 export const isSectionHidden = (section: ReportSectionFragmentFragment): boolean => section.hidden;
 
 export const isSectionSkipped = (section: ReportSectionFragmentFragment): boolean =>

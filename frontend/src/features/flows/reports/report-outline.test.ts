@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import { type ReportSectionFragmentFragment, ReportSectionKind, ReportSectionStatusType } from '@/graphql/types';
 
-import { buildReportOutline, flattenReportOutline, numberedTitle } from './report-outline';
+import {
+    buildReportOutline,
+    findReportById,
+    flattenReportOutline,
+    numberedTitle,
+    sameReportId,
+} from './report-outline';
 
 const section = (
     overrides: Partial<ReportSectionFragmentFragment> & { id: string },
@@ -97,5 +103,28 @@ describe('buildReportOutline', () => {
         ]);
 
         expect(outline.map(numberedTitle)).toEqual(['1. First', '2. Second']);
+    });
+});
+
+describe('sameReportId / findReportById', () => {
+    it('matches a numeric payload id against a string route param', () => {
+        expect(sameReportId(8, '8')).toBe(true);
+        expect(sameReportId('8', 8)).toBe(true);
+        expect(sameReportId(8, '9')).toBe(false);
+    });
+
+    it('never matches a missing id', () => {
+        expect(sameReportId(null, '8')).toBe(false);
+        expect(sameReportId(8, undefined)).toBe(false);
+    });
+
+    it('finds the report whose integer id the URL names as text', () => {
+        const reports = [
+            { id: 8, title: 'Eight' },
+            { id: 9, title: 'Nine' },
+        ];
+
+        expect(findReportById(reports, '9')?.title).toBe('Nine');
+        expect(findReportById(reports, '10')).toBeNull();
     });
 });
