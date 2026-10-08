@@ -667,15 +667,34 @@ func (c *Controller) DeleteReportSection(ctx context.Context, userID, reportID, 
 	if _, err := c.sectionIsEditable(ctx, userID, reportID); err != nil {
 		return err
 	}
-	if _, err := c.deps.DB.GetReportSection(ctx, database.GetReportSectionParams{
+	st, err := c.deps.DB.GetReportSection(ctx, database.GetReportSectionParams{
 		ID: sectionID, ReportID: reportID,
-	}); err != nil {
+	})
+	if err != nil {
 		return err
 	}
 	if err := c.deps.DB.DeleteReportSection(ctx, database.DeleteReportSectionParams{ID: sectionID, ReportID: reportID}); err != nil {
 		return fmt.Errorf("failed to delete section %d: %w", sectionID, err)
 	}
-	c.publish(ctx, userID, reportID, sectionID)
+
+	// Pull the following siblings back so positions stay contiguous, then
+	// republish the group (the removed row itself is gone).
+	if err := c.deps.DB.CompactReportSectionPositions(ctx, database.CompactReportSectionPositionsParams{
+		ReportID: reportID, ParentID: st.ParentID, Position: st.Position,
+	}); err != nil {
+		return fmt.Errorf("failed to compact section positions: %w", err)
+	}
+
+	changed := []int64{}
+	if all, err := c.deps.DB.GetReportSections(ctx, reportID); err == nil {
+		for _, sibling := range all {
+			if sameParent(sibling.ParentID, st.ParentID) {
+				changed = append(changed, sibling.ID)
+			}
+		}
+	}
+	c.publishAll(ctx, userID, reportID, changed)
+
 	return nil
 }
 
