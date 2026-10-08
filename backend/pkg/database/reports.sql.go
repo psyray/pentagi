@@ -56,6 +56,25 @@ func (q *Queries) AppendReportSectionWarning(ctx context.Context, arg AppendRepo
 	return i, err
 }
 
+const compactReportSectionPositions = `-- name: CompactReportSectionPositions :exec
+UPDATE report_sections
+SET position = position - 1
+WHERE report_id = $1 AND parent_id IS NOT DISTINCT FROM $2 AND position > $3
+`
+
+type CompactReportSectionPositionsParams struct {
+	ReportID int64         `json:"report_id"`
+	ParentID sql.NullInt64 `json:"parent_id"`
+	Position int32         `json:"position"`
+}
+
+// Pulls the siblings after a removed section back by one so positions stay
+// contiguous across add/delete cycles (IS NOT DISTINCT FROM for the NULL parent).
+func (q *Queries) CompactReportSectionPositions(ctx context.Context, arg CompactReportSectionPositionsParams) error {
+	_, err := q.db.ExecContext(ctx, compactReportSectionPositions, arg.ReportID, arg.ParentID, arg.Position)
+	return err
+}
+
 const createReport = `-- name: CreateReport :one
 INSERT INTO reports (
   flow_id,

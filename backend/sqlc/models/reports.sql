@@ -125,6 +125,13 @@ UPDATE report_sections
 SET position = position + 1
 WHERE report_id = $1 AND parent_id IS NOT DISTINCT FROM $2 AND position >= $3;
 
+-- name: CompactReportSectionPositions :exec
+-- Pulls the siblings after a removed section back by one so positions stay
+-- contiguous across add/delete cycles (IS NOT DISTINCT FROM for the NULL parent).
+UPDATE report_sections
+SET position = position - 1
+WHERE report_id = $1 AND parent_id IS NOT DISTINCT FROM $2 AND position > $3;
+
 -- name: CreateReportSection :one
 INSERT INTO report_sections (
   report_id,
