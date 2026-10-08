@@ -33,6 +33,7 @@ const EXCLUDED: Record<string, string> = {
 const DYNAMIC_ROUTES: Record<string, string> = {
     flow: 'manifest entry (routes.flow("5"))',
     flowReport: 'not swept: needs a finished-flow report cassette',
+    flowReportDocument: 'not swept: report document page; unit-covered by the report-outline tests',
     knowledge: 'specs/crud/knowledges.spec.ts — detail page after create',
     login: 'specs/smoke.spec.ts + the /login a11y scan',
     'settings.newProvider': 'specs/settings/providers.spec.ts — opened from the empty state',

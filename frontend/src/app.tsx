@@ -40,6 +40,7 @@ import { SystemSettingsProvider } from './providers/system-settings-provider';
 const Dashboard = lazy(() => import('@/pages/dashboard/dashboard'));
 const Flow = lazy(() => import('@/pages/flows/flow'));
 const FlowReport = lazy(() => import('@/pages/flows/flow-report'));
+const FlowReportDocument = lazy(() => import('@/pages/flows/flow-report-document'));
 const Flows = lazy(() => import('@/pages/flows/flows'));
 const NewFlow = lazy(() => import('@/pages/flows/new-flow'));
 const Login = lazy(() => import('@/pages/login'));
@@ -161,6 +162,12 @@ const router = createBrowserRouter(
                             path="flows/:flowId"
                         />
                     </Route>
+
+                    <Route
+                        element={<FlowReportDocument />}
+                        handle={routeTitles.flowReportDocument}
+                        path="flows/:flowId/reports/:reportId"
+                    />
 
                     <Route
                         element={<Templates />}

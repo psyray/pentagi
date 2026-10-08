@@ -95,6 +95,15 @@ const ASSISTANT_LOGS_WITH_RESULT = gql`
     }
 `;
 
+const REPORT_SECTIONS = gql`
+    query RS($reportId: ID!) {
+        reportSections(reportId: $reportId) {
+            id
+            reportId
+        }
+    }
+`;
+
 const RESOURCES = gql`
     query R($path: String, $recursive: Boolean) {
         resources(path: $path, recursive: $recursive) {
@@ -174,6 +183,11 @@ const assistantLogIds = (cache: InMemoryCache, flowId: string, assistantId: stri
             variables: { assistantId, flowId },
         })
         ?.assistantLogs.map((log) => String(log.id));
+
+const reportSectionIds = (cache: InMemoryCache, reportId: string) =>
+    cache
+        .readQuery<{ reportSections: { id: string }[] }>({ query: REPORT_SECTIONS, variables: { reportId } })
+        ?.reportSections.map((section) => String(section.id));
 
 const resourceIds = (cache: InMemoryCache, path: string, recursive: boolean) =>
     cache
@@ -461,6 +475,27 @@ describe('subscription cache merge-link (updateCacheForSubscription)', () => {
 
         expect(assistantLogIds(cache, '1', 'B')).toEqual(['seed-B', 'new']);
         expect(assistantLogIds(cache, '1', 'A')).toEqual(['seed-A']);
+    });
+
+    it('routes a report section to its own reportId variant', () => {
+        for (const reportId of ['42', '43']) {
+            cache.writeQuery({
+                data: { reportSections: [{ __typename: 'ReportSection', id: `seed-${reportId}`, reportId }] },
+                query: REPORT_SECTIONS,
+                variables: { reportId },
+            });
+        }
+
+        updateCacheForSubscription(
+            cache,
+            'reportSectionUpdated',
+            'reportSections',
+            frame({ __typename: 'ReportSection', id: 'new', reportId: '43' }),
+            { flowId: '1' },
+        );
+
+        expect(reportSectionIds(cache, '43')).toEqual(['seed-43', 'new']);
+        expect(reportSectionIds(cache, '42')).toEqual(['seed-42']);
     });
 
     it('adds and removes an api token without a refetch', () => {

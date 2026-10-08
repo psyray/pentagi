@@ -1,13 +1,19 @@
+import { useApolloClient } from '@apollo/client/react';
 import { FileText, Plus } from 'lucide-react';
 import { useCallback, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Log } from '@/lib/log';
+import { routes } from '@/lib/routes';
+import { useFlow } from '@/providers/flow-provider';
 
 import FlowReportCard from './flow-report-card';
 import FlowReportCreateDialog from './flow-report-create-dialog';
+import { downloadReportMarkdown, fetchReportDocument } from './report-download';
 import { type ReportProgress, useFlowReports } from './use-flow-reports';
 
 interface FlowReportsProps {
@@ -16,17 +22,41 @@ interface FlowReportsProps {
 
 function FlowReports({ className }: FlowReportsProps) {
     const { createReport, loading, reports } = useFlowReports();
+    const { flowId } = useFlow();
+    const navigate = useNavigate();
+    const client = useApolloClient();
     const [createOpen, setCreateOpen] = useState(false);
 
-    const handleOpen = useCallback((report: ReportProgress) => {
-        // The full-page document view arrives with the next iteration; the
-        // list and its live progress are the P2 surface.
-        toast.info('The full-page report view is on its way (next iteration).', { description: report.title });
-    }, []);
+    const handleOpen = useCallback(
+        (report: ReportProgress) => {
+            if (!flowId) {
+                return;
+            }
 
-    const handleDownload = useCallback((_report: ReportProgress) => {
-        toast.info('Report download arrives with the full-page view (next iteration).');
-    }, []);
+            void navigate(routes.flowReportDocument(flowId, report.id));
+        },
+        [flowId, navigate],
+    );
+
+    const handleDownload = useCallback(
+        async (report: ReportProgress) => {
+            try {
+                const content = await fetchReportDocument(client, report.id);
+
+                if (!content.trim()) {
+                    toast.error('The report document is empty');
+
+                    return;
+                }
+
+                downloadReportMarkdown(report, content);
+            } catch (error) {
+                Log.error('Failed to download the report:', error);
+                toast.error('Failed to download the report');
+            }
+        },
+        [client],
+    );
 
     return (
         <div className={`flex size-full flex-col ${className ?? ''}`}>

@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 
 import {
     FlowDocument,
+    FlowReportsDocument,
     FlowTemplateDocument,
     KnowledgeDocumentDocument,
     SettingsProvidersDocument,
@@ -46,6 +47,13 @@ export const routeTitles = {
         }),
     },
     flowReport: { title: 'Flow report' },
+    flowReportDocument: {
+        title: apolloTitle({
+            document: FlowReportsDocument,
+            select: (data, { reportId }) => data?.reports?.find((report) => report.id === reportId)?.title || 'Report',
+            variables: ({ flowId }) => (flowId ? { flowId } : null),
+        }),
+    },
     flows: { title: 'Flows' },
     knowledge: {
         title: apolloTitle({
