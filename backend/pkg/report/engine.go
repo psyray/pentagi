@@ -283,6 +283,9 @@ type worker struct {
 	visionOnce  sync.Once
 	vision      bool
 	logger      *logrus.Entry
+	// onDone is called once the run goroutine ends, so the controller can drop
+	// the worker from its map (a finished worker is not a live run).
+	onDone func()
 }
 
 func newWorker(deps Deps, report database.Report) (*worker, error) {
@@ -366,6 +369,9 @@ func (w *worker) launch(ids []int64) {
 			if r := recover(); r != nil {
 				w.logger.Errorf("report worker panic: %v", r)
 				w.finish(StatusFailed, fmt.Sprintf("report worker panic: %v", r))
+			}
+			if w.onDone != nil {
+				w.onDone()
 			}
 		}()
 
