@@ -17,6 +17,7 @@ import (
 	"pentagi/pkg/controller"
 	"pentagi/pkg/database"
 	"pentagi/pkg/docker"
+	"pentagi/pkg/flowfiles"
 	"pentagi/pkg/report"
 	"pentagi/pkg/server/logger"
 	"pentagi/pkg/server/response"
@@ -163,9 +164,16 @@ func (s *ReportArchiveService) ArchiveReport(c *gin.Context) {
 		return
 	}
 
+	attachments, err := s.reports.ListReportAttachments(ctx, int64(uid), int64(reportID))
+	if err != nil {
+		logger.FromContext(c).WithError(err).WithField("report_id", reportID).Error("error loading the report attachments")
+		response.Error(c, response.ErrInternal, err)
+		return
+	}
+
 	slug := reportArchiveSlug(row.Title, row.TemplateLabel)
 	if err := streamZipArchive(c, slug+"_annexes.zip", func(w io.Writer) error {
-		return s.buildArchive(ctx, w, row, slug, document, refs)
+		return s.buildArchive(ctx, w, row, slug, document, refs, attachments)
 	}); err != nil {
 		logger.FromContext(c).WithError(err).WithField("report_id", reportID).Error("error streaming the report archive")
 	}
@@ -178,6 +186,7 @@ func (s *ReportArchiveService) buildArchive(
 	slug string,
 	document string,
 	refs []report.EvidenceRef,
+	attachments []database.ReportSectionAttachment,
 ) error {
 	zw := zip.NewWriter(w)
 
@@ -233,6 +242,14 @@ func (s *ReportArchiveService) buildArchive(
 		}
 	}
 
+	// Operator attachments (backlog v2, L6): a cache-relative path is read from
+	// the host cache, an absolute one from the flow's terminal container.
+	for _, att := range attachments {
+		if err := s.addAttachmentToZip(ctx, zw, row.FlowID, att); err != nil {
+			missing = append(missing, fmt.Sprintf("attachment %q: %v", att.Path, err))
+		}
+	}
+
 	if len(missing) > 0 {
 		entry, err := zw.Create("annexes/MISSING.txt")
 		if err != nil {
@@ -249,6 +266,45 @@ func (s *ReportArchiveService) buildArchive(
 	}
 
 	return zw.Close()
+}
+
+// addAttachmentToZip bundles one operator attachment. A cache-relative path
+// (uploads/, resources/, container/) is read from the host cache; an absolute
+// path is copied from the flow's terminal container.
+func (s *ReportArchiveService) addAttachmentToZip(
+	ctx context.Context,
+	zw *zip.Writer,
+	flowID int64,
+	att database.ReportSectionAttachment,
+) error {
+	reqPath := strings.TrimSpace(att.Path)
+	if reqPath == "" {
+		return fmt.Errorf("no path recorded")
+	}
+
+	if strings.HasPrefix(reqPath, "/") {
+		containerName := primaryContainerName(s.tenantPrefix, uint64(flowID))
+		reader, _, err := s.dockerClient.CopyFromContainer(ctx, containerName, reqPath)
+		if err != nil {
+			return err
+		}
+		defer reader.Close()
+
+		count, err := addTarToZip(zw, reader, reqPath, "annexes/attachments")
+		if err != nil {
+			return err
+		}
+		if count == 0 {
+			return fmt.Errorf("no file at %q", reqPath)
+		}
+		return nil
+	}
+
+	abs, err := flowfiles.ResolveCachedPath(s.dataDir, uint64(flowID), reqPath)
+	if err != nil {
+		return err
+	}
+	return addFileToZip(zw, path.Join("annexes/attachments", filepath.ToSlash(reqPath)), abs)
 }
 
 // reportArchiveSlug builds a safe base name from the report title.

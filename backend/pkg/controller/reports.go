@@ -67,6 +67,12 @@ type ReportController interface {
 		afterSectionID, parentID *int64, title string,
 	) (*database.ReportSection, error)
 	DeleteSection(ctx context.Context, userID, reportID, sectionID int64) error
+
+	// SetSectionAttachments replaces a section's operator attachments wholesale
+	// (backlog v2, lot L6); the two list methods back the reader and the archive.
+	SetSectionAttachments(ctx context.Context, userID, reportID, sectionID int64, attachments []report.AttachmentSpec) ([]database.ReportSectionAttachment, error)
+	ListSectionAttachments(ctx context.Context, userID, reportID, sectionID int64) ([]database.ReportSectionAttachment, error)
+	ListReportAttachments(ctx context.Context, userID, reportID int64) ([]database.ReportSectionAttachment, error)
 }
 
 // CreateReportParams carries the mutation payload (zero budget values mean
@@ -339,6 +345,24 @@ func (a *reportControllerAdapter) DeleteSection(
 	ctx context.Context, userID, reportID, sectionID int64,
 ) error {
 	return a.ctrl.DeleteReportSection(ctx, userID, reportID, sectionID)
+}
+
+func (a *reportControllerAdapter) SetSectionAttachments(
+	ctx context.Context, userID, reportID, sectionID int64, attachments []report.AttachmentSpec,
+) ([]database.ReportSectionAttachment, error) {
+	return a.ctrl.SetSectionAttachments(ctx, userID, reportID, sectionID, attachments)
+}
+
+func (a *reportControllerAdapter) ListSectionAttachments(
+	ctx context.Context, userID, reportID, sectionID int64,
+) ([]database.ReportSectionAttachment, error) {
+	return a.ctrl.ListSectionAttachments(ctx, userID, reportID, sectionID)
+}
+
+func (a *reportControllerAdapter) ListReportAttachments(
+	ctx context.Context, userID, reportID int64,
+) ([]database.ReportSectionAttachment, error) {
+	return a.ctrl.ListReportAttachments(ctx, userID, reportID)
 }
 
 var _ = sql.NullString{} // (kept: database/sql import used by generated code nearby)

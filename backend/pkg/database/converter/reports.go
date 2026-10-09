@@ -76,6 +76,25 @@ func ConvertReportSections(sections []database.ReportSection) []*model.ReportSec
 	return out
 }
 
+// ConvertReportAttachment maps one operator attachment row (backlog v2, L6).
+func ConvertReportAttachment(row database.ReportSectionAttachment) *model.ReportAttachment {
+	return &model.ReportAttachment{
+		ID:        row.ID,
+		Label:     row.Label,
+		Path:      row.Path,
+		Bytes:     int(row.Bytes),
+		CreatedAt: row.CreatedAt,
+	}
+}
+
+func ConvertReportAttachments(rows []database.ReportSectionAttachment) []*model.ReportAttachment {
+	out := make([]*model.ReportAttachment, 0, len(rows))
+	for i := range rows {
+		out = append(out, ConvertReportAttachment(rows[i]))
+	}
+	return out
+}
+
 // ConvertReportLog maps one generation-log row; the payload JSON is decoded
 // into the model's map value when present.
 func ConvertReportLog(row database.ReportLog) (*model.ReportLog, error) {

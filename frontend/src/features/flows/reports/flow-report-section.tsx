@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 
 import type { ReportSectionEditor } from './use-flow-report-editor';
 
+import FlowReportAttachments from './flow-report-attachments';
 import FlowReportSectionActions from './flow-report-section-actions';
 import FlowReportSectionEditor from './flow-report-section-editor';
 import { sectionStatusLabel } from './report-format';
@@ -23,11 +24,12 @@ interface FlowReportSectionProps {
     canEdit: boolean;
     depth: number;
     editor: ReportSectionEditor;
+    flowId: null | string;
     node: ReportOutlineNode;
     sections: readonly ReportSectionFragmentFragment[];
 }
 
-function FlowReportSection({ active, canEdit, depth, editor, node, sections }: FlowReportSectionProps) {
+function FlowReportSection({ active, canEdit, depth, editor, flowId, node, sections }: FlowReportSectionProps) {
     const { section } = node;
     const [editing, setEditing] = useState(false);
     const boundaries = useMemo(() => siblingMoveBoundaries(sections, section.id), [sections, section.id]);
@@ -86,6 +88,14 @@ function FlowReportSection({ active, canEdit, depth, editor, node, sections }: F
                 </>
             )}
 
+            <FlowReportAttachments
+                attachments={section.attachments}
+                canEdit={canEdit}
+                editor={editor}
+                flowId={flowId}
+                sectionId={section.id}
+            />
+
             {node.children.length > 0 && (
                 <div className="border-border/60 mt-3 flex flex-col border-l pl-5">
                     {node.children.map((child) => (
@@ -94,6 +104,7 @@ function FlowReportSection({ active, canEdit, depth, editor, node, sections }: F
                             canEdit={canEdit}
                             depth={depth + 1}
                             editor={editor}
+                            flowId={flowId}
                             key={child.section.id}
                             node={child}
                             sections={sections}

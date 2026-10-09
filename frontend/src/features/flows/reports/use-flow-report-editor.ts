@@ -10,6 +10,7 @@ import {
     type ReportSectionFragmentFragment,
     ReportSectionsDocument,
     SectionDirection,
+    SetReportSectionAttachmentsDocument,
     SetReportSectionContentDocument,
     UpdateReportSectionDocument,
     WriteReportSectionDocument,
@@ -24,12 +25,21 @@ export interface AddReportSectionInput {
     title: string;
 }
 
+// ReportAttachmentDraft is one attachment row the picker hands to the editor
+// (backlog v2, L6).
+export interface ReportAttachmentDraft {
+    bytes: number;
+    label: string;
+    path: string;
+}
+
 export interface ReportSectionEditor {
     addSection: (input: AddReportSectionInput) => Promise<boolean>;
     busy: boolean;
     deleteSection: (sectionId: string) => Promise<boolean>;
     moveSection: (sectionId: string, direction: 'down' | 'up') => Promise<boolean>;
     saveSection: (input: SaveReportSectionInput) => Promise<boolean>;
+    setAttachments: (sectionId: string, attachments: readonly ReportAttachmentDraft[]) => Promise<boolean>;
     setSectionHidden: (sectionId: string, hidden: boolean) => Promise<boolean>;
     writeSection: (sectionId: string) => Promise<boolean>;
 }
@@ -63,6 +73,7 @@ export function useFlowReportEditor(reportId: null | string): ReportSectionEdito
     const [addMutation] = useMutation(AddReportSectionDocument);
     const [deleteMutation] = useMutation(DeleteReportSectionDocument);
     const [writeMutation] = useMutation(WriteReportSectionDocument);
+    const [setAttachmentsMutation] = useMutation(SetReportSectionAttachmentsDocument);
 
     const upsertSection = useCallback(
         (section: ReportSectionFragmentFragment): void => {
@@ -285,5 +296,59 @@ export function useFlowReportEditor(reportId: null | string): ReportSectionEdito
         [reportId, run, writeMutation],
     );
 
-    return { addSection, busy, deleteSection, moveSection, saveSection, setSectionHidden, writeSection };
+    // setAttachments replaces a section's operator attachments wholesale (L6).
+    // The mutation returns the new list, written straight into the cached section.
+    const setAttachments = useCallback(
+        (sectionId: string, attachments: readonly ReportAttachmentDraft[]): Promise<boolean> =>
+            run(async () => {
+                if (!reportId) {
+                    return false;
+                }
+
+                try {
+                    const response = await setAttachmentsMutation({
+                        variables: {
+                            attachments: attachments.map((attachment) => ({
+                                bytes: attachment.bytes,
+                                label: attachment.label,
+                                path: attachment.path,
+                            })),
+                            reportId,
+                            sectionId,
+                        },
+                    });
+                    const updated = response.data?.setReportSectionAttachments;
+
+                    if (updated) {
+                        client.cache.updateQuery(
+                            { query: ReportSectionsDocument, variables: { reportId } },
+                            (data) => ({
+                                reportSections: (data?.reportSections ?? []).map((row) =>
+                                    String(row.id) === String(sectionId) ? { ...row, attachments: updated } : row,
+                                ),
+                            }),
+                        );
+                    }
+
+                    return true;
+                } catch (error) {
+                    Log.error('Failed to set the report section attachments:', error);
+                    toast.error('Failed to update the attachments');
+
+                    return false;
+                }
+            }),
+        [client, reportId, run, setAttachmentsMutation],
+    );
+
+    return {
+        addSection,
+        busy,
+        deleteSection,
+        moveSection,
+        saveSection,
+        setAttachments,
+        setSectionHidden,
+        writeSection,
+    };
 }
