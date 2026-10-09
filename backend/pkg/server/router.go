@@ -66,6 +66,7 @@ var frontendRoutes = []string{
 	"/templates",
 	"/resources",
 	"/knowledges",
+	"/reports",
 	"/dashboard",
 }
 
