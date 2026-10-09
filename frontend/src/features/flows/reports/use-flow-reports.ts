@@ -225,14 +225,12 @@ export function useFlowReports() {
     const resumeReport = useCallback(
         async (report: ReportProgress, contentBudgetSeconds?: number): Promise<boolean> => {
             try {
-                const response = await resumeMutation({
+                // The mutation returns ResultType: the live reportUpdated frames
+                // carry the state. Writing the returned row here would clobber a
+                // newer frame when the run finishes before this response lands.
+                await resumeMutation({
                     variables: { contentBudgetSeconds, reportId: report.id },
                 });
-                const updated = response.data?.resumeReport as ReportProgress | undefined;
-
-                if (updated) {
-                    mergeReport(updated);
-                }
 
                 return true;
             } catch (error) {
@@ -242,7 +240,7 @@ export function useFlowReports() {
                 return false;
             }
         },
-        [mergeReport, resumeMutation],
+        [resumeMutation],
     );
 
     return {

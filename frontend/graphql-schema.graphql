@@ -1601,15 +1601,11 @@ mutation deleteReport($reportId: ID!) {
 }
 
 mutation resumeReport($reportId: ID!, $contentBudgetSeconds: Int) {
-    resumeReport(reportId: $reportId, contentBudgetSeconds: $contentBudgetSeconds) {
-        ...reportFragment
-    }
+    resumeReport(reportId: $reportId, contentBudgetSeconds: $contentBudgetSeconds)
 }
 
 mutation writeReportSection($reportId: ID!, $sectionId: ID!) {
-    writeReportSection(reportId: $reportId, sectionId: $sectionId) {
-        ...reportSectionFragment
-    }
+    writeReportSection(reportId: $reportId, sectionId: $sectionId)
 }
 
 mutation updateReportSection($reportId: ID!, $sectionId: ID!, $input: ReportSectionInput!) {

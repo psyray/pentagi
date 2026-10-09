@@ -922,8 +922,8 @@ type MutationResolver interface {
 	PutReportNote(ctx context.Context, reportID int64, note string) (model.ResultType, error)
 	StopReport(ctx context.Context, reportID int64) (model.ResultType, error)
 	DeleteReport(ctx context.Context, reportID int64) (model.ResultType, error)
-	ResumeReport(ctx context.Context, reportID int64, contentBudgetSeconds *int) (*model.Report, error)
-	WriteReportSection(ctx context.Context, reportID int64, sectionID int64) (*model.ReportSection, error)
+	ResumeReport(ctx context.Context, reportID int64, contentBudgetSeconds *int) (model.ResultType, error)
+	WriteReportSection(ctx context.Context, reportID int64, sectionID int64) (model.ResultType, error)
 	UpdateReportSection(ctx context.Context, reportID int64, sectionID int64, input model.ReportSectionInput) (*model.ReportSection, error)
 	SetReportSectionContent(ctx context.Context, reportID int64, sectionID int64, content string) (*model.ReportSection, error)
 	MoveReportSection(ctx context.Context, reportID int64, sectionID int64, direction model.SectionDirection) (model.ResultType, error)
@@ -23850,9 +23850,9 @@ func (ec *executionContext) _Mutation_resumeReport(ctx context.Context, field gr
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.Report)
+	res := resTmp.(model.ResultType)
 	fc.Result = res
-	return ec.marshalNReport2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐReport(ctx, field.Selections, res)
+	return ec.marshalNResultType2pentagiᚋpkgᚋgraphᚋmodelᚐResultType(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Mutation_resumeReport(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -23862,57 +23862,7 @@ func (ec *executionContext) fieldContext_Mutation_resumeReport(ctx context.Conte
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Report_id(ctx, field)
-			case "flowId":
-				return ec.fieldContext_Report_flowId(ctx, field)
-			case "userId":
-				return ec.fieldContext_Report_userId(ctx, field)
-			case "status":
-				return ec.fieldContext_Report_status(ctx, field)
-			case "title":
-				return ec.fieldContext_Report_title(ctx, field)
-			case "templateKey":
-				return ec.fieldContext_Report_templateKey(ctx, field)
-			case "templateLabel":
-				return ec.fieldContext_Report_templateLabel(ctx, field)
-			case "providerName":
-				return ec.fieldContext_Report_providerName(ctx, field)
-			case "providerType":
-				return ec.fieldContext_Report_providerType(ctx, field)
-			case "language":
-				return ec.fieldContext_Report_language(ctx, field)
-			case "additionalInstructions":
-				return ec.fieldContext_Report_additionalInstructions(ctx, field)
-			case "controlBudgetSeconds":
-				return ec.fieldContext_Report_controlBudgetSeconds(ctx, field)
-			case "contentBudgetSeconds":
-				return ec.fieldContext_Report_contentBudgetSeconds(ctx, field)
-			case "controlUsedSeconds":
-				return ec.fieldContext_Report_controlUsedSeconds(ctx, field)
-			case "contentUsedSeconds":
-				return ec.fieldContext_Report_contentUsedSeconds(ctx, field)
-			case "sectionsEstimate":
-				return ec.fieldContext_Report_sectionsEstimate(ctx, field)
-			case "sectionsTotal":
-				return ec.fieldContext_Report_sectionsTotal(ctx, field)
-			case "sectionsDone":
-				return ec.fieldContext_Report_sectionsDone(ctx, field)
-			case "tokensIn":
-				return ec.fieldContext_Report_tokensIn(ctx, field)
-			case "tokensOut":
-				return ec.fieldContext_Report_tokensOut(ctx, field)
-			case "error":
-				return ec.fieldContext_Report_error(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Report_createdAt(ctx, field)
-			case "updatedAt":
-				return ec.fieldContext_Report_updatedAt(ctx, field)
-			case "finishedAt":
-				return ec.fieldContext_Report_finishedAt(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Report", field.Name)
+			return nil, errors.New("field of type ResultType does not have child fields")
 		},
 	}
 	defer func() {
@@ -23955,9 +23905,9 @@ func (ec *executionContext) _Mutation_writeReportSection(ctx context.Context, fi
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.ReportSection)
+	res := resTmp.(model.ResultType)
 	fc.Result = res
-	return ec.marshalNReportSection2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐReportSection(ctx, field.Selections, res)
+	return ec.marshalNResultType2pentagiᚋpkgᚋgraphᚋmodelᚐResultType(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Mutation_writeReportSection(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -23967,45 +23917,7 @@ func (ec *executionContext) fieldContext_Mutation_writeReportSection(ctx context
 		IsMethod:   true,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_ReportSection_id(ctx, field)
-			case "reportId":
-				return ec.fieldContext_ReportSection_reportId(ctx, field)
-			case "parentId":
-				return ec.fieldContext_ReportSection_parentId(ctx, field)
-			case "position":
-				return ec.fieldContext_ReportSection_position(ctx, field)
-			case "key":
-				return ec.fieldContext_ReportSection_key(ctx, field)
-			case "kind":
-				return ec.fieldContext_ReportSection_kind(ctx, field)
-			case "title":
-				return ec.fieldContext_ReportSection_title(ctx, field)
-			case "status":
-				return ec.fieldContext_ReportSection_status(ctx, field)
-			case "content":
-				return ec.fieldContext_ReportSection_content(ctx, field)
-			case "instructions":
-				return ec.fieldContext_ReportSection_instructions(ctx, field)
-			case "variables":
-				return ec.fieldContext_ReportSection_variables(ctx, field)
-			case "warnings":
-				return ec.fieldContext_ReportSection_warnings(ctx, field)
-			case "hidden":
-				return ec.fieldContext_ReportSection_hidden(ctx, field)
-			case "tokensIn":
-				return ec.fieldContext_ReportSection_tokensIn(ctx, field)
-			case "tokensOut":
-				return ec.fieldContext_ReportSection_tokensOut(ctx, field)
-			case "durationSeconds":
-				return ec.fieldContext_ReportSection_durationSeconds(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_ReportSection_createdAt(ctx, field)
-			case "updatedAt":
-				return ec.fieldContext_ReportSection_updatedAt(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type ReportSection", field.Name)
+			return nil, errors.New("field of type ResultType does not have child fields")
 		},
 	}
 	defer func() {
