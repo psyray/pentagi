@@ -1,4 +1,4 @@
-import { ArrowUp, ChevronDown, FileText, Plus, Square } from 'lucide-react';
+import { ArrowUp, ChevronDown, FileText, Plus, Square, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -40,6 +40,7 @@ function FlowReportingTab() {
         addNote,
         checkVision,
         createReport,
+        deleteReport,
         groups,
         isNoting,
         loading,
@@ -53,6 +54,7 @@ function FlowReportingTab() {
     const [createOpen, setCreateOpen] = useState(false);
     const [note, setNote] = useState('');
     const [stopOpen, setStopOpen] = useState(false);
+    const [deleteOpen, setDeleteOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const endRef = useRef<HTMLDivElement>(null);
     const atBottomRef = useRef(true);
@@ -140,15 +142,25 @@ function FlowReportingTab() {
                         reports={reports}
                         selected={selectedReport}
                     />
-                    <Button
-                        className="ml-auto shrink-0"
-                        onClick={() => setCreateOpen(true)}
-                        size="sm"
-                        variant="outline"
-                    >
-                        <Plus className="size-4" />
-                        Create report
-                    </Button>
+                    <div className="ml-auto flex shrink-0 items-center gap-2">
+                        <Button
+                            aria-label="Delete the report"
+                            onClick={() => setDeleteOpen(true)}
+                            size="icon-sm"
+                            title="Delete the report"
+                            variant="outline"
+                        >
+                            <Trash2 />
+                        </Button>
+                        <Button
+                            onClick={() => setCreateOpen(true)}
+                            size="sm"
+                            variant="outline"
+                        >
+                            <Plus className="size-4" />
+                            Create report
+                        </Button>
+                    </div>
                 </div>
                 <ReportStatusLine report={selectedReport} />
             </div>
@@ -230,6 +242,23 @@ function FlowReportingTab() {
                 itemName={selectedReport.title || 'this report'}
                 itemType="report"
                 title="Stop the run"
+            />
+
+            <ConfirmationDialog
+                confirmText="Delete"
+                description={
+                    active
+                        ? `Delete "${selectedReport.title || 'this report'}"? The run is stopped and the document, its sections and its logs are removed for good.`
+                        : `Delete "${selectedReport.title || 'this report'}"? The document, its sections and its logs are removed for good.`
+                }
+                handleConfirm={async () => {
+                    await deleteReport(selectedReport);
+                }}
+                handleOpenChange={setDeleteOpen}
+                isOpen={deleteOpen}
+                itemName={selectedReport.title || 'this report'}
+                itemType="report"
+                title="Delete report"
             />
         </div>
     );
