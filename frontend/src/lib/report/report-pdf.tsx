@@ -101,7 +101,7 @@ export const splitByCJK = (text: string): TextSegment[] => {
     return segments.length > 0 ? segments : [{ isCJK: false, text }];
 };
 
-const pdfStyles = StyleSheet.create({
+export const pdfStyles = StyleSheet.create({
     bold: {
         fontWeight: 'bold',
     },
@@ -234,7 +234,11 @@ const pdfStyles = StyleSheet.create({
     },
     paragraph: {
         color: '#475569',
-        lineHeight: 1.6,
+        // The font size is set here on purpose: react-pdf lays the line box out
+        // with its own default size (12) when a Text inherits the page's, which
+        // doubled the paragraph leading while the list kept a tight one.
+        fontSize: 10,
+        lineHeight: 1.5,
         marginBottom: 8,
         textAlign: 'justify',
     },
