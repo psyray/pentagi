@@ -284,6 +284,7 @@ func parseAgentTypes(agentStrings []string) []pconfig.ProviderOptionsType {
 		"coder":         pconfig.OptionsTypeCoder,
 		"installer":     pconfig.OptionsTypeInstaller,
 		"pentester":     pconfig.OptionsTypePentester,
+		"reporter":      pconfig.OptionsTypeReporter,
 	}
 
 	for _, agentStr := range agentStrings {
@@ -340,6 +341,7 @@ func convertToAgentResults(results tester.ProviderTestResults, prv provider.Prov
 		pconfig.OptionsTypeCoder:        {"coder", results.Coder},
 		pconfig.OptionsTypeInstaller:    {"installer", results.Installer},
 		pconfig.OptionsTypePentester:    {"pentester", results.Pentester},
+		pconfig.OptionsTypeReporter:     {"reporter", results.Reporter},
 	}
 
 	// Use deterministic order from AllAgentTypes

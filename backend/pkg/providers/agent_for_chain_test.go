@@ -96,9 +96,9 @@ func TestAgentForChain_AgentByChain_RunsChainsUnderAnotherAgentsName(t *testing.
 		database.MsgchainTypeSummarizer:    pconfig.OptionsTypeSimple,
 		database.MsgchainTypeToolCallFixer: pconfig.OptionsTypeSimpleJSON,
 		database.MsgchainTypeMemorist:      pconfig.OptionsTypeSearcher,
-		// The report engine borrows the simple agent for both its chains (L8).
-		database.MsgchainTypeReportControl: pconfig.OptionsTypeSimple,
-		database.MsgchainTypeReportContent: pconfig.OptionsTypeSimple,
+		// The report engine runs both its chains under the reporter slot (L4/L8).
+		database.MsgchainTypeReportControl: pconfig.OptionsTypeReporter,
+		database.MsgchainTypeReportContent: pconfig.OptionsTypeReporter,
 	}
 
 	for chain, got := range agentByChain {

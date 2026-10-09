@@ -1948,7 +1948,7 @@ PentAGI lists 14 Gemini model IDs that responded through the tested API endpoint
 **Prices**: Per 1M tokens. Google [limits Gemini 2.5 access for new projects](https://ai.google.dev/gemini-api/docs/models/gemini-2.5-pro), so PentAGI uses the tested 3.1 Flash-Lite as its fallback and simple-role default. Existing custom 2.5 configurations remain usable where the project has access.
 
 **Default Model Assignments (config.yml)**:
-- **`gemini-3.1-flash-lite`** - `simple`, `simple_json`, `reflector`, `searcher`, `enricher`
+- **`gemini-3.1-flash-lite`** - `simple`, `simple_json`, `reflector`, `searcher`, `enricher`, `reporter`
 - **`gemini-3.5-flash-lite`** - `primary_agent`, `assistant`, `generator`, `refiner`, `adviser`, `coder`, `installer`, `pentester`
 
 Both default models passed a basic API/configuration smoke for every role. [Google reports stronger agentic and coding performance for 3.5 Flash-Lite than 3.1 Flash-Lite](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-6-flash-3-5-flash-lite-3-5-flash-cyber/); PentAGI's saved production chains cover generator and reflector only, so the smoke does not establish semantic quality or multi-turn reliability for other roles. On two saved generator chains, 3.5 Flash-Lite first chose the allowed `memorist` tool and called `subtask_list` after a synthetic tool response; no real tool was executed in that continuation.
@@ -1956,7 +1956,7 @@ Both default models passed a basic API/configuration smoke for every role. [Goog
 **Reasoning Effort Levels**:
 - **High**: Deeper reasoning for planning and review (`primary_agent`, `generator`, `refiner`, `adviser`)
 - **Medium**: Balanced reasoning for execution roles (`assistant`, `coder`, `installer`, `pentester`)
-- **Not set**: No thinking setting is sent and the model's own default applies (`simple`, `simple_json`, `reflector`, `searcher`, `enricher`)
+- **Not set**: No thinking setting is sent and the model's own default applies (`simple`, `simple_json`, `reflector`, `searcher`, `enricher`, `reporter`)
 
 ### AWS Bedrock Provider Configuration
 
@@ -2534,7 +2534,7 @@ These models share the OpenAI-compatible Qwen door. Availability differs by plat
 **Default Agent Configuration**:
 | Agent Role                                                                   | Default Model       | Tier      |
 | ---------------------------------------------------------------------------- | ------------------- | --------- |
-| `simple`, `simple_json`, `reflector`, `searcher`, `enricher`                 | `qwen3.6-flash`     | Utility   |
+| `simple`, `simple_json`, `reflector`, `searcher`, `enricher`, `reporter`       | `qwen3.6-flash`     | Utility   |
 | `primary_agent`, `assistant`, `coder`, `installer`, `pentester`              | `deepseek-v4.1-flash` | Workhorse |
 | `generator`, `refiner`, `adviser`                                            | `deepseek-v4-pro`   | Planning  |
 

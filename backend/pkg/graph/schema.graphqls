@@ -142,6 +142,7 @@ enum AgentConfigType {
   coder
   installer
   pentester
+  reporter
 }
 
 # Terminal output stream types
@@ -606,6 +607,7 @@ type ProviderTestResult {
   coder: AgentTestResult!
   installer: AgentTestResult!
   pentester: AgentTestResult!
+  reporter: AgentTestResult!
 }
 
 # ==================== Analytics & Usage Statistics Types ====================
@@ -864,6 +866,9 @@ type AgentsConfig {
   coder: AgentConfig!
   installer: AgentConfig!
   pentester: AgentConfig!
+  # The report engine's dedicated slot, resolved to simple when unset, so the
+  # provider form always shows the model reports will use.
+  reporter: AgentConfig!
 }
 
 # ==================== Input Types ====================
@@ -919,6 +924,8 @@ input AgentsConfigInput {
   coder: AgentConfigInput!
   installer: AgentConfigInput!
   pentester: AgentConfigInput!
+  # The report engine's dedicated slot; omit it to fall back to simple.
+  reporter: AgentConfigInput
 }
 
 # ==================== Knowledge (Vector Store) Types ====================
