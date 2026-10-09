@@ -875,6 +875,8 @@ const (
 	AgentTypeSummarizer    AgentType = "summarizer"
 	AgentTypeToolCallFixer AgentType = "tool_call_fixer"
 	AgentTypeAssistant     AgentType = "assistant"
+	AgentTypeReportControl AgentType = "report_control"
+	AgentTypeReportContent AgentType = "report_content"
 )
 
 var AllAgentType = []AgentType{
@@ -893,11 +895,13 @@ var AllAgentType = []AgentType{
 	AgentTypeSummarizer,
 	AgentTypeToolCallFixer,
 	AgentTypeAssistant,
+	AgentTypeReportControl,
+	AgentTypeReportContent,
 }
 
 func (e AgentType) IsValid() bool {
 	switch e {
-	case AgentTypePrimaryAgent, AgentTypeReporter, AgentTypeGenerator, AgentTypeRefiner, AgentTypeReflector, AgentTypeEnricher, AgentTypeAdviser, AgentTypeCoder, AgentTypeMemorist, AgentTypeSearcher, AgentTypeInstaller, AgentTypePentester, AgentTypeSummarizer, AgentTypeToolCallFixer, AgentTypeAssistant:
+	case AgentTypePrimaryAgent, AgentTypeReporter, AgentTypeGenerator, AgentTypeRefiner, AgentTypeReflector, AgentTypeEnricher, AgentTypeAdviser, AgentTypeCoder, AgentTypeMemorist, AgentTypeSearcher, AgentTypeInstaller, AgentTypePentester, AgentTypeSummarizer, AgentTypeToolCallFixer, AgentTypeAssistant, AgentTypeReportControl, AgentTypeReportContent:
 		return true
 	}
 	return false

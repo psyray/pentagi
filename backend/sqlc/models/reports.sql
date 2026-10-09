@@ -103,6 +103,17 @@ SET
 WHERE id = $1
 RETURNING *;
 
+-- name: SetReportMsgChainIDs :one
+-- Persists the report's two msgchains so a resume reopens them instead of
+-- duplicating (backlog v2, L8).
+UPDATE reports
+SET
+  msgchain_control_id = $2,
+  msgchain_content_id = $3,
+  updated_at = CURRENT_TIMESTAMP
+WHERE id = $1
+RETURNING *;
+
 -- name: SyncReportSectionCounts :one
 -- Derives the counters from the section rows so a hand-added (or deleted)
 -- section is reflected: total excludes the skipped alternatives, done counts the

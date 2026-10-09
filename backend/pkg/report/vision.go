@@ -72,11 +72,12 @@ func visionProbeImage() (string, []string) {
 }
 
 // probeVision asks the provider's simple model to name the four quadrants of a
-// 2x2 grid in reading order. It returns true only when the model saw them.
-func probeVision(ctx context.Context, prv provider.Provider) (bool, error) {
+// 2x2 grid in reading order. It returns true only when the model saw them, plus
+// the raw response so the caller can impute the probe's usage (L8, Q5).
+func probeVision(ctx context.Context, prv provider.Provider) (bool, *llms.ContentResponse, error) {
 	dataURL, order := visionProbeImage()
 	if dataURL == "" {
-		return false, fmt.Errorf("vision probe image unavailable")
+		return false, nil, fmt.Errorf("vision probe image unavailable")
 	}
 
 	chain := []llms.MessageContent{{
@@ -91,19 +92,19 @@ func probeVision(ctx context.Context, prv provider.Provider) (bool, error) {
 
 	resp, err := prv.CallEx(ctx, pconfig.OptionsTypeSimple, chain, nil)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 	if resp == nil || len(resp.Choices) == 0 {
-		return false, fmt.Errorf("empty vision probe response")
+		return false, resp, fmt.Errorf("empty vision probe response")
 	}
 
 	answer := strings.ToLower(resp.Choices[0].Content)
 
 	if !evaluateVisionAnswer(answer, order) {
-		return false, nil
+		return false, resp, nil
 	}
 
-	return true, nil
+	return true, resp, nil
 }
 
 // evaluateVisionAnswer reports whether the model named the grid's four colours in
@@ -144,7 +145,8 @@ func (c *Controller) CheckVision(ctx context.Context, userID, flowID int64, prov
 		return false, fmt.Errorf("failed to resolve provider %q: %w", name, err)
 	}
 
-	return probeVision(ctx, prv)
+	ok, _, err := probeVision(ctx, prv)
+	return ok, err
 }
 
 // screenshotDataURL reads a flow screenshot and returns it as a data URL, or ""
