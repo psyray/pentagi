@@ -827,6 +827,66 @@ func (q *Queries) GetReportSections(ctx context.Context, reportID int64) ([]Repo
 	return items, nil
 }
 
+const getUserReports = `-- name: GetUserReports :many
+SELECT id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer, started_at FROM reports
+WHERE user_id = $1
+ORDER BY created_at DESC
+`
+
+func (q *Queries) GetUserReports(ctx context.Context, userID int64) ([]Report, error) {
+	rows, err := q.db.QueryContext(ctx, getUserReports, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Report
+	for rows.Next() {
+		var i Report
+		if err := rows.Scan(
+			&i.ID,
+			&i.FlowID,
+			&i.UserID,
+			&i.Status,
+			&i.Title,
+			&i.TemplateKey,
+			&i.TemplateLabel,
+			&i.ProviderName,
+			&i.ProviderType,
+			&i.Language,
+			&i.AdditionalInstructions,
+			&i.ControlBudgetSeconds,
+			&i.ContentBudgetSeconds,
+			&i.ControlUsedSeconds,
+			&i.ContentUsedSeconds,
+			&i.SectionsEstimate,
+			&i.SectionsTotal,
+			&i.SectionsDone,
+			&i.TokensIn,
+			&i.TokensOut,
+			&i.Error,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.FinishedAt,
+			&i.Labels,
+			&i.BrandingTitle,
+			&i.BrandingSubtitle,
+			&i.BrandingHeader,
+			&i.BrandingFooter,
+			&i.StartedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const resetReportForResume = `-- name: ResetReportForResume :one
 UPDATE reports
 SET

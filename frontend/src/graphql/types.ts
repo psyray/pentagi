@@ -1575,6 +1575,10 @@ export type FlowReportsQueryVariables = Exact<{
 
 export type FlowReportsQuery = { reports: Array<ReportFragmentFragment> };
 
+export type AllReportsQueryVariables = Exact<{ [key: string]: never }>;
+
+export type AllReportsQuery = { reports: Array<ReportFragmentFragment> };
+
 export type ReportRowQueryVariables = Exact<{
     reportId: string | number;
 }>;
@@ -13306,6 +13310,64 @@ export const FlowReportsDocument = {
         },
     ],
 } as unknown as DocumentNode<FlowReportsQuery, FlowReportsQueryVariables>;
+export const AllReportsDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'allReports' },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'reports' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [{ kind: 'FragmentSpread', name: { kind: 'Name', value: 'reportFragment' } }],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'reportFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'Report' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'flowId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'userId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'templateKey' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'templateLabel' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'providerName' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'providerType' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'language' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'additionalInstructions' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'controlBudgetSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'contentBudgetSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'controlUsedSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'contentUsedSeconds' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsEstimate' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsTotal' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsDone' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensIn' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tokensOut' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'error' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'finishedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'startedAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<AllReportsQuery, AllReportsQueryVariables>;
 export const ReportRowDocument = {
     kind: 'Document',
     definitions: [

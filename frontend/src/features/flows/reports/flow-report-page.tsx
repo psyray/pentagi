@@ -30,9 +30,10 @@ import { useFlowReportEditor } from './use-flow-report-editor';
 import { useReportPermissions } from './use-report-permissions';
 
 function FlowReportPage() {
-    const { flowId } = useParams<{ flowId: string }>();
+    const { flowId: flowIdParam } = useParams<{ flowId: string }>();
     const navigate = useNavigate();
-    const { download, downloading, loading, remove, report, reportId, resume, sections } = useFlowReportDocument();
+    const { download, downloading, flowId, loading, remove, report, reportId, resume, sections } =
+        useFlowReportDocument();
     const editor = useFlowReportEditor(reportId || null);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const permissions = useReportPermissions();
@@ -44,9 +45,9 @@ function FlowReportPage() {
     const handleDelete = useCallback(async () => {
         if (await remove()) {
             toast.success('Report deleted');
-            void navigate(flowId ? routes.flow(flowId) : routes.flows);
+            void navigate(flowIdParam ? routes.flow(flowIdParam) : routes.reports);
         }
-    }, [flowId, navigate, remove]);
+    }, [navigate, remove, flowIdParam]);
 
     const handleResume = useCallback(async () => {
         if (await resume()) {
@@ -83,7 +84,7 @@ function FlowReportPage() {
                                 <BreadcrumbLink asChild>
                                     <Link
                                         className="truncate"
-                                        to={flowId ? routes.flow(flowId) : routes.flows}
+                                        to={flowIdParam ? routes.flow(flowIdParam) : routes.reports}
                                     >
                                         Reports
                                     </Link>
@@ -183,7 +184,7 @@ function FlowReportPage() {
                         />
 
                         <FlowReportBranding
-                            flowId={flowId ?? null}
+                            flowId={flowId || null}
                             reportId={reportId || null}
                         />
                     </aside>

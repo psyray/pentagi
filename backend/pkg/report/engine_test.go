@@ -114,6 +114,16 @@ func (q *fakeQuerier) GetReportByID(_ context.Context, reportID int64) (database
 	return row, nil
 }
 
+func (q *fakeQuerier) GetUserReports(_ context.Context, userID int64) ([]database.Report, error) {
+	out := make([]database.Report, 0, len(q.reports))
+	for _, row := range q.reports {
+		if row.UserID == userID {
+			out = append(out, row)
+		}
+	}
+	return out, nil
+}
+
 func (q *fakeQuerier) GetReportSections(_ context.Context, _ int64) ([]database.ReportSection, error) {
 	out := make([]database.ReportSection, 0, len(q.sections))
 	for id := int64(1); id <= q.nextSecID; id++ {
@@ -594,4 +604,22 @@ func TestFilterSectionsByID(t *testing.T) {
 
 	assert.Empty(t, filterSectionsByID(sections, []int64{9}))
 	assert.Empty(t, filterSectionsByID(sections, nil))
+}
+
+// ListUserReports backs the global Reports page (L5): it must return every
+// report of the caller, across flows, and nothing of another user.
+func TestController_ListUserReportsScopesToTheCaller(t *testing.T) {
+	q := &fakeQuerier{reports: map[int64]database.Report{
+		1: {ID: 1, FlowID: 10, UserID: 7, Title: "mine"},
+		2: {ID: 2, FlowID: 11, UserID: 7, Title: "also mine"},
+		3: {ID: 3, FlowID: 12, UserID: 8, Title: "someone else's"},
+	}}
+	c := &Controller{deps: Deps{DB: q}}
+
+	rows, err := c.ListUserReports(context.Background(), 7)
+	require.NoError(t, err)
+	require.Len(t, rows, 2)
+	for _, row := range rows {
+		assert.Equal(t, int64(7), row.UserID)
+	}
 }

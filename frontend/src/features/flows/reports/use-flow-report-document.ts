@@ -7,6 +7,7 @@ import {
     DeleteReportDocument,
     FlowReportsDocument,
     ReportBrandingDocument,
+    ReportRowDocument,
     ReportSectionsDocument,
     ReportSectionUpdatedDocument,
     ReportUpdatedDocument,
@@ -30,19 +31,34 @@ import { findReportById } from './report-outline';
  * frame lands in a cache field this page already watches; the sections come
  * from `reportSections(reportId)` and are refreshed by `reportSectionUpdated`.
  * Both writes are done by the Apollo subscription link.
+ *
+ * The flow id normally comes from the URL (`/flows/:flowId/reports/:reportId`).
+ * On the cross-flow route (`/reports/:reportId`) it is read from the report row
+ * first, then the same flow-scoped queries take over.
  */
 export function useFlowReportDocument() {
-    const { flowId, reportId } = useParams<{ flowId: string; reportId: string }>();
+    const { flowId: flowIdParam, reportId } = useParams<{ flowId?: string; reportId: string }>();
     const client = useApolloClient();
     const [downloading, setDownloading] = useState(false);
     const [deleteMutation] = useMutation(DeleteReportDocument);
     const [resumeMutation] = useMutation(ResumeReportDocument);
 
+    // Cross-flow route only: the report row carries the owning flow, which the
+    // flow-scoped list query and subscriptions need. Skipped when the URL has it.
+    const rowQuery = useQuery(ReportRowDocument, {
+        fetchPolicy: 'cache-and-network',
+        nextFetchPolicy: 'cache-first',
+        skip: !reportId || !!flowIdParam,
+        variables: { reportId: reportId ?? '' },
+    });
+
+    const flowId = flowIdParam ?? rowQuery.data?.report?.flowId ?? '';
+
     const reportsQuery = useQuery(FlowReportsDocument, {
         fetchPolicy: 'cache-and-network',
         nextFetchPolicy: 'cache-first',
         skip: !flowId,
-        variables: { flowId: flowId ?? '' },
+        variables: { flowId },
     });
 
     const sectionsQuery = useQuery(ReportSectionsDocument, {
@@ -58,7 +74,7 @@ export function useFlowReportDocument() {
         variables: { reportId: reportId ?? '' },
     });
 
-    const subscriptionVariables = useMemo(() => ({ flowId: flowId ?? '' }), [flowId]);
+    const subscriptionVariables = useMemo(() => ({ flowId }), [flowId]);
     const subscriptionSkip = !flowId;
 
     useSubscription(ReportUpdatedDocument, { skip: subscriptionSkip, variables: subscriptionVariables });
@@ -73,7 +89,7 @@ export function useFlowReportDocument() {
 
     const download = useCallback(
         async (format: ReportDownloadFormat): Promise<void> => {
-            if (!flowId || !reportId || !report) {
+            if (!reportId || !report) {
                 return;
             }
 
@@ -108,7 +124,7 @@ export function useFlowReportDocument() {
                 setDownloading(false);
             }
         },
-        [branding, client, flowId, report, reportId],
+        [branding, client, report, reportId],
     );
 
     const remove = useCallback(async (): Promise<boolean> => {
@@ -151,7 +167,11 @@ export function useFlowReportDocument() {
     return {
         download,
         downloading,
-        loading: (reportsQuery.loading && !report) || (sectionsQuery.loading && sections.length === 0),
+        flowId,
+        loading:
+            (!flowIdParam && rowQuery.loading && !rowQuery.data?.report) ||
+            (!!flowId && reportsQuery.loading && !report) ||
+            (sectionsQuery.loading && sections.length === 0),
         remove,
         report,
         reportId: reportId ?? '',

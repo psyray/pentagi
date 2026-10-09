@@ -32,6 +32,8 @@ export const routes = {
     newTemplate: '/templates/new',
 
     oauthResult: '/oauth/result',
+    report: (reportId: number | string) => `/reports/${reportId}`,
+    reports: '/reports',
     resources: '/resources',
 
     root: '/',

@@ -15,6 +15,11 @@ SELECT * FROM reports
 WHERE flow_id = $1 AND user_id = $2
 ORDER BY created_at DESC;
 
+-- name: GetUserReports :many
+SELECT * FROM reports
+WHERE user_id = $1
+ORDER BY created_at DESC;
+
 -- name: GetActiveReports :many
 SELECT * FROM reports
 WHERE status IN ('created', 'planning', 'generating')

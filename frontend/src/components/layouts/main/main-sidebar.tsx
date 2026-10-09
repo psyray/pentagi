@@ -11,6 +11,7 @@ import {
     Monitor,
     Moon,
     Plus,
+    ScrollText,
     Settings,
     Settings2,
     Star,
@@ -71,6 +72,7 @@ export function MainSidebar() {
     const isFlowsActive = useMatch('/flows/*');
     const isTemplatesActive = useMatch('/templates/*');
     const isKnowledgesActive = useMatch('/knowledges/*');
+    const isReportsActive = useMatch('/reports/*');
     const isResourcesActive = useMatch('/resources/*');
     const isSettingsActive = useMatch('/settings/*');
     const { flowId: flowIdParam } = useParams<{ flowId: string }>();
@@ -82,6 +84,14 @@ export function MainSidebar() {
     const { flows } = useSidebarFlows();
 
     const resourcesUpload = useResourcesUpload();
+
+    // Reports gating without pulling the reports feature into the app shell:
+    // the sidebar already reads the session, so mirror reports.admin/read here.
+    const canReadReports = useMemo(() => {
+        const privileges = authInfo?.privileges ?? [];
+
+        return privileges.includes('reports.admin') || privileges.includes('reports.read');
+    }, [authInfo?.privileges]);
 
     const flowId = useMemo(() => (flowIdParam ? Number(flowIdParam) : null), [flowIdParam]);
 
@@ -226,6 +236,19 @@ export function MainSidebar() {
                                     </Link>
                                 </SidebarMenuAction>
                             </SidebarMenuItem>
+                            {canReadReports && (
+                                <SidebarMenuItem>
+                                    <SidebarMenuButton
+                                        asChild
+                                        isActive={!!isReportsActive}
+                                    >
+                                        <Link to={routes.reports}>
+                                            <ScrollText />
+                                            Reports
+                                        </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            )}
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>

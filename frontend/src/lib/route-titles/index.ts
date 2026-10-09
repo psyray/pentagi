@@ -5,6 +5,7 @@ import {
     FlowReportsDocument,
     FlowTemplateDocument,
     KnowledgeDocumentDocument,
+    ReportRowDocument,
     SettingsProvidersDocument,
 } from '@/graphql/types';
 
@@ -93,6 +94,16 @@ export const routeTitles = {
     },
 
     providers: { title: 'Providers' },
+
+    report: {
+        title: apolloTitle({
+            document: ReportRowDocument,
+            select: (data) => data?.report?.title || 'Report',
+            variables: ({ reportId }) => (reportId ? { reportId } : null),
+        }),
+    },
+
+    reports: { title: 'Reports' },
 
     resources: { title: 'Resources' },
 
