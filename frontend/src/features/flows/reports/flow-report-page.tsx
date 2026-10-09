@@ -23,7 +23,7 @@ import FlowReportDownload from './flow-report-download';
 import FlowReportRun from './flow-report-run';
 import FlowReportSection from './flow-report-section';
 import FlowReportToc from './flow-report-toc';
-import { formatDuration, isReportActive, isReportResumable } from './report-format';
+import { formatDuration, isReportActive, isSectionResumable } from './report-format';
 import { buildReportOutline, flattenReportOutline } from './report-outline';
 import { useFlowReportDocument } from './use-flow-report-document';
 import { useFlowReportEditor } from './use-flow-report-editor';
@@ -68,7 +68,9 @@ function FlowReportPage() {
             : 0;
     const active = report ? isReportActive(report.status) : false;
     const canEdit = !!report && permissions.canEdit;
-    const resumable = !!report && isReportResumable(report);
+    // Precise on the page: the loaded sections tell whether the writer still
+    // owes content (the row counters do not account for hand-added sections).
+    const resumable = !!report && !active && sections.some((section) => isSectionResumable(section.status));
     const activeTitle = flat.find((node) => node.section.id === activeSectionId)?.section.title ?? null;
 
     return (

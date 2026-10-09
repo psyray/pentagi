@@ -1343,9 +1343,12 @@ type Mutation {
   deleteReport(reportId: ID!): ResultType!
   # resumeReport re-queues the unwritten sections and relaunches a finished,
   # failed or canceled report; contentBudgetSeconds grants fresh content time.
-  resumeReport(reportId: ID!, contentBudgetSeconds: Int): Report!
+  # It returns ResultType: the live reportUpdated frames carry the state (a
+  # returned Report would be written to the client cache and could clobber a
+  # newer frame when the run finishes before the response lands).
+  resumeReport(reportId: ID!, contentBudgetSeconds: Int): ResultType!
   # writeReportSection runs the writer on a single section.
-  writeReportSection(reportId: ID!, sectionId: ID!): ReportSection!
+  writeReportSection(reportId: ID!, sectionId: ID!): ResultType!
   updateReportSection(reportId: ID!, sectionId: ID!, input: ReportSectionInput!): ReportSection!
   setReportSectionContent(reportId: ID!, sectionId: ID!, content: String!): ReportSection!
   moveReportSection(reportId: ID!, sectionId: ID!, direction: SectionDirection!): ResultType!

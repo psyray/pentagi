@@ -193,8 +193,8 @@ func (c *Controller) CreateReport(
 
 	c.registerWorker(report.ID, w)
 
-	w.start()
 	c.deps.Subs.NewFlowPublisher(userID, flowID).ReportCreated(ctx, converter.ConvertReport(report))
+	w.start()
 
 	return &report, nil
 }
@@ -453,12 +453,16 @@ func (c *Controller) ResumeReport(
 		return nil, err
 	}
 
+	publish := c.deps.Subs.NewFlowPublisher(resumed.UserID, resumed.FlowID)
 	c.registerWorker(reportID, w)
 	claimed = false
 
+	// Publish the reset row BEFORE the run starts: a no-op resume can finish in
+	// milliseconds and its generating/completed frames must not be overtaken by
+	// this one, which would leave the client stuck on the active "created" state.
+	publish.ReportUpdated(ctx, converter.ConvertReport(resumed))
+
 	w.runSections(nil)
-	c.deps.Subs.NewFlowPublisher(resumed.UserID, resumed.FlowID).
-		ReportUpdated(ctx, converter.ConvertReport(resumed))
 
 	return &resumed, nil
 }
@@ -516,10 +520,11 @@ func (c *Controller) WriteReportSection(
 	c.registerWorker(reportID, w)
 	claimed = false
 
-	w.runSections([]int64{sectionID})
+	publish := c.deps.Subs.NewFlowPublisher(report.UserID, report.FlowID)
+	publish.ReportUpdated(ctx, converter.ConvertReport(report))
 	c.publish(ctx, userID, reportID, sectionID)
-	c.deps.Subs.NewFlowPublisher(report.UserID, report.FlowID).
-		ReportUpdated(ctx, converter.ConvertReport(report))
+
+	w.runSections([]int64{sectionID})
 
 	return &st, nil
 }
