@@ -290,6 +290,10 @@ type worker struct {
 	visionOnce  sync.Once
 	vision      bool
 	logger      *logrus.Entry
+	// Msgchain ids the run emits usage into (backlog v2, L8): control carries the
+	// planner and vision probe, content carries the writers.
+	controlChainID int64
+	contentChainID int64
 	// onDone is called once the run goroutine ends, so the controller can drop
 	// the worker from its map (a finished worker is not a live run).
 	onDone func()
@@ -389,6 +393,10 @@ func (w *worker) launch(ids []int64) {
 		if _, err := w.deps.DB.SetReportStartedAt(w.stateCtx, w.report.ID); err != nil {
 			w.logger.WithError(err).Warn("failed to stamp the report run start")
 		}
+
+		// Open (or reopen on a resume) the two msgchains the run reports usage into
+		// (backlog v2, L8), before the first planner/writer call.
+		w.ensureMsgChains(w.stateCtx)
 
 		if ids == nil && w.report.SectionsTotal == 0 {
 			if err := w.plan(ctx); err != nil {
@@ -1268,11 +1276,18 @@ func (w *worker) outlineText() string {
 // writers know whether to attach screenshot images (plan § 6.10, P7.4).
 func (w *worker) visionCapable(ctx context.Context) bool {
 	w.visionOnce.Do(func() {
-		ok, err := probeVision(ctx, w.prv)
+		start := time.Now()
+		ok, resp, err := probeVision(ctx, w.prv)
+		probeSeconds := time.Since(start).Seconds()
 		if err != nil {
 			w.logger.WithError(err).Info("vision probe: the model did not answer with an image")
 		}
 		w.vision = ok
+		// The probe is a control-plane call: its usage lands in the control
+		// msgchain (L8, Q5).
+		if resp != nil {
+			w.recordNodeUsage(true, resp, probeSeconds)
+		}
 		state := "will not"
 		if ok {
 			state = "will"
@@ -1386,7 +1401,8 @@ func (w *worker) sectionContext(st database.ReportSection) string {
 }
 
 // recordNodeUsage accumulates one node's usage into the run counters and
-// persists the progress row.
+// persists the progress row. It also feeds the node's msgchain (L8) so the
+// usage/cost views see reports like any other agent.
 func (w *worker) recordNodeUsage(control bool, resp *llms.ContentResponse, seconds float64) {
 	if resp == nil {
 		return
@@ -1410,7 +1426,90 @@ func (w *worker) recordNodeUsage(control bool, resp *llms.ContentResponse, secon
 	w.tokensOut += usage.Output
 	w.mx.Unlock()
 
+	w.updateChainUsage(control, usage, seconds)
 	w.refreshProgress(w.ctx)
+}
+
+// ensureMsgChains opens the run's two msgchains or reopens the ones a previous
+// run persisted, so a resume accumulates into the same rows instead of
+// duplicating them (plan Q2). The ids are written back on the report row; a
+// chain-creation failure degrades to no emission, never a failed run.
+func (w *worker) ensureMsgChains(ctx context.Context) {
+	if w.report.MsgchainControlID.Valid && w.report.MsgchainContentID.Valid {
+		w.controlChainID = w.report.MsgchainControlID.Int64
+		w.contentChainID = w.report.MsgchainContentID.Int64
+		return
+	}
+
+	control, err := w.createMsgChain(ctx, database.MsgchainTypeReportControl)
+	if err != nil {
+		w.logger.WithError(err).Warn("failed to create the report control msgchain")
+		return
+	}
+	content, err := w.createMsgChain(ctx, database.MsgchainTypeReportContent)
+	if err != nil {
+		w.logger.WithError(err).Warn("failed to create the report content msgchain")
+		return
+	}
+
+	w.controlChainID = control.ID
+	w.contentChainID = content.ID
+
+	if _, err := w.deps.DB.SetReportMsgChainIDs(ctx, database.SetReportMsgChainIDsParams{
+		ID:                w.report.ID,
+		MsgchainControlID: database.Int64ToNullInt64(&control.ID),
+		MsgchainContentID: database.Int64ToNullInt64(&content.ID),
+	}); err != nil {
+		w.logger.WithError(err).Warn("failed to persist the report msgchain ids")
+	}
+}
+
+func (w *worker) createMsgChain(ctx context.Context, chainType database.MsgchainType) (database.Msgchain, error) {
+	model, providerName := "", ""
+	if w.prv != nil {
+		model = w.prv.Model(pconfig.OptionsTypeSimple)
+		providerName = string(w.prv.Type())
+	}
+
+	return w.deps.DB.CreateMsgChain(ctx, database.CreateMsgChainParams{
+		Type:          chainType,
+		Model:         model,
+		ModelProvider: providerName,
+		Chain:         json.RawMessage("[]"),
+		FlowID:        w.report.FlowID,
+	})
+}
+
+// updateChainUsage accumulates one call's usage into the node's msgchain. The
+// duration travels here (and not through UpdateMsgChain) so it is never counted
+// twice; the cost is derived from the provider's price for the simple agent.
+func (w *worker) updateChainUsage(control bool, usage pconfig.CallUsage, seconds float64) {
+	chainID := w.contentChainID
+	if control {
+		chainID = w.controlChainID
+	}
+	if chainID == 0 {
+		return
+	}
+
+	if w.prv != nil {
+		if price := w.prv.GetPriceInfo(pconfig.OptionsTypeSimple); price != nil {
+			usage.UpdateCost(price)
+		}
+	}
+
+	if _, err := w.deps.DB.UpdateMsgChainUsage(w.stateCtx, database.UpdateMsgChainUsageParams{
+		UsageIn:         usage.Input,
+		UsageOut:        usage.Output,
+		UsageCacheIn:    usage.CacheRead,
+		UsageCacheOut:   usage.CacheWrite,
+		UsageCostIn:     usage.CostInput,
+		UsageCostOut:    usage.CostOutput,
+		DurationSeconds: seconds,
+		ID:              chainID,
+	}); err != nil {
+		w.logger.WithError(err).Warn("failed to update the report msgchain usage")
+	}
 }
 
 func (w *worker) bumpDone() {

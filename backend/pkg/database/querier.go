@@ -311,6 +311,9 @@ type Querier interface {
 	SetReportContentBudget(ctx context.Context, arg SetReportContentBudgetParams) (Report, error)
 	SetReportEstimate(ctx context.Context, arg SetReportEstimateParams) (Report, error)
 	SetReportLabels(ctx context.Context, arg SetReportLabelsParams) (Report, error)
+	// Persists the report's two msgchains so a resume reopens them instead of
+	// duplicating (backlog v2, L8).
+	SetReportMsgChainIDs(ctx context.Context, arg SetReportMsgChainIDsParams) (Report, error)
 	SetReportPlan(ctx context.Context, arg SetReportPlanParams) (Report, error)
 	SetReportSectionEvidence(ctx context.Context, arg SetReportSectionEvidenceParams) (ReportSection, error)
 	SetReportSectionHidden(ctx context.Context, arg SetReportSectionHiddenParams) (ReportSection, error)

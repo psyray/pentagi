@@ -123,6 +123,8 @@ enum AgentType {
   summarizer
   tool_call_fixer
   assistant
+  report_control
+  report_content
 }
 
 # AI agent type for provider configuration

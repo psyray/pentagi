@@ -210,6 +210,8 @@ const (
 	MsgchainTypeSummarizer    MsgchainType = "summarizer"
 	MsgchainTypeToolCallFixer MsgchainType = "tool_call_fixer"
 	MsgchainTypeAssistant     MsgchainType = "assistant"
+	MsgchainTypeReportControl MsgchainType = "report_control"
+	MsgchainTypeReportContent MsgchainType = "report_content"
 )
 
 func (e *MsgchainType) Scan(src interface{}) error {
@@ -1067,6 +1069,8 @@ type Report struct {
 	BrandingHeader         sql.NullString        `json:"branding_header"`
 	BrandingFooter         sql.NullString        `json:"branding_footer"`
 	StartedAt              sql.NullTime          `json:"started_at"`
+	MsgchainControlID      sql.NullInt64         `json:"msgchain_control_id"`
+	MsgchainContentID      sql.NullInt64         `json:"msgchain_content_id"`
 }
 
 type ReportBrandingLogo struct {

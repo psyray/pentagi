@@ -185,9 +185,9 @@ func sumMsgchainsDuration(msgchains []database.Msgchain, msgType database.Msgcha
 
 // CalculateFlowDuration calculates total flow execution time including:
 // 1. All tasks duration (which includes generator, subtasks, and refiner)
-// 2. Assistant msgchains duration (flow-level, without task binding)
+// 2. Flow-level chain duration (assistant and report engine chains, no task binding)
 func CalculateFlowDuration(tasks []database.Task, subtasksMap map[int64][]database.Subtask,
-	msgchainsMap map[int64][]database.Msgchain, assistantMsgchains []database.Msgchain) float64 {
+	msgchainsMap map[int64][]database.Msgchain, flowMsgchains []database.Msgchain) float64 {
 
 	// 1. Calculate total tasks duration
 	var tasksDuration float64
@@ -197,15 +197,23 @@ func CalculateFlowDuration(tasks []database.Task, subtasksMap map[int64][]databa
 		tasksDuration += CalculateTaskDuration(task, subtasks, msgchains)
 	}
 
-	// 2. Calculate assistant msgchains duration (flow-level operations without task binding)
-	var assistantDuration float64
-	for _, mc := range assistantMsgchains {
-		if mc.Type == database.MsgchainTypeAssistant && !mc.TaskID.Valid && !mc.SubtaskID.Valid {
-			assistantDuration += mc.DurationSeconds
+	// 2. Calculate flow-level chain duration (assistant / report operations without task binding)
+	var flowDuration float64
+	for _, mc := range flowMsgchains {
+		if !mc.TaskID.Valid && !mc.SubtaskID.Valid {
+			flowDuration += mc.DurationSeconds
 		}
 	}
 
-	return tasksDuration + assistantDuration
+	return tasksDuration + flowDuration
+}
+
+// isFlowLevelChain reports whether a chain runs at the flow level (no task
+// binding): the assistant and the report engine control/content chains (L8).
+func isFlowLevelChain(t database.MsgchainType) bool {
+	return t == database.MsgchainTypeAssistant ||
+		t == database.MsgchainTypeReportControl ||
+		t == database.MsgchainTypeReportContent
 }
 
 // ========== Toolcalls Count Calculation ==========
@@ -280,7 +288,7 @@ func BuildFlowExecutionStats(flowID int64, flowTitle string, tasks []database.Ge
 	}
 
 	msgchainsMap := make(map[int64][]database.Msgchain)
-	assistantMsgchains := make([]database.Msgchain, 0)
+	flowMsgchains := make([]database.Msgchain, 0)
 	for _, mc := range msgchains {
 		msgchain := database.Msgchain{
 			ID:              mc.ID,
@@ -295,9 +303,9 @@ func BuildFlowExecutionStats(flowID int64, flowTitle string, tasks []database.Ge
 
 		if mc.TaskID.Valid {
 			msgchainsMap[mc.TaskID.Int64] = append(msgchainsMap[mc.TaskID.Int64], msgchain)
-		} else if mc.Type == database.MsgchainTypeAssistant {
-			// Collect flow-level assistant msgchains
-			assistantMsgchains = append(assistantMsgchains, msgchain)
+		} else if isFlowLevelChain(mc.Type) {
+			// Collect the flow-level chains (assistant / report, no task binding).
+			flowMsgchains = append(flowMsgchains, msgchain)
 		}
 	}
 
@@ -392,7 +400,7 @@ func BuildFlowExecutionStats(flowID int64, flowTitle string, tasks []database.Ge
 		}
 	}
 
-	flowDuration := CalculateFlowDuration(tasksInternal, subtasksMap, msgchainsMap, assistantMsgchains)
+	flowDuration := CalculateFlowDuration(tasksInternal, subtasksMap, msgchainsMap, flowMsgchains)
 	flowCount := CountFinishedToolcalls(flowToolcalls)
 
 	return &model.FlowExecutionStats{

@@ -148,7 +148,7 @@ func TestAnalytics_CalculateTaskDuration_AddsThePlanningAgentsToTheSubtasks(t *t
 	}
 }
 
-func TestAnalytics_CalculateFlowDuration_AddsOnlyFlowLevelAssistantChains(t *testing.T) {
+func TestAnalytics_CalculateFlowDuration_AddsOnlyFlowLevelChains(t *testing.T) {
 	oneTask := []database.Task{{ID: 1}}
 	itsSubtask := map[int64][]database.Subtask{1: {analyticsSubtask(1, database.SubtaskStatusFinished, 0, 10)}}
 	noChains := map[int64][]database.Msgchain{1: {}}
@@ -158,21 +158,24 @@ func TestAnalytics_CalculateFlowDuration_AddsOnlyFlowLevelAssistantChains(t *tes
 		tasks      []database.Task
 		subtasks   map[int64][]database.Subtask
 		msgchains  map[int64][]database.Msgchain
-		assistants []database.Msgchain
+		flowChains []database.Msgchain
 		want       float64
 	}{
 		{"tasks only", oneTask, itsSubtask, noChains, nil, 10},
 		{"a flow-level assistant chain adds its time", oneTask, itsSubtask, noChains,
 			[]database.Msgchain{analyticsMsgchain(database.MsgchainTypeAssistant, 0, 0, 20, 25)}, 15},
-		{"an assistant chain bound to a task or a subtask is not flow-level", nil, nil, nil,
+		{"a flow-level report chain adds its time", oneTask, itsSubtask, noChains,
+			[]database.Msgchain{analyticsMsgchain(database.MsgchainTypeReportContent, 0, 0, 0, 5)}, 15},
+		{"a chain bound to a task or a subtask is not flow-level", nil, nil, nil,
 			[]database.Msgchain{
 				analyticsMsgchain(database.MsgchainTypeAssistant, 1, 0, 0, 10),
 				analyticsMsgchain(database.MsgchainTypeAssistant, 0, 1, 0, 10),
+				analyticsMsgchain(database.MsgchainTypeReportControl, 1, 0, 0, 10),
 				analyticsMsgchain(database.MsgchainTypeAssistant, 0, 0, 0, 5),
 			}, 5},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.InDelta(t, tt.want, CalculateFlowDuration(tt.tasks, tt.subtasks, tt.msgchains, tt.assistants), 1e-9)
+			assert.InDelta(t, tt.want, CalculateFlowDuration(tt.tasks, tt.subtasks, tt.msgchains, tt.flowChains), 1e-9)
 		})
 	}
 }
