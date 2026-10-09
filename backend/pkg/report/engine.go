@@ -1196,17 +1196,19 @@ func (w *worker) sectionNode(st database.ReportSection) *SectionNode {
 				continue
 			}
 			parentNode := outlineNodeOf(w.tpl, *parent)
-			if parentNode == nil {
-				return nil
+			base := fmt.Sprintf("Write the subsection %q from the engagement record (part of the %q section).",
+				st.Title, parent.Title)
+			if parentNode != nil {
+				base = stringsOr(parentNode.ChildInstructions,
+					fmt.Sprintf("Write the section %q from the engagement record (part of the %q chapter).",
+						st.Title, parent.Title))
 			}
 
 			child := &SectionNode{
-				Key:   st.Key,
-				Kind:  KindLLM,
-				Title: st.Title,
-				Instructions: stringsOr(parentNode.ChildInstructions,
-					fmt.Sprintf("Write the section %q from the engagement record (part of the %q chapter).",
-						st.Title, parent.Title)),
+				Key:          st.Key,
+				Kind:         KindLLM,
+				Title:        st.Title,
+				Instructions: base,
 			}
 			if length := w.plannedLength(st); length != "" {
 				child.ChildLength = length
@@ -1218,10 +1220,11 @@ func (w *worker) sectionNode(st database.ReportSection) *SectionNode {
 			}
 			return child
 		}
-		return nil
+		// The parent row is gone; fall through to a synthetic node.
 	}
 
-	// Manually added top-level sections: template node does not exist.
+	// Manually added sections without a template node (top-level or an orphan or
+	// hand-added subsection): the writer still gets a usable node.
 	return &SectionNode{
 		Key:   st.Key,
 		Kind:  KindLLM,
