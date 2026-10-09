@@ -43,12 +43,19 @@ export const ACTIVE_REPORT_STATUSES: readonly ReportStatusType[] = [
 
 export const isReportActive = (status: ReportStatusType): boolean => ACTIVE_REPORT_STATUSES.includes(status);
 
-// Any report the writer no longer owns can be resumed: the run re-queues its
-// unwritten sections and does nothing when there are none. The section counters
-// are NOT a reliable signal: hand-added sections never bump sections_total, so a
-// finished report can still hold queued sections (report 11: done 26 > total 25
-// with two queued sections).
-export const isReportResumable = (report: { status: ReportStatusType }): boolean => !isReportActive(report.status);
+// The report-card Resume affordance works off the row alone: a failed or
+// canceled report can always be resumed; a completed one is only resumable when
+// it still holds unwritten sections, which the list row does not carry. The full
+// document page knows the sections and uses isSectionResumable for a precise
+// answer instead.
+export const isReportResumable = (report: { status: ReportStatusType }): boolean =>
+    report.status === ReportStatusType.Failed || report.status === ReportStatusType.Canceled;
+
+// A section the writer still owes content for: resume / write-one act on these.
+export const isSectionResumable = (status: ReportSectionStatusType): boolean =>
+    status === ReportSectionStatusType.Queued ||
+    status === ReportSectionStatusType.NotWritten ||
+    status === ReportSectionStatusType.Failed;
 
 const REPORT_STATUS_LABELS: Record<ReportStatusType, string> = {
     [ReportStatusType.Canceled]: 'Canceled',

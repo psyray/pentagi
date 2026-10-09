@@ -261,7 +261,8 @@ export function useFlowReportEditor(reportId: null | string): ReportSectionEdito
     );
 
     // writeSection runs the writer on one section on demand (after a hand-added
-    // section, or a section left unwritten by a budget stop).
+    // section, or a section left unwritten by a budget stop). The mutation
+    // returns ResultType: the live reportSectionUpdated frames carry the state.
     const writeSection = useCallback(
         (sectionId: string): Promise<boolean> =>
             run(async () => {
@@ -270,13 +271,7 @@ export function useFlowReportEditor(reportId: null | string): ReportSectionEdito
                 }
 
                 try {
-                    const response = await writeMutation({ variables: { reportId, sectionId } });
-                    const updated = response.data?.writeReportSection;
-
-                    if (updated) {
-                        upsertSection(updated);
-                    }
-
+                    await writeMutation({ variables: { reportId, sectionId } });
                     toast.success('Section queued for writing');
 
                     return true;
@@ -287,7 +282,7 @@ export function useFlowReportEditor(reportId: null | string): ReportSectionEdito
                     return false;
                 }
             }),
-        [reportId, run, upsertSection, writeMutation],
+        [reportId, run, writeMutation],
     );
 
     return { addSection, busy, deleteSection, moveSection, saveSection, setSectionHidden, writeSection };

@@ -1664,14 +1664,14 @@ export type ResumeReportMutationVariables = Exact<{
     contentBudgetSeconds?: number | null | undefined;
 }>;
 
-export type ResumeReportMutation = { resumeReport: ReportFragmentFragment };
+export type ResumeReportMutation = { resumeReport: ResultType };
 
 export type WriteReportSectionMutationVariables = Exact<{
     reportId: string | number;
     sectionId: string | number;
 }>;
 
-export type WriteReportSectionMutation = { writeReportSection: ReportSectionFragmentFragment };
+export type WriteReportSectionMutation = { writeReportSection: ResultType };
 
 export type UpdateReportSectionMutationVariables = Exact<{
     reportId: string | number;
@@ -13963,45 +13963,7 @@ export const ResumeReportDocument = {
                                 value: { kind: 'Variable', name: { kind: 'Name', value: 'contentBudgetSeconds' } },
                             },
                         ],
-                        selectionSet: {
-                            kind: 'SelectionSet',
-                            selections: [{ kind: 'FragmentSpread', name: { kind: 'Name', value: 'reportFragment' } }],
-                        },
                     },
-                ],
-            },
-        },
-        {
-            kind: 'FragmentDefinition',
-            name: { kind: 'Name', value: 'reportFragment' },
-            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'Report' } },
-            selectionSet: {
-                kind: 'SelectionSet',
-                selections: [
-                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'flowId' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'userId' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'templateKey' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'templateLabel' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'providerName' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'providerType' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'language' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'additionalInstructions' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'controlBudgetSeconds' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'contentBudgetSeconds' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'controlUsedSeconds' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'contentUsedSeconds' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsEstimate' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsTotal' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'sectionsDone' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'tokensIn' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'tokensOut' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'error' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'finishedAt' } },
                 ],
             },
         },
@@ -14044,51 +14006,7 @@ export const WriteReportSectionDocument = {
                                 value: { kind: 'Variable', name: { kind: 'Name', value: 'sectionId' } },
                             },
                         ],
-                        selectionSet: {
-                            kind: 'SelectionSet',
-                            selections: [
-                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'reportSectionFragment' } },
-                            ],
-                        },
                     },
-                ],
-            },
-        },
-        {
-            kind: 'FragmentDefinition',
-            name: { kind: 'Name', value: 'reportSectionFragment' },
-            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'ReportSection' } },
-            selectionSet: {
-                kind: 'SelectionSet',
-                selections: [
-                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'reportId' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'parentId' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'position' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'key' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'content' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'instructions' } },
-                    {
-                        kind: 'Field',
-                        name: { kind: 'Name', value: 'variables' },
-                        selectionSet: {
-                            kind: 'SelectionSet',
-                            selections: [
-                                { kind: 'Field', name: { kind: 'Name', value: 'name' } },
-                                { kind: 'Field', name: { kind: 'Name', value: 'value' } },
-                            ],
-                        },
-                    },
-                    { kind: 'Field', name: { kind: 'Name', value: 'warnings' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'hidden' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'tokensIn' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'tokensOut' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'durationSeconds' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
-                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
                 ],
             },
         },

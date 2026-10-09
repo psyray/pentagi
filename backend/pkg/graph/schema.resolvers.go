@@ -1399,29 +1399,27 @@ func (r *mutationResolver) DeleteReport(ctx context.Context, reportID int64) (mo
 }
 
 // ResumeReport is the resolver for the resumeReport field.
-func (r *mutationResolver) ResumeReport(ctx context.Context, reportID int64, contentBudgetSeconds *int) (*model.Report, error) {
+func (r *mutationResolver) ResumeReport(ctx context.Context, reportID int64, contentBudgetSeconds *int) (model.ResultType, error) {
 	uid, _, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)
 	if err != nil {
-		return nil, err
+		return model.ResultTypeError, err
 	}
-	report, err := r.ReportsCtrl.ResumeReport(ctx, uid, reportID, contentBudgetSeconds)
-	if err != nil {
-		return nil, err
+	if _, err := r.ReportsCtrl.ResumeReport(ctx, uid, reportID, contentBudgetSeconds); err != nil {
+		return model.ResultTypeError, err
 	}
-	return converter.ConvertReport(*report), nil
+	return model.ResultTypeSuccess, nil
 }
 
 // WriteReportSection is the resolver for the writeReportSection field.
-func (r *mutationResolver) WriteReportSection(ctx context.Context, reportID int64, sectionID int64) (*model.ReportSection, error) {
+func (r *mutationResolver) WriteReportSection(ctx context.Context, reportID int64, sectionID int64) (model.ResultType, error) {
 	uid, _, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)
 	if err != nil {
-		return nil, err
+		return model.ResultTypeError, err
 	}
-	row, err := r.ReportsCtrl.WriteReportSection(ctx, uid, reportID, sectionID)
-	if err != nil {
-		return nil, err
+	if _, err := r.ReportsCtrl.WriteReportSection(ctx, uid, reportID, sectionID); err != nil {
+		return model.ResultTypeError, err
 	}
-	return converter.ConvertReportSection(*row), nil
+	return model.ResultTypeSuccess, nil
 }
 
 // UpdateReportSection is the resolver for the updateReportSection field.
