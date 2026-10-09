@@ -51,6 +51,8 @@ export enum AgentType {
     PrimaryAgent = 'primary_agent',
     Refiner = 'refiner',
     Reflector = 'reflector',
+    ReportContent = 'report_content',
+    ReportControl = 'report_control',
     Reporter = 'reporter',
     Searcher = 'searcher',
     Summarizer = 'summarizer',

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"pentagi/pkg/database"
+	"pentagi/pkg/providers/pconfig"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,6 +31,10 @@ type fakeQuerier struct {
 
 	attachments []database.ReportSectionAttachment
 	nextAttID   int64
+
+	msgchains         []database.Msgchain
+	nextChainID       int64
+	chainUsageUpdates []database.UpdateMsgChainUsageParams
 
 	toolcalls map[int64][]database.Toolcall
 	termlogs  map[int64][]database.Termlog
@@ -172,6 +177,35 @@ func (q *fakeQuerier) GetReportSectionAttachments(_ context.Context, reportID in
 		}
 	}
 	return out, nil
+}
+
+func (q *fakeQuerier) CreateMsgChain(_ context.Context, arg database.CreateMsgChainParams) (database.Msgchain, error) {
+	q.nextChainID++
+	row := database.Msgchain{
+		ID:            q.nextChainID,
+		Type:          arg.Type,
+		Model:         arg.Model,
+		ModelProvider: arg.ModelProvider,
+		Chain:         arg.Chain,
+		FlowID:        arg.FlowID,
+		CreatedAt:     sql.NullTime{Time: time.Now(), Valid: true},
+		UpdatedAt:     sql.NullTime{Time: time.Now(), Valid: true},
+	}
+	q.msgchains = append(q.msgchains, row)
+	return row, nil
+}
+
+func (q *fakeQuerier) UpdateMsgChainUsage(_ context.Context, arg database.UpdateMsgChainUsageParams) (database.Msgchain, error) {
+	q.chainUsageUpdates = append(q.chainUsageUpdates, arg)
+	return database.Msgchain{}, nil
+}
+
+func (q *fakeQuerier) SetReportMsgChainIDs(_ context.Context, arg database.SetReportMsgChainIDsParams) (database.Report, error) {
+	row := q.reports[arg.ID]
+	row.MsgchainControlID = arg.MsgchainControlID
+	row.MsgchainContentID = arg.MsgchainContentID
+	q.reports[arg.ID] = row
+	return row, nil
 }
 
 func (q *fakeQuerier) GetReportSections(_ context.Context, _ int64) ([]database.ReportSection, error) {
@@ -714,4 +748,54 @@ func TestController_SetSectionAttachments(t *testing.T) {
 	listed, err := c.ListSectionAttachments(context.Background(), 1, 1, 10)
 	require.NoError(t, err)
 	assert.Empty(t, listed)
+}
+
+// ensureMsgChains opens the run's two chains and persists their ids so the
+// usage views see the report and a resume reopens the same rows (L8).
+func TestWorker_EnsureMsgChainsCreatesAndPersistsIDs(t *testing.T) {
+	q := &fakeQuerier{reports: map[int64]database.Report{1: {ID: 1, FlowID: 3, UserID: 1}}}
+	w := &worker{deps: Deps{DB: q}, report: q.reports[1]}
+
+	w.ensureMsgChains(context.Background())
+
+	require.Len(t, q.msgchains, 2)
+	assert.Equal(t, database.MsgchainTypeReportControl, q.msgchains[0].Type)
+	assert.Equal(t, database.MsgchainTypeReportContent, q.msgchains[1].Type)
+	assert.NotZero(t, w.controlChainID)
+	assert.NotZero(t, w.contentChainID)
+	assert.Equal(t, w.controlChainID, q.reports[1].MsgchainControlID.Int64)
+	assert.Equal(t, w.contentChainID, q.reports[1].MsgchainContentID.Int64)
+}
+
+func TestWorker_EnsureMsgChainsReusesPersistedIDs(t *testing.T) {
+	q := &fakeQuerier{reports: map[int64]database.Report{}}
+	w := &worker{
+		deps: Deps{DB: q},
+		report: database.Report{
+			ID:                1,
+			MsgchainControlID: sql.NullInt64{Int64: 41, Valid: true},
+			MsgchainContentID: sql.NullInt64{Int64: 42, Valid: true},
+		},
+	}
+
+	w.ensureMsgChains(context.Background())
+
+	assert.Equal(t, int64(41), w.controlChainID)
+	assert.Equal(t, int64(42), w.contentChainID)
+	assert.Empty(t, q.msgchains) // a resume must not duplicate the chains
+}
+
+func TestWorker_UpdateChainUsageTargetsTheNodeChain(t *testing.T) {
+	q := &fakeQuerier{}
+	w := &worker{deps: Deps{DB: q}, controlChainID: 41, contentChainID: 42}
+
+	w.updateChainUsage(true, pconfig.CallUsage{Input: 10, Output: 5}, 2.5)
+	w.updateChainUsage(false, pconfig.CallUsage{Input: 100, Output: 50}, 7.5)
+
+	require.Len(t, q.chainUsageUpdates, 2)
+	assert.Equal(t, int64(41), q.chainUsageUpdates[0].ID)
+	assert.Equal(t, int64(10), q.chainUsageUpdates[0].UsageIn)
+	assert.InDelta(t, 2.5, q.chainUsageUpdates[0].DurationSeconds, 0)
+	assert.Equal(t, int64(42), q.chainUsageUpdates[1].ID)
+	assert.Equal(t, int64(100), q.chainUsageUpdates[1].UsageIn)
 }
