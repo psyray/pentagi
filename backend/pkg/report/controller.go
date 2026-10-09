@@ -401,6 +401,17 @@ func (c *Controller) DeleteReport(ctx context.Context, userID, reportID int64) e
 		return fmt.Errorf("failed to delete report %d: %w", reportID, err)
 	}
 
+	// The report's msgchains (L8) are not FK-bound to the report: remove them so a
+	// deleted report no longer counts in the usage/cost views.
+	for _, chainID := range []sql.NullInt64{report.MsgchainControlID, report.MsgchainContentID} {
+		if !chainID.Valid {
+			continue
+		}
+		if err := c.deps.DB.DeleteMsgChain(ctx, chainID.Int64); err != nil {
+			logrus.WithContext(ctx).WithError(err).Warnf("failed to delete the msgchain %d of report %d", chainID.Int64, reportID)
+		}
+	}
+
 	c.deps.Subs.NewFlowPublisher(userID, report.FlowID).
 		ReportDeleted(ctx, converter.ConvertReport(*report))
 	return nil
