@@ -1112,6 +1112,16 @@ type ReportSection struct {
 	RegenRequested   bool            `json:"regen_requested"`
 }
 
+type ReportSectionAttachment struct {
+	ID        int64     `json:"id"`
+	ReportID  int64     `json:"report_id"`
+	SectionID int64     `json:"section_id"`
+	Label     string    `json:"label"`
+	Path      string    `json:"path"`
+	Bytes     int64     `json:"bytes"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type Role struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`

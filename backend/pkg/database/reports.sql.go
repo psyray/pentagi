@@ -297,6 +297,52 @@ func (q *Queries) CreateReportSection(ctx context.Context, arg CreateReportSecti
 	return i, err
 }
 
+const createReportSectionAttachment = `-- name: CreateReportSectionAttachment :one
+INSERT INTO report_section_attachments (
+  report_id,
+  section_id,
+  label,
+  path,
+  bytes
+) VALUES (
+  $1,
+  $2,
+  $3,
+  $4,
+  $5
+)
+RETURNING id, report_id, section_id, label, path, bytes, created_at
+`
+
+type CreateReportSectionAttachmentParams struct {
+	ReportID  int64  `json:"report_id"`
+	SectionID int64  `json:"section_id"`
+	Label     string `json:"label"`
+	Path      string `json:"path"`
+	Bytes     int64  `json:"bytes"`
+}
+
+func (q *Queries) CreateReportSectionAttachment(ctx context.Context, arg CreateReportSectionAttachmentParams) (ReportSectionAttachment, error) {
+	row := q.db.QueryRowContext(ctx, createReportSectionAttachment,
+		arg.ReportID,
+		arg.SectionID,
+		arg.Label,
+		arg.Path,
+		arg.Bytes,
+	)
+	var i ReportSectionAttachment
+	err := row.Scan(
+		&i.ID,
+		&i.ReportID,
+		&i.SectionID,
+		&i.Label,
+		&i.Path,
+		&i.Bytes,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const deleteReport = `-- name: DeleteReport :exec
 DELETE FROM reports
 WHERE id = $1 AND user_id = $2
@@ -324,6 +370,22 @@ type DeleteReportSectionParams struct {
 
 func (q *Queries) DeleteReportSection(ctx context.Context, arg DeleteReportSectionParams) error {
 	_, err := q.db.ExecContext(ctx, deleteReportSection, arg.ID, arg.ReportID)
+	return err
+}
+
+const deleteReportSectionAttachments = `-- name: DeleteReportSectionAttachments :exec
+DELETE FROM report_section_attachments
+WHERE report_id = $1 AND section_id = $2
+`
+
+type DeleteReportSectionAttachmentsParams struct {
+	ReportID  int64 `json:"report_id"`
+	SectionID int64 `json:"section_id"`
+}
+
+// The set mutation replaces a section's attachments wholesale.
+func (q *Queries) DeleteReportSectionAttachments(ctx context.Context, arg DeleteReportSectionAttachmentsParams) error {
+	_, err := q.db.ExecContext(ctx, deleteReportSectionAttachments, arg.ReportID, arg.SectionID)
 	return err
 }
 
@@ -774,6 +836,87 @@ func (q *Queries) GetReportSection(ctx context.Context, arg GetReportSectionPara
 		&i.RegenRequested,
 	)
 	return i, err
+}
+
+const getReportSectionAttachments = `-- name: GetReportSectionAttachments :many
+SELECT id, report_id, section_id, label, path, bytes, created_at FROM report_section_attachments
+WHERE report_id = $1
+ORDER BY id ASC
+`
+
+// Every operator attachment of one report, in creation order; the controller
+// groups them by section for the reader and the archive (backlog v2, L6).
+func (q *Queries) GetReportSectionAttachments(ctx context.Context, reportID int64) ([]ReportSectionAttachment, error) {
+	rows, err := q.db.QueryContext(ctx, getReportSectionAttachments, reportID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReportSectionAttachment
+	for rows.Next() {
+		var i ReportSectionAttachment
+		if err := rows.Scan(
+			&i.ID,
+			&i.ReportID,
+			&i.SectionID,
+			&i.Label,
+			&i.Path,
+			&i.Bytes,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getReportSectionAttachmentsBySection = `-- name: GetReportSectionAttachmentsBySection :many
+SELECT id, report_id, section_id, label, path, bytes, created_at FROM report_section_attachments
+WHERE report_id = $1 AND section_id = $2
+ORDER BY id ASC
+`
+
+type GetReportSectionAttachmentsBySectionParams struct {
+	ReportID  int64 `json:"report_id"`
+	SectionID int64 `json:"section_id"`
+}
+
+func (q *Queries) GetReportSectionAttachmentsBySection(ctx context.Context, arg GetReportSectionAttachmentsBySectionParams) ([]ReportSectionAttachment, error) {
+	rows, err := q.db.QueryContext(ctx, getReportSectionAttachmentsBySection, arg.ReportID, arg.SectionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ReportSectionAttachment
+	for rows.Next() {
+		var i ReportSectionAttachment
+		if err := rows.Scan(
+			&i.ID,
+			&i.ReportID,
+			&i.SectionID,
+			&i.Label,
+			&i.Path,
+			&i.Bytes,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getReportSections = `-- name: GetReportSections :many

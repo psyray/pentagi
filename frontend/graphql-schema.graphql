@@ -1776,6 +1776,13 @@ fragment reportSectionFragment on ReportSection {
     durationSeconds
     createdAt
     updatedAt
+    attachments {
+        id
+        label
+        path
+        bytes
+        createdAt
+    }
 }
 
 fragment reportLogFragment on ReportLog {
@@ -1879,6 +1886,16 @@ mutation resumeReport($reportId: ID!, $contentBudgetSeconds: Int) {
 
 mutation writeReportSection($reportId: ID!, $sectionId: ID!) {
     writeReportSection(reportId: $reportId, sectionId: $sectionId)
+}
+
+mutation setReportSectionAttachments($reportId: ID!, $sectionId: ID!, $attachments: [ReportAttachmentInput!]!) {
+    setReportSectionAttachments(reportId: $reportId, sectionId: $sectionId, attachments: $attachments) {
+        id
+        label
+        path
+        bytes
+        createdAt
+    }
 }
 
 mutation updateReportSection($reportId: ID!, $sectionId: ID!, $input: ReportSectionInput!) {

@@ -86,6 +86,15 @@ const encoder = new TextEncoder();
 export const formatBytes = (text: string): string => {
     const bytes = encoder.encode(text).length;
 
+    return formatByteCount(bytes);
+};
+
+// formatByteCount renders a raw byte count (attachments) the same coarse way.
+export const formatByteCount = (bytes: number): string => {
+    if (!Number.isFinite(bytes) || bytes <= 0) {
+        return '0 B';
+    }
+
     if (bytes < 1024) {
         return `${bytes} B`;
     }

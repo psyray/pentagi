@@ -13,6 +13,7 @@ import {
 const section = (
     overrides: Partial<ReportSectionFragmentFragment> & { id: string },
 ): ReportSectionFragmentFragment => ({
+    attachments: [],
     content: '',
     createdAt: '2026-10-08T00:00:00Z',
     durationSeconds: 0,

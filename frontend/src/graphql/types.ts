@@ -264,6 +264,12 @@ export enum ReasoningMode {
     Off = 'off',
 }
 
+export type ReportAttachmentInput = {
+    bytes?: number | null | undefined;
+    label?: string | null | undefined;
+    path: string;
+};
+
 export type ReportBrandingInput = {
     footer?: string | null | undefined;
     header?: string | null | undefined;
@@ -1791,6 +1797,7 @@ export type ReportSectionFragmentFragment = {
     createdAt: string;
     updatedAt: string;
     variables: Array<{ name: string; value: string }>;
+    attachments: Array<{ id: string; label: string; path: string; bytes: number; createdAt: string }>;
 };
 
 export type ReportLogFragmentFragment = {
@@ -1911,6 +1918,16 @@ export type WriteReportSectionMutationVariables = Exact<{
 }>;
 
 export type WriteReportSectionMutation = { writeReportSection: ResultType };
+
+export type SetReportSectionAttachmentsMutationVariables = Exact<{
+    reportId: string | number;
+    sectionId: string | number;
+    attachments: Array<ReportAttachmentInput> | ReportAttachmentInput;
+}>;
+
+export type SetReportSectionAttachmentsMutation = {
+    setReportSectionAttachments: Array<{ id: string; label: string; path: string; bytes: number; createdAt: string }>;
+};
 
 export type UpdateReportSectionMutationVariables = Exact<{
     reportId: string | number;
@@ -4454,6 +4471,20 @@ export const ReportSectionFragmentFragmentDoc = {
                     { kind: 'Field', name: { kind: 'Name', value: 'durationSeconds' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'attachments' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'label' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'path' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'bytes' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                            ],
+                        },
+                    },
                 ],
             },
         },
@@ -15240,6 +15271,20 @@ export const ReportSectionsDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'durationSeconds' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'attachments' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'label' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'path' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'bytes' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                            ],
+                        },
+                    },
                 ],
             },
         },
@@ -15807,6 +15852,78 @@ export const WriteReportSectionDocument = {
         },
     ],
 } as unknown as DocumentNode<WriteReportSectionMutation, WriteReportSectionMutationVariables>;
+export const SetReportSectionAttachmentsDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'mutation',
+            name: { kind: 'Name', value: 'setReportSectionAttachments' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'sectionId' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'attachments' } },
+                    type: {
+                        kind: 'NonNullType',
+                        type: {
+                            kind: 'ListType',
+                            type: {
+                                kind: 'NonNullType',
+                                type: { kind: 'NamedType', name: { kind: 'Name', value: 'ReportAttachmentInput' } },
+                            },
+                        },
+                    },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'setReportSectionAttachments' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'reportId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'reportId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'sectionId' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'sectionId' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'attachments' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'attachments' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'label' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'path' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'bytes' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<SetReportSectionAttachmentsMutation, SetReportSectionAttachmentsMutationVariables>;
 export const UpdateReportSectionDocument = {
     kind: 'Document',
     definitions: [
@@ -15902,6 +16019,20 @@ export const UpdateReportSectionDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'durationSeconds' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'attachments' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'label' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'path' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'bytes' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                            ],
+                        },
+                    },
                 ],
             },
         },
@@ -15999,6 +16130,20 @@ export const SetReportSectionContentDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'durationSeconds' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'attachments' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'label' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'path' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'bytes' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                            ],
+                        },
+                    },
                 ],
             },
         },
@@ -16155,6 +16300,20 @@ export const HideReportSectionDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'durationSeconds' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'attachments' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'label' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'path' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'bytes' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                            ],
+                        },
+                    },
                 ],
             },
         },
@@ -16262,6 +16421,20 @@ export const AddReportSectionDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'durationSeconds' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'attachments' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'label' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'path' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'bytes' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                            ],
+                        },
+                    },
                 ],
             },
         },
@@ -16598,6 +16771,20 @@ export const ReportSectionUpdatedDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'durationSeconds' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'attachments' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'label' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'path' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'bytes' } },
+                                { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                            ],
+                        },
+                    },
                 ],
             },
         },

@@ -198,6 +198,7 @@ function FlowReportPage() {
                                     canEdit={canEdit}
                                     depth={0}
                                     editor={editor}
+                                    flowId={flowId || null}
                                     key={node.section.id}
                                     node={node}
                                     sections={sections}
