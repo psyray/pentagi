@@ -1011,6 +1011,8 @@ func (pc *providerController) TestAgent(
 		testConfig.Installer = config
 	case pconfig.OptionsTypePentester:
 		testConfig.Pentester = config
+	case pconfig.OptionsTypeReporter:
+		testConfig.Reporter = config
 	default:
 		return result, fmt.Errorf("unsupported agent type: %s", agentType)
 	}
@@ -1072,6 +1074,8 @@ func (pc *providerController) TestAgent(
 		result = results.Installer
 	case pconfig.OptionsTypePentester:
 		result = results.Pentester
+	case pconfig.OptionsTypeReporter:
+		result = results.Reporter
 	default:
 		return result, fmt.Errorf("unexpected agent type: %s", agentType)
 	}
