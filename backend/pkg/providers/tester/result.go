@@ -20,4 +20,5 @@ type ProviderTestResults struct {
 	Coder        AgentTestResults `json:"coder"`
 	Installer    AgentTestResults `json:"installer"`
 	Pentester    AgentTestResults `json:"pentester"`
+	Reporter     AgentTestResults `json:"reporter"`
 }

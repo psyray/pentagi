@@ -90,7 +90,7 @@ func probeVision(ctx context.Context, prv provider.Provider) (bool, *llms.Conten
 		},
 	}}
 
-	resp, err := prv.CallEx(ctx, pconfig.OptionsTypeSimple, chain, nil)
+	resp, err := prv.CallEx(ctx, pconfig.OptionsTypeReporter, chain, nil)
 	if err != nil {
 		return false, nil, err
 	}

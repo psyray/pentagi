@@ -244,6 +244,9 @@ fragment providerTestResultFragment on ProviderTestResult {
     pentester {
         ...agentTestResultFragment
     }
+    reporter {
+        ...agentTestResultFragment
+    }
 }
 
 fragment modelConfigFragment on ModelConfig {
@@ -321,6 +324,9 @@ fragment agentsConfigFragment on AgentsConfig {
         ...agentConfigFragment
     }
     pentester {
+        ...agentConfigFragment
+    }
+    reporter {
         ...agentConfigFragment
     }
 }
