@@ -66,6 +66,9 @@ type Querier interface {
 	DeleteFlowTemplate(ctx context.Context, arg DeleteFlowTemplateParams) error
 	// Delete a knowledge document by UUID (admin — no user_id check).
 	DeleteKnowledgeDocument(ctx context.Context, uuid sql.NullString) error
+	// Removes a chain that is not FK-bound to its owner, e.g. a report's chains once
+	// the report is deleted (backlog v2, L8).
+	DeleteMsgChain(ctx context.Context, id int64) error
 	DeletePrompt(ctx context.Context, id int64) error
 	DeleteProvider(ctx context.Context, id int64) (Provider, error)
 	DeleteReport(ctx context.Context, arg DeleteReportParams) error
