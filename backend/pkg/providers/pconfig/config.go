@@ -154,6 +154,9 @@ const (
 	OptionsTypeInstaller    ProviderOptionsType = "installer"
 	OptionsTypePentester    ProviderOptionsType = "pentester"
 	OptionsTypeReflector    ProviderOptionsType = "reflector"
+	// OptionsTypeReporter is the report engine's dedicated slot (planner + writer).
+	// It is optional: an unset reporter falls back to the simple agent.
+	OptionsTypeReporter ProviderOptionsType = "reporter"
 )
 
 var AllAgentTypes = []ProviderOptionsType{
@@ -170,6 +173,7 @@ var AllAgentTypes = []ProviderOptionsType{
 	OptionsTypeCoder,
 	OptionsTypeInstaller,
 	OptionsTypePentester,
+	OptionsTypeReporter,
 }
 
 func (opt ProviderOptionsType) UsesTools() bool {
@@ -303,20 +307,22 @@ type AgentConfig struct {
 
 // ProviderConfig represents the configuration for all agents
 type ProviderConfig struct {
-	Name           string            `json:"name,omitempty" yaml:"name,omitempty"`
-	Simple         *AgentConfig      `json:"simple,omitempty" yaml:"simple,omitempty"`
-	SimpleJSON     *AgentConfig      `json:"simple_json,omitempty" yaml:"simple_json,omitempty"`
-	PrimaryAgent   *AgentConfig      `json:"primary_agent,omitempty" yaml:"primary_agent,omitempty"`
-	Assistant      *AgentConfig      `json:"assistant,omitempty" yaml:"assistant,omitempty"`
-	Generator      *AgentConfig      `json:"generator,omitempty" yaml:"generator,omitempty"`
-	Refiner        *AgentConfig      `json:"refiner,omitempty" yaml:"refiner,omitempty"`
-	Adviser        *AgentConfig      `json:"adviser,omitempty" yaml:"adviser,omitempty"`
-	Reflector      *AgentConfig      `json:"reflector,omitempty" yaml:"reflector,omitempty"`
-	Searcher       *AgentConfig      `json:"searcher,omitempty" yaml:"searcher,omitempty"`
-	Enricher       *AgentConfig      `json:"enricher,omitempty" yaml:"enricher,omitempty"`
-	Coder          *AgentConfig      `json:"coder,omitempty" yaml:"coder,omitempty"`
-	Installer      *AgentConfig      `json:"installer,omitempty" yaml:"installer,omitempty"`
-	Pentester      *AgentConfig      `json:"pentester,omitempty" yaml:"pentester,omitempty"`
+	Name         string       `json:"name,omitempty" yaml:"name,omitempty"`
+	Simple       *AgentConfig `json:"simple,omitempty" yaml:"simple,omitempty"`
+	SimpleJSON   *AgentConfig `json:"simple_json,omitempty" yaml:"simple_json,omitempty"`
+	PrimaryAgent *AgentConfig `json:"primary_agent,omitempty" yaml:"primary_agent,omitempty"`
+	Assistant    *AgentConfig `json:"assistant,omitempty" yaml:"assistant,omitempty"`
+	Generator    *AgentConfig `json:"generator,omitempty" yaml:"generator,omitempty"`
+	Refiner      *AgentConfig `json:"refiner,omitempty" yaml:"refiner,omitempty"`
+	Adviser      *AgentConfig `json:"adviser,omitempty" yaml:"adviser,omitempty"`
+	Reflector    *AgentConfig `json:"reflector,omitempty" yaml:"reflector,omitempty"`
+	Searcher     *AgentConfig `json:"searcher,omitempty" yaml:"searcher,omitempty"`
+	Enricher     *AgentConfig `json:"enricher,omitempty" yaml:"enricher,omitempty"`
+	Coder        *AgentConfig `json:"coder,omitempty" yaml:"coder,omitempty"`
+	Installer    *AgentConfig `json:"installer,omitempty" yaml:"installer,omitempty"`
+	Pentester    *AgentConfig `json:"pentester,omitempty" yaml:"pentester,omitempty"`
+	// Reporter drives the report engine (planner + writer); nil falls back to Simple.
+	Reporter       *AgentConfig      `json:"reporter,omitempty" yaml:"reporter,omitempty"`
 	defaultOptions []llms.CallOption `json:"-" yaml:"-"`
 	rawConfig      []byte            `json:"-" yaml:"-"`
 }
@@ -332,7 +338,7 @@ func (pc *ProviderConfig) Validate() error {
 		"assistant": pc.Assistant, "generator": pc.Generator, "refiner": pc.Refiner,
 		"adviser": pc.Adviser, "reflector": pc.Reflector, "searcher": pc.Searcher,
 		"enricher": pc.Enricher, "coder": pc.Coder, "installer": pc.Installer,
-		"pentester": pc.Pentester,
+		"pentester": pc.Pentester, "reporter": pc.Reporter,
 	}
 	for name, ac := range agents {
 		if ac == nil {
@@ -1150,6 +1156,12 @@ func (pc *ProviderConfig) GetOptionsForType(optType ProviderOptionsType) []llms.
 		agentConfig = pc.Installer
 	case OptionsTypePentester:
 		agentConfig = pc.Pentester
+	case OptionsTypeReporter:
+		agentConfig = pc.Reporter
+		if agentConfig == nil {
+			// An unset reporter falls back to the simple agent (Q2).
+			agentConfig = pc.Simple
+		}
 	default:
 		return nil
 	}
@@ -1212,6 +1224,12 @@ func (pc *ProviderConfig) AgentConfigForType(optType ProviderOptionsType) *Agent
 		return pc.Installer
 	case OptionsTypePentester:
 		return pc.Pentester
+	case OptionsTypeReporter:
+		if pc.Reporter != nil {
+			return pc.Reporter
+		}
+		// An unset reporter falls back to the simple agent (Q2).
+		return pc.Simple
 	default:
 		return nil
 	}
@@ -1315,6 +1333,7 @@ func (pc *ProviderConfig) BuildOptionsMap() map[ProviderOptionsType][]llms.CallO
 		OptionsTypeCoder:        pc.GetOptionsForType(OptionsTypeCoder),
 		OptionsTypeInstaller:    pc.GetOptionsForType(OptionsTypeInstaller),
 		OptionsTypePentester:    pc.GetOptionsForType(OptionsTypePentester),
+		OptionsTypeReporter:     pc.GetOptionsForType(OptionsTypeReporter),
 	}
 
 	return options

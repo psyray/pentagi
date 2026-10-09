@@ -98,6 +98,7 @@ type AgentsConfig struct {
 	Coder        *AgentConfig `json:"coder"`
 	Installer    *AgentConfig `json:"installer"`
 	Pentester    *AgentConfig `json:"pentester"`
+	Reporter     *AgentConfig `json:"reporter"`
 }
 
 type AgentsPrompts struct {
@@ -504,6 +505,7 @@ type ProviderTestResult struct {
 	Coder        *AgentTestResult `json:"coder"`
 	Installer    *AgentTestResult `json:"installer"`
 	Pentester    *AgentTestResult `json:"pentester"`
+	Reporter     *AgentTestResult `json:"reporter"`
 }
 
 type ProviderUsageStats struct {
@@ -938,6 +940,7 @@ const (
 	AgentConfigTypeCoder        AgentConfigType = "coder"
 	AgentConfigTypeInstaller    AgentConfigType = "installer"
 	AgentConfigTypePentester    AgentConfigType = "pentester"
+	AgentConfigTypeReporter     AgentConfigType = "reporter"
 )
 
 var AllAgentConfigType = []AgentConfigType{
@@ -954,11 +957,12 @@ var AllAgentConfigType = []AgentConfigType{
 	AgentConfigTypeCoder,
 	AgentConfigTypeInstaller,
 	AgentConfigTypePentester,
+	AgentConfigTypeReporter,
 }
 
 func (e AgentConfigType) IsValid() bool {
 	switch e {
-	case AgentConfigTypeSimple, AgentConfigTypeSimpleJSON, AgentConfigTypePrimaryAgent, AgentConfigTypeAssistant, AgentConfigTypeGenerator, AgentConfigTypeRefiner, AgentConfigTypeAdviser, AgentConfigTypeReflector, AgentConfigTypeSearcher, AgentConfigTypeEnricher, AgentConfigTypeCoder, AgentConfigTypeInstaller, AgentConfigTypePentester:
+	case AgentConfigTypeSimple, AgentConfigTypeSimpleJSON, AgentConfigTypePrimaryAgent, AgentConfigTypeAssistant, AgentConfigTypeGenerator, AgentConfigTypeRefiner, AgentConfigTypeAdviser, AgentConfigTypeReflector, AgentConfigTypeSearcher, AgentConfigTypeEnricher, AgentConfigTypeCoder, AgentConfigTypeInstaller, AgentConfigTypePentester, AgentConfigTypeReporter:
 		return true
 	}
 	return false

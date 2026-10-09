@@ -480,7 +480,7 @@ func (w *worker) plan(ctx context.Context) error {
 	}}
 
 	start := time.Now()
-	resp, err := w.prv.CallWithTools(ctx, pconfig.OptionsTypeSimple, chain, tools, nil)
+	resp, err := w.prv.CallWithTools(ctx, pconfig.OptionsTypeReporter, chain, tools, nil)
 	controlSeconds := time.Since(start).Seconds()
 	if err != nil {
 		if w.stopped.Load() || ctx.Err() != nil {
@@ -1147,7 +1147,7 @@ func (w *worker) writeSection(ctx context.Context, st database.ReportSection) er
 	}
 
 	prevIn, prevOut := w.tokensIn, w.tokensOut
-	resp, err := w.prv.CallEx(ctx, pconfig.OptionsTypeSimple, chain, streamCb)
+	resp, err := w.prv.CallEx(ctx, pconfig.OptionsTypeReporter, chain, streamCb)
 	close(flushDone)
 	contentSeconds := time.Since(start).Seconds()
 
@@ -1467,7 +1467,7 @@ func (w *worker) ensureMsgChains(ctx context.Context) {
 func (w *worker) createMsgChain(ctx context.Context, chainType database.MsgchainType) (database.Msgchain, error) {
 	model, providerName := "", ""
 	if w.prv != nil {
-		model = w.prv.Model(pconfig.OptionsTypeSimple)
+		model = w.prv.Model(pconfig.OptionsTypeReporter)
 		providerName = string(w.prv.Type())
 	}
 
@@ -1493,7 +1493,7 @@ func (w *worker) updateChainUsage(control bool, usage pconfig.CallUsage, seconds
 	}
 
 	if w.prv != nil {
-		if price := w.prv.GetPriceInfo(pconfig.OptionsTypeSimple); price != nil {
+		if price := w.prv.GetPriceInfo(pconfig.OptionsTypeReporter); price != nil {
 			usage.UpdateCost(price)
 		}
 	}

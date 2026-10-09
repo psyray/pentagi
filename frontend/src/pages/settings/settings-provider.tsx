@@ -1379,6 +1379,7 @@ const agentTypesMap: Record<string, AgentConfigType> = {
     primaryAgent: AgentConfigType.PrimaryAgent,
     refiner: AgentConfigType.Refiner,
     reflector: AgentConfigType.Reflector,
+    reporter: AgentConfigType.Reporter,
     searcher: AgentConfigType.Searcher,
     simple: AgentConfigType.Simple,
     simpleJson: AgentConfigType.SimpleJson,

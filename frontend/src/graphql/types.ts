@@ -34,6 +34,7 @@ export enum AgentConfigType {
     PrimaryAgent = 'primary_agent',
     Refiner = 'refiner',
     Reflector = 'reflector',
+    Reporter = 'reporter',
     Searcher = 'searcher',
     Simple = 'simple',
     SimpleJson = 'simple_json',
@@ -70,6 +71,7 @@ export type AgentsConfigInput = {
     primaryAgent: AgentConfigInput;
     refiner: AgentConfigInput;
     reflector: AgentConfigInput;
+    reporter?: AgentConfigInput | null | undefined;
     searcher: AgentConfigInput;
     simple: AgentConfigInput;
     simpleJson: AgentConfigInput;
@@ -640,6 +642,7 @@ export type ProviderTestResultFragmentFragment = {
     coder: AgentTestResultFragmentFragment;
     installer: AgentTestResultFragmentFragment;
     pentester: AgentTestResultFragmentFragment;
+    reporter: AgentTestResultFragmentFragment;
 };
 
 export type ModelConfigFragmentFragment = {
@@ -683,6 +686,7 @@ export type AgentsConfigFragmentFragment = {
     coder: AgentConfigFragmentFragment;
     installer: AgentConfigFragmentFragment;
     pentester: AgentConfigFragmentFragment;
+    reporter: AgentConfigFragmentFragment;
 };
 
 export type AgentConfigFragmentFragment = {
@@ -2739,6 +2743,16 @@ export const ProviderTestResultFragmentFragmentDoc = {
                             ],
                         },
                     },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'reporter' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'agentTestResultFragment' } },
+                            ],
+                        },
+                    },
                 ],
             },
         },
@@ -3023,6 +3037,16 @@ export const AgentsConfigFragmentFragmentDoc = {
                             ],
                         },
                     },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'reporter' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'agentConfigFragment' } },
+                            ],
+                        },
+                    },
                 ],
             },
         },
@@ -3286,6 +3310,16 @@ export const ProviderConfigFragmentFragmentDoc = {
                     {
                         kind: 'Field',
                         name: { kind: 'Name', value: 'pentester' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'agentConfigFragment' } },
+                            ],
+                        },
+                    },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'reporter' },
                         selectionSet: {
                             kind: 'SelectionSet',
                             selections: [
@@ -5332,6 +5366,16 @@ export const SettingsProvidersDocument = {
                     {
                         kind: 'Field',
                         name: { kind: 'Name', value: 'pentester' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'agentConfigFragment' } },
+                            ],
+                        },
+                    },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'reporter' },
                         selectionSet: {
                             kind: 'SelectionSet',
                             selections: [
@@ -10395,6 +10439,16 @@ export const TestProviderDocument = {
                             ],
                         },
                     },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'reporter' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'agentTestResultFragment' } },
+                            ],
+                        },
+                    },
                 ],
             },
         },
@@ -10643,6 +10697,16 @@ export const CreateProviderDocument = {
                     {
                         kind: 'Field',
                         name: { kind: 'Name', value: 'pentester' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'agentConfigFragment' } },
+                            ],
+                        },
+                    },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'reporter' },
                         selectionSet: {
                             kind: 'SelectionSet',
                             selections: [
@@ -10920,6 +10984,16 @@ export const UpdateProviderDocument = {
                     {
                         kind: 'Field',
                         name: { kind: 'Name', value: 'pentester' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'agentConfigFragment' } },
+                            ],
+                        },
+                    },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'reporter' },
                         selectionSet: {
                             kind: 'SelectionSet',
                             selections: [
@@ -13206,6 +13280,16 @@ export const ProviderCreatedDocument = {
                             ],
                         },
                     },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'reporter' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'agentConfigFragment' } },
+                            ],
+                        },
+                    },
                 ],
             },
         },
@@ -13446,6 +13530,16 @@ export const ProviderUpdatedDocument = {
                             ],
                         },
                     },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'reporter' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'agentConfigFragment' } },
+                            ],
+                        },
+                    },
                 ],
             },
         },
@@ -13679,6 +13773,16 @@ export const ProviderDeletedDocument = {
                     {
                         kind: 'Field',
                         name: { kind: 'Name', value: 'pentester' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'agentConfigFragment' } },
+                            ],
+                        },
+                    },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'reporter' },
                         selectionSet: {
                             kind: 'SelectionSet',
                             selections: [

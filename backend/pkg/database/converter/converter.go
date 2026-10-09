@@ -738,6 +738,9 @@ func ConvertProviderConfigToGqlModel(cfg *pconfig.ProviderConfig) *model.AgentsC
 		Coder:        ConvertAgentConfigToGqlModel(cfg.Coder),
 		Installer:    ConvertAgentConfigToGqlModel(cfg.Installer),
 		Pentester:    ConvertAgentConfigToGqlModel(cfg.Pentester),
+		// The reporter slot always shows the config reports will use: the explicit
+		// one, else the simple fallback (L4).
+		Reporter: ConvertAgentConfigToGqlModel(cfg.AgentConfigForType(pconfig.OptionsTypeReporter)),
 	}
 }
 
@@ -843,6 +846,7 @@ func ConvertAgentsConfigFromGqlModel(cfg *model.AgentsConfig) *pconfig.ProviderC
 		Coder:        ConvertAgentConfigFromGqlModel(cfg.Coder),
 		Installer:    ConvertAgentConfigFromGqlModel(cfg.Installer),
 		Pentester:    ConvertAgentConfigFromGqlModel(cfg.Pentester),
+		Reporter:     ConvertAgentConfigFromGqlModel(cfg.Reporter),
 	}
 
 	rawConfig, err := json.Marshal(pc)
@@ -1000,6 +1004,7 @@ func ConvertProviderTestResults(results tester.ProviderTestResults) *model.Provi
 		Coder:        ConvertTestResults(results.Coder),
 		Installer:    ConvertTestResults(results.Installer),
 		Pentester:    ConvertTestResults(results.Pentester),
+		Reporter:     ConvertTestResults(results.Reporter),
 	}
 }
 
