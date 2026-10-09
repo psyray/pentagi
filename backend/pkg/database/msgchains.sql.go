@@ -93,6 +93,17 @@ func (q *Queries) CreateMsgChain(ctx context.Context, arg CreateMsgChainParams) 
 	return i, err
 }
 
+const deleteMsgChain = `-- name: DeleteMsgChain :exec
+DELETE FROM msgchains WHERE id = $1
+`
+
+// Removes a chain that is not FK-bound to its owner, e.g. a report's chains once
+// the report is deleted (backlog v2, L8).
+func (q *Queries) DeleteMsgChain(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteMsgChain, id)
+	return err
+}
+
 const getAllFlowsUsageStats = `-- name: GetAllFlowsUsageStats :many
 SELECT
   mc.flow_id AS flow_id,

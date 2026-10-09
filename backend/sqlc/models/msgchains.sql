@@ -123,6 +123,11 @@ SET
 WHERE id = $8
 RETURNING *;
 
+-- name: DeleteMsgChain :exec
+-- Removes a chain that is not FK-bound to its owner, e.g. a report's chains once
+-- the report is deleted (backlog v2, L8).
+DELETE FROM msgchains WHERE id = $1;
+
 -- name: GetFlowUsageStats :one
 SELECT
   COALESCE(SUM(mc.usage_in), 0)::bigint AS total_usage_in,
