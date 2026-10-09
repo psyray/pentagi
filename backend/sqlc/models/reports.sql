@@ -67,6 +67,27 @@ SET
 WHERE id = $1
 RETURNING *;
 
+-- name: SetReportContentBudget :one
+-- Used by resumeReport when the operator grants fresh content seconds.
+UPDATE reports
+SET
+  content_budget_seconds = $2,
+  updated_at = CURRENT_TIMESTAMP
+WHERE id = $1
+RETURNING *;
+
+-- name: ResetReportForResume :one
+-- A resume restarts the run cleanly: the previous finished_at and error must
+-- not linger while the worker is generating again.
+UPDATE reports
+SET
+  status = $2,
+  finished_at = NULL,
+  error = NULL,
+  updated_at = CURRENT_TIMESTAMP
+WHERE id = $1
+RETURNING *;
+
 -- name: SetReportBrandingText :one
 UPDATE reports
 SET
@@ -243,6 +264,14 @@ RETURNING *;
 UPDATE report_sections
 SET
   hidden = $2,
+  updated_at = CURRENT_TIMESTAMP
+WHERE id = $1
+RETURNING *;
+
+-- name: SetReportSectionRegenRequested :one
+UPDATE report_sections
+SET
+  regen_requested = $2,
   updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
 RETURNING *;

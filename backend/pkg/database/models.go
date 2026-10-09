@@ -1107,6 +1107,7 @@ type ReportSection struct {
 	UpdatedAt        sql.NullTime    `json:"updated_at"`
 	SourceSubtaskIds []int64         `json:"source_subtask_ids"`
 	EvidenceRefs     json.RawMessage `json:"evidence_refs"`
+	RegenRequested   bool            `json:"regen_requested"`
 }
 
 type Role struct {

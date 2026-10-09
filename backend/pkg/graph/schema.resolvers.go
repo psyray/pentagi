@@ -1398,6 +1398,32 @@ func (r *mutationResolver) DeleteReport(ctx context.Context, reportID int64) (mo
 	return model.ResultTypeSuccess, nil
 }
 
+// ResumeReport is the resolver for the resumeReport field.
+func (r *mutationResolver) ResumeReport(ctx context.Context, reportID int64, contentBudgetSeconds *int) (*model.Report, error) {
+	uid, _, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)
+	if err != nil {
+		return nil, err
+	}
+	report, err := r.ReportsCtrl.ResumeReport(ctx, uid, reportID, contentBudgetSeconds)
+	if err != nil {
+		return nil, err
+	}
+	return converter.ConvertReport(*report), nil
+}
+
+// WriteReportSection is the resolver for the writeReportSection field.
+func (r *mutationResolver) WriteReportSection(ctx context.Context, reportID int64, sectionID int64) (*model.ReportSection, error) {
+	uid, _, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)
+	if err != nil {
+		return nil, err
+	}
+	row, err := r.ReportsCtrl.WriteReportSection(ctx, uid, reportID, sectionID)
+	if err != nil {
+		return nil, err
+	}
+	return converter.ConvertReportSection(*row), nil
+}
+
 // UpdateReportSection is the resolver for the updateReportSection field.
 func (r *mutationResolver) UpdateReportSection(ctx context.Context, reportID int64, sectionID int64, input model.ReportSectionInput) (*model.ReportSection, error) {
 	uid, _, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)

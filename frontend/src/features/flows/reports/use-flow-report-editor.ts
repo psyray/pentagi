@@ -12,6 +12,7 @@ import {
     SectionDirection,
     SetReportSectionContentDocument,
     UpdateReportSectionDocument,
+    WriteReportSectionDocument,
 } from '@/graphql/types';
 import { Log } from '@/lib/log';
 
@@ -30,6 +31,7 @@ export interface ReportSectionEditor {
     moveSection: (sectionId: string, direction: 'down' | 'up') => Promise<boolean>;
     saveSection: (input: SaveReportSectionInput) => Promise<boolean>;
     setSectionHidden: (sectionId: string, hidden: boolean) => Promise<boolean>;
+    writeSection: (sectionId: string) => Promise<boolean>;
 }
 
 export interface SaveReportSectionInput {
@@ -60,6 +62,7 @@ export function useFlowReportEditor(reportId: null | string): ReportSectionEdito
     const [hideMutation] = useMutation(HideReportSectionDocument);
     const [addMutation] = useMutation(AddReportSectionDocument);
     const [deleteMutation] = useMutation(DeleteReportSectionDocument);
+    const [writeMutation] = useMutation(WriteReportSectionDocument);
 
     const upsertSection = useCallback(
         (section: ReportSectionFragmentFragment): void => {
@@ -257,5 +260,35 @@ export function useFlowReportEditor(reportId: null | string): ReportSectionEdito
         [client, deleteMutation, reportId, run],
     );
 
-    return { addSection, busy, deleteSection, moveSection, saveSection, setSectionHidden };
+    // writeSection runs the writer on one section on demand (after a hand-added
+    // section, or a section left unwritten by a budget stop).
+    const writeSection = useCallback(
+        (sectionId: string): Promise<boolean> =>
+            run(async () => {
+                if (!reportId) {
+                    return false;
+                }
+
+                try {
+                    const response = await writeMutation({ variables: { reportId, sectionId } });
+                    const updated = response.data?.writeReportSection;
+
+                    if (updated) {
+                        upsertSection(updated);
+                    }
+
+                    toast.success('Section queued for writing');
+
+                    return true;
+                } catch (error) {
+                    Log.error('Failed to write the report section:', error);
+                    toast.error('Failed to write the section');
+
+                    return false;
+                }
+            }),
+        [reportId, run, upsertSection, writeMutation],
+    );
+
+    return { addSection, busy, deleteSection, moveSection, saveSection, setSectionHidden, writeSection };
 }
