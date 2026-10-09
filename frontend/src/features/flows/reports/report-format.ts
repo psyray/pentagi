@@ -43,25 +43,12 @@ export const ACTIVE_REPORT_STATUSES: readonly ReportStatusType[] = [
 
 export const isReportActive = (status: ReportStatusType): boolean => ACTIVE_REPORT_STATUSES.includes(status);
 
-// A report can be resumed when it stopped short of a full run: a finished run
-// with unwritten sections, or a failed/canceled one (plan backlog v2, L1).
-interface ResumableReport {
-    sectionsDone: number;
-    sectionsTotal: number;
-    status: ReportStatusType;
-}
-
-export const isReportResumable = (report: ResumableReport): boolean => {
-    if (isReportActive(report.status)) {
-        return false;
-    }
-
-    if (report.status === ReportStatusType.Completed) {
-        return report.sectionsTotal > report.sectionsDone;
-    }
-
-    return report.status === ReportStatusType.Failed || report.status === ReportStatusType.Canceled;
-};
+// Any report the writer no longer owns can be resumed: the run re-queues its
+// unwritten sections and does nothing when there are none. The section counters
+// are NOT a reliable signal: hand-added sections never bump sections_total, so a
+// finished report can still hold queued sections (report 11: done 26 > total 25
+// with two queued sections).
+export const isReportResumable = (report: { status: ReportStatusType }): boolean => !isReportActive(report.status);
 
 const REPORT_STATUS_LABELS: Record<ReportStatusType, string> = {
     [ReportStatusType.Canceled]: 'Canceled',
