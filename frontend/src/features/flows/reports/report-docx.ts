@@ -6,6 +6,7 @@ import {
     Header,
     HeadingLevel,
     ImageRun,
+    type IRunOptions,
     LevelFormat,
     Packer,
     PageNumber,
@@ -167,6 +168,10 @@ export const reportTocEntries = (blocks: readonly DocxBlock[]): ReportTocEntry[]
 const BODY_FONT = 'Calibri';
 const MONO_FONT = 'Consolas';
 const CODE_FILL = 'F4F5F7';
+// Inline code (a `codespan`) has to read as code in the middle of a sentence:
+// a colour plus a light fill, the same cue the PDF and the markdown give it.
+const INLINE_CODE_COLOR = 'B42318';
+const INLINE_CODE_FILL = 'FDF0EF';
 const HEADER_FILL = 'EDEFF2';
 const BORDER_COLOR = 'D0D5DD';
 const TEXT_COLOR = '1F2937';
@@ -176,14 +181,18 @@ const ORDERED_REFERENCE = 'report-ordered';
 
 const thinBorder = { color: BORDER_COLOR, size: 4, style: BorderStyle.SINGLE } as const;
 
-const toRun = (run: DocxInline): TextRun =>
-    new TextRun({
-        bold: run.bold,
-        font: run.code ? MONO_FONT : undefined,
-        italics: run.italics,
-        size: run.code ? 20 : undefined,
-        text: run.text,
-    });
+// The run options of one inline fragment; exported so the styling can be tested
+// without a ZIP round-trip.
+export const inlineRunOptions = (run: DocxInline): IRunOptions => ({
+    bold: run.bold,
+    color: run.code ? INLINE_CODE_COLOR : undefined,
+    font: run.code ? MONO_FONT : undefined,
+    italics: run.italics,
+    shading: run.code ? { color: 'auto', fill: INLINE_CODE_FILL, type: ShadingType.CLEAR } : undefined,
+    size: run.code ? 20 : undefined,
+});
+
+const toRun = (run: DocxInline): TextRun => new TextRun({ ...inlineRunOptions(run), text: run.text });
 
 const toRuns = (runs: DocxInline[]): TextRun[] => (runs.length > 0 ? runs.map(toRun) : [new TextRun('')]);
 

@@ -1,6 +1,24 @@
 import { describe, expect, it } from 'vitest';
 
-import { markdownToDocxBlob, parseReportMarkdown, reportTocEntries } from './report-docx';
+import { inlineRunOptions, markdownToDocxBlob, parseReportMarkdown, reportTocEntries } from './report-docx';
+
+describe('inlineRunOptions', () => {
+    it('highlights inline code so it reads as code inside a sentence', () => {
+        const options = inlineRunOptions({ code: true, text: 'paperwork.htb' });
+
+        expect(options.font).toBe('Consolas');
+        expect(options.color).toBeDefined();
+        expect(options.shading?.fill).toBeDefined();
+    });
+
+    it('leaves a plain run alone', () => {
+        const options = inlineRunOptions({ text: 'plain' });
+
+        expect(options.font).toBeUndefined();
+        expect(options.color).toBeUndefined();
+        expect(options.shading).toBeUndefined();
+    });
+});
 
 // A one-pixel transparent PNG, enough for Packer to embed an image.
 const PNG_DATA_URL =
