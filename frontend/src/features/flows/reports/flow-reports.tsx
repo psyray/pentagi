@@ -16,6 +16,7 @@ import FlowReportCard from './flow-report-card';
 import FlowReportCreateDialog from './flow-report-create-dialog';
 import { downloadReportMarkdown, fetchReportDocument } from './report-download';
 import { type ReportProgress, useFlowReports } from './use-flow-reports';
+import { useReportPermissions } from './use-report-permissions';
 
 interface FlowReportsProps {
     className?: string;
@@ -23,6 +24,7 @@ interface FlowReportsProps {
 
 function FlowReports({ className }: FlowReportsProps) {
     const { checkVision, createReport, deleteReport, loading, reports } = useFlowReports();
+    const permissions = useReportPermissions();
     const { flowId } = useFlow();
     const navigate = useNavigate();
     const client = useApolloClient();
@@ -71,14 +73,16 @@ function FlowReports({ className }: FlowReportsProps) {
                 <div className="text-muted-foreground text-sm">
                     {loading ? 'Loading…' : `${reports.length} report${reports.length === 1 ? '' : 's'}`}
                 </div>
-                <Button
-                    disabled={loading}
-                    onClick={() => setCreateOpen(true)}
-                    size="sm"
-                >
-                    <Plus className="size-4" />
-                    Create report
-                </Button>
+                {permissions.canCreate && (
+                    <Button
+                        disabled={loading}
+                        onClick={() => setCreateOpen(true)}
+                        size="sm"
+                    >
+                        <Plus className="size-4" />
+                        Create report
+                    </Button>
+                )}
             </div>
 
             {reports.length === 0 ? (
@@ -94,7 +98,7 @@ function FlowReports({ className }: FlowReportsProps) {
                                 : 'No reports have been written for this engagement yet. One can be started at any point in the run.'}
                         </EmptyDescription>
                     </EmptyHeader>
-                    {!loading && (
+                    {!loading && permissions.canCreate && (
                         <EmptyContent>
                             <Button
                                 disabled={loading}
@@ -116,6 +120,7 @@ function FlowReports({ className }: FlowReportsProps) {
                     <div className="flex min-w-0 flex-col gap-3 pb-6">
                         {reports.map((report) => (
                             <FlowReportCard
+                                canDelete={permissions.canDelete}
                                 key={report.id}
                                 onDelete={deleteReport}
                                 onDownload={handleDownload}
