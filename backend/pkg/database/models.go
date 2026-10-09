@@ -1067,6 +1067,7 @@ type Report struct {
 	BrandingSubtitle       sql.NullString        `json:"branding_subtitle"`
 	BrandingHeader         sql.NullString        `json:"branding_header"`
 	BrandingFooter         sql.NullString        `json:"branding_footer"`
+	StartedAt              sql.NullTime          `json:"started_at"`
 }
 
 type ReportBrandingLogo struct {

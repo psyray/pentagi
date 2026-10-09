@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 
 import type { ReportFragmentFragment } from '@/graphql/types';
 
-import { formatDuration, formatTokens, isReportActive, reportStatusLabel } from './report-format';
+import { formatDuration, formatTokens, isReportActive, reportStatusLabel, reportTookSeconds } from './report-format';
 
 const TICK_INTERVAL_MS = 15_000;
 
@@ -26,10 +26,7 @@ function FlowReportRun({ report }: FlowReportRunProps) {
         return () => clearInterval(interval);
     }, [active]);
 
-    const startedAt = new Date(report.createdAt).getTime();
-    const tookSeconds = report.finishedAt
-        ? (new Date(report.finishedAt).getTime() - startedAt) / 1000
-        : Math.max(0, (now - startedAt) / 1000);
+    const tookSeconds = reportTookSeconds(report, now);
 
     const budgetSeconds = report.controlBudgetSeconds + report.contentBudgetSeconds;
     const agentSeconds = report.controlUsedSeconds + report.contentUsedSeconds;

@@ -1769,6 +1769,7 @@ export type ReportFragmentFragment = {
     createdAt: string;
     updatedAt: string;
     finishedAt: string | null;
+    startedAt: string | null;
 };
 
 export type ReportSectionFragmentFragment = {
@@ -4405,6 +4406,7 @@ export const ReportFragmentFragmentDoc = {
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'finishedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'startedAt' } },
                 ],
             },
         },
@@ -15026,6 +15028,7 @@ export const FlowReportsDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'finishedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'startedAt' } },
                 ],
             },
         },
@@ -15097,6 +15100,7 @@ export const ReportRowDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'finishedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'startedAt' } },
                 ],
             },
         },
@@ -15540,6 +15544,7 @@ export const CreateReportDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'finishedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'startedAt' } },
                 ],
             },
         },
@@ -16309,6 +16314,7 @@ export const ReportCreatedDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'finishedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'startedAt' } },
                 ],
             },
         },
@@ -16380,6 +16386,7 @@ export const ReportUpdatedDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'finishedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'startedAt' } },
                 ],
             },
         },
@@ -16451,6 +16458,7 @@ export const ReportDeletedDocument = {
                     { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
                     { kind: 'Field', name: { kind: 'Name', value: 'finishedAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'startedAt' } },
                 ],
             },
         },

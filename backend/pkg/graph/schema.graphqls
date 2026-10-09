@@ -1488,6 +1488,7 @@ type Report {
   createdAt: Time!
   updatedAt: Time!
   finishedAt: Time
+  startedAt: Time
 }
 
 type ReportVariable {

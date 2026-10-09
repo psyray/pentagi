@@ -114,7 +114,7 @@ INSERT INTO reports (
   $11,
   $12
 )
-RETURNING id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer
+RETURNING id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer, started_at
 `
 
 type CreateReportParams struct {
@@ -178,6 +178,7 @@ func (q *Queries) CreateReport(ctx context.Context, arg CreateReportParams) (Rep
 		&i.BrandingSubtitle,
 		&i.BrandingHeader,
 		&i.BrandingFooter,
+		&i.StartedAt,
 	)
 	return i, err
 }
@@ -334,7 +335,7 @@ SET
   finished_at = CURRENT_TIMESTAMP,
   updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer
+RETURNING id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer, started_at
 `
 
 type FinishReportParams struct {
@@ -376,12 +377,13 @@ func (q *Queries) FinishReport(ctx context.Context, arg FinishReportParams) (Rep
 		&i.BrandingSubtitle,
 		&i.BrandingHeader,
 		&i.BrandingFooter,
+		&i.StartedAt,
 	)
 	return i, err
 }
 
 const getActiveReports = `-- name: GetActiveReports :many
-SELECT id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer FROM reports
+SELECT id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer, started_at FROM reports
 WHERE status IN ('created', 'planning', 'generating')
 ORDER BY created_at ASC
 `
@@ -425,6 +427,7 @@ func (q *Queries) GetActiveReports(ctx context.Context) ([]Report, error) {
 			&i.BrandingSubtitle,
 			&i.BrandingHeader,
 			&i.BrandingFooter,
+			&i.StartedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -440,7 +443,7 @@ func (q *Queries) GetActiveReports(ctx context.Context) ([]Report, error) {
 }
 
 const getFlowReport = `-- name: GetFlowReport :one
-SELECT id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer FROM reports
+SELECT id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer, started_at FROM reports
 WHERE id = $1 AND flow_id = $2 AND user_id = $3 LIMIT 1
 `
 
@@ -483,12 +486,13 @@ func (q *Queries) GetFlowReport(ctx context.Context, arg GetFlowReportParams) (R
 		&i.BrandingSubtitle,
 		&i.BrandingHeader,
 		&i.BrandingFooter,
+		&i.StartedAt,
 	)
 	return i, err
 }
 
 const getFlowReports = `-- name: GetFlowReports :many
-SELECT id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer FROM reports
+SELECT id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer, started_at FROM reports
 WHERE flow_id = $1 AND user_id = $2
 ORDER BY created_at DESC
 `
@@ -537,6 +541,7 @@ func (q *Queries) GetFlowReports(ctx context.Context, arg GetFlowReportsParams) 
 			&i.BrandingSubtitle,
 			&i.BrandingHeader,
 			&i.BrandingFooter,
+			&i.StartedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -564,7 +569,7 @@ func (q *Queries) GetMaxReportSectionPosition(ctx context.Context, reportID int6
 }
 
 const getReport = `-- name: GetReport :one
-SELECT id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer FROM reports
+SELECT id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer, started_at FROM reports
 WHERE id = $1 AND user_id = $2 LIMIT 1
 `
 
@@ -606,6 +611,7 @@ func (q *Queries) GetReport(ctx context.Context, arg GetReportParams) (Report, e
 		&i.BrandingSubtitle,
 		&i.BrandingHeader,
 		&i.BrandingFooter,
+		&i.StartedAt,
 	)
 	return i, err
 }
@@ -646,7 +652,7 @@ func (q *Queries) GetReportBrandingLogoInfo(ctx context.Context, reportID int64)
 }
 
 const getReportByID = `-- name: GetReportByID :one
-SELECT id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer FROM reports
+SELECT id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer, started_at FROM reports
 WHERE id = $1 LIMIT 1
 `
 
@@ -683,6 +689,7 @@ func (q *Queries) GetReportByID(ctx context.Context, id int64) (Report, error) {
 		&i.BrandingSubtitle,
 		&i.BrandingHeader,
 		&i.BrandingFooter,
+		&i.StartedAt,
 	)
 	return i, err
 }
@@ -828,7 +835,7 @@ SET
   error = NULL,
   updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer
+RETURNING id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer, started_at
 `
 
 type ResetReportForResumeParams struct {
@@ -871,6 +878,7 @@ func (q *Queries) ResetReportForResume(ctx context.Context, arg ResetReportForRe
 		&i.BrandingSubtitle,
 		&i.BrandingHeader,
 		&i.BrandingFooter,
+		&i.StartedAt,
 	)
 	return i, err
 }
@@ -911,7 +919,7 @@ SET
   branding_footer = $5,
   updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer
+RETURNING id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer, started_at
 `
 
 type SetReportBrandingTextParams struct {
@@ -961,6 +969,7 @@ func (q *Queries) SetReportBrandingText(ctx context.Context, arg SetReportBrandi
 		&i.BrandingSubtitle,
 		&i.BrandingHeader,
 		&i.BrandingFooter,
+		&i.StartedAt,
 	)
 	return i, err
 }
@@ -971,7 +980,7 @@ SET
   content_budget_seconds = $2,
   updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer
+RETURNING id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer, started_at
 `
 
 type SetReportContentBudgetParams struct {
@@ -1013,6 +1022,7 @@ func (q *Queries) SetReportContentBudget(ctx context.Context, arg SetReportConte
 		&i.BrandingSubtitle,
 		&i.BrandingHeader,
 		&i.BrandingFooter,
+		&i.StartedAt,
 	)
 	return i, err
 }
@@ -1023,7 +1033,7 @@ SET
   sections_estimate = $2,
   updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer
+RETURNING id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer, started_at
 `
 
 type SetReportEstimateParams struct {
@@ -1064,6 +1074,7 @@ func (q *Queries) SetReportEstimate(ctx context.Context, arg SetReportEstimatePa
 		&i.BrandingSubtitle,
 		&i.BrandingHeader,
 		&i.BrandingFooter,
+		&i.StartedAt,
 	)
 	return i, err
 }
@@ -1074,7 +1085,7 @@ SET
   labels = $2,
   updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer
+RETURNING id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer, started_at
 `
 
 type SetReportLabelsParams struct {
@@ -1115,6 +1126,7 @@ func (q *Queries) SetReportLabels(ctx context.Context, arg SetReportLabelsParams
 		&i.BrandingSubtitle,
 		&i.BrandingHeader,
 		&i.BrandingFooter,
+		&i.StartedAt,
 	)
 	return i, err
 }
@@ -1128,7 +1140,7 @@ SET
   sections_total = $5,
   updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer
+RETURNING id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer, started_at
 `
 
 type SetReportPlanParams struct {
@@ -1178,6 +1190,7 @@ func (q *Queries) SetReportPlan(ctx context.Context, arg SetReportPlanParams) (R
 		&i.BrandingSubtitle,
 		&i.BrandingHeader,
 		&i.BrandingFooter,
+		&i.StartedAt,
 	)
 	return i, err
 }
@@ -1483,6 +1496,55 @@ func (q *Queries) SetReportSectionTitle(ctx context.Context, arg SetReportSectio
 	return i, err
 }
 
+const setReportStartedAt = `-- name: SetReportStartedAt :one
+UPDATE reports
+SET
+  started_at = CURRENT_TIMESTAMP,
+  updated_at = CURRENT_TIMESTAMP
+WHERE id = $1
+RETURNING id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer, started_at
+`
+
+// Stamps the current run's start so the panel can show the run duration
+// (finished_at - started_at) instead of the report's whole lifetime.
+func (q *Queries) SetReportStartedAt(ctx context.Context, id int64) (Report, error) {
+	row := q.db.QueryRowContext(ctx, setReportStartedAt, id)
+	var i Report
+	err := row.Scan(
+		&i.ID,
+		&i.FlowID,
+		&i.UserID,
+		&i.Status,
+		&i.Title,
+		&i.TemplateKey,
+		&i.TemplateLabel,
+		&i.ProviderName,
+		&i.ProviderType,
+		&i.Language,
+		&i.AdditionalInstructions,
+		&i.ControlBudgetSeconds,
+		&i.ContentBudgetSeconds,
+		&i.ControlUsedSeconds,
+		&i.ContentUsedSeconds,
+		&i.SectionsEstimate,
+		&i.SectionsTotal,
+		&i.SectionsDone,
+		&i.TokensIn,
+		&i.TokensOut,
+		&i.Error,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.FinishedAt,
+		&i.Labels,
+		&i.BrandingTitle,
+		&i.BrandingSubtitle,
+		&i.BrandingHeader,
+		&i.BrandingFooter,
+		&i.StartedAt,
+	)
+	return i, err
+}
+
 const shiftReportSectionPositions = `-- name: ShiftReportSectionPositions :exec
 UPDATE report_sections
 SET position = position + 1
@@ -1503,6 +1565,64 @@ func (q *Queries) ShiftReportSectionPositions(ctx context.Context, arg ShiftRepo
 	return err
 }
 
+const syncReportSectionCounts = `-- name: SyncReportSectionCounts :one
+UPDATE reports
+SET
+  sections_total = (
+    SELECT COUNT(*) FROM report_sections
+    WHERE report_id = $1 AND status <> 'skipped'
+  ),
+  sections_done = (
+    SELECT COUNT(*) FROM report_sections
+    WHERE report_id = $1 AND status = 'done'
+  ),
+  updated_at = CURRENT_TIMESTAMP
+WHERE id = $1
+RETURNING id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer, started_at
+`
+
+// Derives the counters from the section rows so a hand-added (or deleted)
+// section is reflected: total excludes the skipped alternatives, done counts the
+// resolved ones. The planner's own total only holds until the first sync, which
+// keeps a fresh report's "not planned yet" signal (sections_total = 0) intact.
+func (q *Queries) SyncReportSectionCounts(ctx context.Context, reportID sql.NullInt64) (Report, error) {
+	row := q.db.QueryRowContext(ctx, syncReportSectionCounts, reportID)
+	var i Report
+	err := row.Scan(
+		&i.ID,
+		&i.FlowID,
+		&i.UserID,
+		&i.Status,
+		&i.Title,
+		&i.TemplateKey,
+		&i.TemplateLabel,
+		&i.ProviderName,
+		&i.ProviderType,
+		&i.Language,
+		&i.AdditionalInstructions,
+		&i.ControlBudgetSeconds,
+		&i.ContentBudgetSeconds,
+		&i.ControlUsedSeconds,
+		&i.ContentUsedSeconds,
+		&i.SectionsEstimate,
+		&i.SectionsTotal,
+		&i.SectionsDone,
+		&i.TokensIn,
+		&i.TokensOut,
+		&i.Error,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.FinishedAt,
+		&i.Labels,
+		&i.BrandingTitle,
+		&i.BrandingSubtitle,
+		&i.BrandingHeader,
+		&i.BrandingFooter,
+		&i.StartedAt,
+	)
+	return i, err
+}
+
 const updateReportProgress = `-- name: UpdateReportProgress :one
 UPDATE reports
 SET
@@ -1513,7 +1633,7 @@ SET
   content_used_seconds = $6,
   updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer
+RETURNING id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer, started_at
 `
 
 type UpdateReportProgressParams struct {
@@ -1565,6 +1685,7 @@ func (q *Queries) UpdateReportProgress(ctx context.Context, arg UpdateReportProg
 		&i.BrandingSubtitle,
 		&i.BrandingHeader,
 		&i.BrandingFooter,
+		&i.StartedAt,
 	)
 	return i, err
 }
@@ -1689,7 +1810,7 @@ SET
   error = NULL,
   updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer
+RETURNING id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer, started_at
 `
 
 type UpdateReportStatusParams struct {
@@ -1730,6 +1851,7 @@ func (q *Queries) UpdateReportStatus(ctx context.Context, arg UpdateReportStatus
 		&i.BrandingSubtitle,
 		&i.BrandingHeader,
 		&i.BrandingFooter,
+		&i.StartedAt,
 	)
 	return i, err
 }

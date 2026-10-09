@@ -24,6 +24,7 @@ const base: ReportProgress = {
     sectionsDone: 4,
     sectionsEstimate: 25,
     sectionsTotal: 25,
+    startedAt: null,
     status: ReportStatusType.Generating,
     templateKey: 'bundled/pentagi-default-pentest-report',
     templateLabel: 'PentAGI Penetration Testing Report',

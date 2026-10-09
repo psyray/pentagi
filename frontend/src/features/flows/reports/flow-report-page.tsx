@@ -23,7 +23,7 @@ import FlowReportDownload from './flow-report-download';
 import FlowReportRun from './flow-report-run';
 import FlowReportSection from './flow-report-section';
 import FlowReportToc from './flow-report-toc';
-import { formatDuration, isReportActive, isSectionResumable } from './report-format';
+import { formatDuration, isReportActive, isSectionResumable, reportTookSeconds } from './report-format';
 import { buildReportOutline, flattenReportOutline } from './report-outline';
 import { useFlowReportDocument } from './use-flow-report-document';
 import { useFlowReportEditor } from './use-flow-report-editor';
@@ -154,11 +154,7 @@ function FlowReportPage() {
                                 </span>
                                 <span className="text-muted-foreground">
                                     {report.finishedAt
-                                        ? formatDuration(
-                                              (new Date(report.finishedAt).getTime() -
-                                                  new Date(report.createdAt).getTime()) /
-                                                  1000,
-                                          )
+                                        ? formatDuration(reportTookSeconds(report, 0))
                                         : active
                                           ? 'running'
                                           : ''}

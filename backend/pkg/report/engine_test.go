@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
 	"pentagi/pkg/database"
 
@@ -187,6 +188,31 @@ func (q *fakeQuerier) UpdateReportProgress(_ context.Context, arg database.Updat
 	row := q.reports[arg.ID]
 	row.SectionsDone = arg.SectionsDone
 	q.reports[arg.ID] = row
+	return row, nil
+}
+
+func (q *fakeQuerier) SyncReportSectionCounts(_ context.Context, reportID sql.NullInt64) (database.Report, error) {
+	row := q.reports[reportID.Int64]
+	total, done := 0, 0
+	for _, st := range q.sections {
+		if st.ReportID != reportID.Int64 || st.Status == SectionSkipped {
+			continue
+		}
+		total++
+		if st.Status == SectionDone {
+			done++
+		}
+	}
+	row.SectionsTotal = int32(total)
+	row.SectionsDone = int32(done)
+	q.reports[reportID.Int64] = row
+	return row, nil
+}
+
+func (q *fakeQuerier) SetReportStartedAt(_ context.Context, id int64) (database.Report, error) {
+	row := q.reports[id]
+	row.StartedAt = sql.NullTime{Time: time.Now(), Valid: true}
+	q.reports[id] = row
 	return row, nil
 }
 
