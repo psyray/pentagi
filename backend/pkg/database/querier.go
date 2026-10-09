@@ -257,6 +257,7 @@ type Querier interface {
 	GetUserProviderByName(ctx context.Context, arg GetUserProviderByNameParams) (Provider, error)
 	GetUserProviders(ctx context.Context, userID int64) ([]Provider, error)
 	GetUserProvidersByType(ctx context.Context, arg GetUserProvidersByTypeParams) ([]Provider, error)
+	GetUserReports(ctx context.Context, userID int64) ([]Report, error)
 	GetUserResourceByID(ctx context.Context, id int64) (UserResource, error)
 	GetUserResourcesAll(ctx context.Context, userID int64) ([]UserResource, error)
 	GetUserResourcesByIDs(ctx context.Context, ids []int64) ([]UserResource, error)

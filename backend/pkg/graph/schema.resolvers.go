@@ -3176,16 +3176,34 @@ func (r *queryResolver) FlowArtifacts(ctx context.Context, flowID int64) ([]*mod
 }
 
 // Reports is the resolver for the reports field.
-func (r *queryResolver) Reports(ctx context.Context, flowID int64) ([]*model.Report, error) {
-	uid, err := validatePermissionWithFlowID(ctx, "reports.read", flowID, r.DB)
-	if err != nil {
-		return nil, err
+func (r *queryResolver) Reports(ctx context.Context, flowID *int64) ([]*model.Report, error) {
+	var uid int64
+	if flowID != nil {
+		id, err := validatePermissionWithFlowID(ctx, "reports.read", *flowID, r.DB)
+		if err != nil {
+			return nil, err
+		}
+		uid = id
+	} else {
+		id, _, err := validatePermission(ctx, "reports.read")
+		if err != nil {
+			return nil, err
+		}
+		uid = id
 	}
 	if !r.ReportsCtrl.Enabled() {
 		return []*model.Report{}, nil
 	}
 
-	rows, err := r.ReportsCtrl.ListFlowReports(ctx, uid, flowID)
+	var (
+		rows []database.Report
+		err  error
+	)
+	if flowID != nil {
+		rows, err = r.ReportsCtrl.ListFlowReports(ctx, uid, *flowID)
+	} else {
+		rows, err = r.ReportsCtrl.ListUserReports(ctx, uid)
+	}
 	if err != nil {
 		return nil, err
 	}

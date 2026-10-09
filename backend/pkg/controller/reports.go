@@ -24,6 +24,9 @@ type ReportController interface {
 	// LoadReports resumes the runs that were mid-flight at process start.
 	LoadReports(ctx context.Context) error
 	ListFlowReports(ctx context.Context, userID, flowID int64) ([]database.Report, error)
+	// ListUserReports returns every report owned by the user, across flows
+	// (global Reports page, L5).
+	ListUserReports(ctx context.Context, userID int64) ([]database.Report, error)
 	ListReportTemplates() ([]report.TemplateInfo, error)
 	// CheckVision probes whether the provider a report would use can read images.
 	CheckVision(ctx context.Context, userID, flowID int64, providerName string) (bool, error)
@@ -162,6 +165,12 @@ func (a *reportControllerAdapter) ListFlowReports(
 	ctx context.Context, userID, flowID int64,
 ) ([]database.Report, error) {
 	return a.ctrl.ListFlowReports(ctx, userID, flowID)
+}
+
+func (a *reportControllerAdapter) ListUserReports(
+	ctx context.Context, userID int64,
+) ([]database.Report, error) {
+	return a.ctrl.ListUserReports(ctx, userID)
 }
 
 func (a *reportControllerAdapter) ListReportTemplates() ([]report.TemplateInfo, error) {

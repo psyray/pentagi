@@ -638,7 +638,7 @@ type ComplexityRoot struct {
 		ReportLogs                      func(childComplexity int, reportID int64, limit *int) int
 		ReportSections                  func(childComplexity int, reportID int64) int
 		ReportVision                    func(childComplexity int, flowID int64, providerName *string) int
-		Reports                         func(childComplexity int, flowID int64) int
+		Reports                         func(childComplexity int, flowID *int64) int
 		Resources                       func(childComplexity int, path *string, recursive *bool) int
 		Screenshots                     func(childComplexity int, flowID int64) int
 		SearchKnowledge                 func(childComplexity int, query string, filter *model.KnowledgeFilter, limit *int) int
@@ -1139,7 +1139,7 @@ type QueryResolver interface {
 	FlowDetectedCVEs(ctx context.Context, flowID int64) ([]*model.DetectedCVERow, error)
 	FlowGraphitiToolUsage(ctx context.Context, flowID int64) ([]*model.GraphitiToolUsageRow, error)
 	FlowArtifacts(ctx context.Context, flowID int64) ([]*model.ArtifactRow, error)
-	Reports(ctx context.Context, flowID int64) ([]*model.Report, error)
+	Reports(ctx context.Context, flowID *int64) ([]*model.Report, error)
 	Report(ctx context.Context, reportID int64) (*model.Report, error)
 	ReportSections(ctx context.Context, reportID int64) ([]*model.ReportSection, error)
 	ReportLogs(ctx context.Context, reportID int64, limit *int) ([]*model.ReportLog, error)
@@ -4529,7 +4529,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.Reports(childComplexity, args["flowId"].(int64)), true
+		return e.complexity.Query.Reports(childComplexity, args["flowId"].(*int64)), true
 
 	case "Query.resources":
 		if e.complexity.Query.Resources == nil {
@@ -11078,22 +11078,22 @@ func (ec *executionContext) field_Query_reports_args(ctx context.Context, rawArg
 func (ec *executionContext) field_Query_reports_argsFlowID(
 	ctx context.Context,
 	rawArgs map[string]interface{},
-) (int64, error) {
+) (*int64, error) {
 	// We won't call the directive if the argument is null.
 	// Set call_argument_directives_with_null to true to call directives
 	// even if the argument is null.
 	_, ok := rawArgs["flowId"]
 	if !ok {
-		var zeroVal int64
+		var zeroVal *int64
 		return zeroVal, nil
 	}
 
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("flowId"))
 	if tmp, ok := rawArgs["flowId"]; ok {
-		return ec.unmarshalNID2int64(ctx, tmp)
+		return ec.unmarshalOID2ᚖint64(ctx, tmp)
 	}
 
-	var zeroVal int64
+	var zeroVal *int64
 	return zeroVal, nil
 }
 
@@ -35441,7 +35441,7 @@ func (ec *executionContext) _Query_reports(ctx context.Context, field graphql.Co
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Reports(rctx, fc.Args["flowId"].(int64))
+		return ec.resolvers.Query().Reports(rctx, fc.Args["flowId"].(*int64))
 	})
 	if err != nil {
 		ec.Error(ctx, err)

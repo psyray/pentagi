@@ -1274,7 +1274,9 @@ type Query {
   flowArtifacts(flowId: ID!): [ArtifactRow!]!
 
   # Reports (fork extended-version, section 6): AI-generated documents.
-  reports(flowId: ID!): [Report!]!
+  # Without flowId the query lists every report owned by the caller (global
+  # Reports page, L5); with flowId it stays scoped to that flow.
+  reports(flowId: ID): [Report!]!
   report(reportId: ID!): Report!
   reportSections(reportId: ID!): [ReportSection!]!
   reportLogs(reportId: ID!, limit: Int): [ReportLog!]!
