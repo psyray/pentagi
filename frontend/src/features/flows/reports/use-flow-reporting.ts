@@ -24,7 +24,7 @@ import { useFlowReports } from './use-flow-reports';
  */
 export function useFlowReporting() {
     const { flowId } = useFlow();
-    const { checkVision, createReport, loading: reportsLoading, reports } = useFlowReports();
+    const { checkVision, createReport, deleteReport, loading: reportsLoading, reports } = useFlowReports();
     const [requestedId, setRequestedId] = useState<null | string>(null);
 
     // Keep an explicit pick while the report exists; otherwise follow the run in
@@ -106,6 +106,7 @@ export function useFlowReporting() {
         addNote,
         checkVision,
         createReport,
+        deleteReport,
         groups,
         isNoting,
         isStopping,
