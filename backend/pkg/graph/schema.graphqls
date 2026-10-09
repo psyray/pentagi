@@ -1155,6 +1155,8 @@ type Mutation {
   hideReportSection(reportId: ID!, sectionId: ID!, hidden: Boolean!): ReportSection!
   addReportSection(reportId: ID!, afterSectionId: ID, parentId: ID, title: String!): ReportSection!
   deleteReportSection(reportId: ID!, sectionId: ID!): ResultType!
+  # setReportSectionAttachments replaces a section's operator attachments wholesale.
+  setReportSectionAttachments(reportId: ID!, sectionId: ID!, attachments: [ReportAttachmentInput!]!): [ReportAttachment!]!
 }
 
 type Subscription {
@@ -1296,6 +1298,24 @@ type ReportVariable {
   value: String!
 }
 
+# One operator-attached file on a report section (backlog v2, L6). The archive
+# bundles it; the text exports only list it.
+type ReportAttachment {
+  id: ID!
+  label: String!
+  # Cache-relative ("uploads/x", "resources/y", "container/z") or an absolute
+  # container path ("/work/...").
+  path: String!
+  bytes: Int!
+  createdAt: Time!
+}
+
+input ReportAttachmentInput {
+  label: String
+  path: String!
+  bytes: Int
+}
+
 type ReportVision {
   vision: Boolean!
   error: String
@@ -1347,6 +1367,8 @@ type ReportSection {
   durationSeconds: Float!
   createdAt: Time!
   updatedAt: Time!
+  # Operator attachments (backlog v2, L6). Loaded per section on demand.
+  attachments: [ReportAttachment!]!
 }
 
 type ReportLog {

@@ -18,6 +18,7 @@ import (
 	"pentagi/pkg/providers"
 	"pentagi/pkg/providers/pconfig"
 	"pentagi/pkg/providers/provider"
+	"pentagi/pkg/report"
 	"pentagi/pkg/resources"
 	"pentagi/pkg/server/auth"
 	"pentagi/pkg/server/update"
@@ -1424,7 +1425,7 @@ func (r *mutationResolver) WriteReportSection(ctx context.Context, reportID int6
 
 // UpdateReportSection is the resolver for the updateReportSection field.
 func (r *mutationResolver) UpdateReportSection(ctx context.Context, reportID int64, sectionID int64, input model.ReportSectionInput) (*model.ReportSection, error) {
-	uid, _, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)
+	uid, report, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)
 	if err != nil {
 		return nil, err
 	}
@@ -1432,12 +1433,14 @@ func (r *mutationResolver) UpdateReportSection(ctx context.Context, reportID int
 	if err != nil {
 		return nil, err
 	}
-	return converter.ConvertReportSection(*row), nil
+	section := converter.ConvertReportSection(*row)
+	attachAttachments(ctx, r.ReportsCtrl, uid, report.ID, []*model.ReportSection{section})
+	return section, nil
 }
 
 // SetReportSectionContent is the resolver for the setReportSectionContent field.
 func (r *mutationResolver) SetReportSectionContent(ctx context.Context, reportID int64, sectionID int64, content string) (*model.ReportSection, error) {
-	uid, _, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)
+	uid, report, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)
 	if err != nil {
 		return nil, err
 	}
@@ -1445,7 +1448,9 @@ func (r *mutationResolver) SetReportSectionContent(ctx context.Context, reportID
 	if err != nil {
 		return nil, err
 	}
-	return converter.ConvertReportSection(*row), nil
+	section := converter.ConvertReportSection(*row)
+	attachAttachments(ctx, r.ReportsCtrl, uid, report.ID, []*model.ReportSection{section})
+	return section, nil
 }
 
 // MoveReportSection is the resolver for the moveReportSection field.
@@ -1462,7 +1467,7 @@ func (r *mutationResolver) MoveReportSection(ctx context.Context, reportID int64
 
 // HideReportSection is the resolver for the hideReportSection field.
 func (r *mutationResolver) HideReportSection(ctx context.Context, reportID int64, sectionID int64, hidden bool) (*model.ReportSection, error) {
-	uid, _, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)
+	uid, report, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)
 	if err != nil {
 		return nil, err
 	}
@@ -1470,12 +1475,14 @@ func (r *mutationResolver) HideReportSection(ctx context.Context, reportID int64
 	if err != nil {
 		return nil, err
 	}
-	return converter.ConvertReportSection(*row), nil
+	section := converter.ConvertReportSection(*row)
+	attachAttachments(ctx, r.ReportsCtrl, uid, report.ID, []*model.ReportSection{section})
+	return section, nil
 }
 
 // AddReportSection is the resolver for the addReportSection field.
 func (r *mutationResolver) AddReportSection(ctx context.Context, reportID int64, afterSectionID *int64, parentID *int64, title string) (*model.ReportSection, error) {
-	uid, _, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)
+	uid, report, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)
 	if err != nil {
 		return nil, err
 	}
@@ -1483,7 +1490,9 @@ func (r *mutationResolver) AddReportSection(ctx context.Context, reportID int64,
 	if err != nil {
 		return nil, err
 	}
-	return converter.ConvertReportSection(*row), nil
+	section := converter.ConvertReportSection(*row)
+	attachAttachments(ctx, r.ReportsCtrl, uid, report.ID, []*model.ReportSection{section})
+	return section, nil
 }
 
 // DeleteReportSection is the resolver for the deleteReportSection field.
@@ -1496,6 +1505,32 @@ func (r *mutationResolver) DeleteReportSection(ctx context.Context, reportID int
 		return model.ResultTypeError, err
 	}
 	return model.ResultTypeSuccess, nil
+}
+
+// SetReportSectionAttachments is the resolver for the setReportSectionAttachments field.
+func (r *mutationResolver) SetReportSectionAttachments(ctx context.Context, reportID int64, sectionID int64, attachments []*model.ReportAttachmentInput) ([]*model.ReportAttachment, error) {
+	uid, _, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)
+	if err != nil {
+		return nil, err
+	}
+
+	specs := make([]report.AttachmentSpec, 0, len(attachments))
+	for _, attachment := range attachments {
+		if attachment == nil {
+			continue
+		}
+		specs = append(specs, report.AttachmentSpec{
+			Label: deref(attachment.Label),
+			Path:  attachment.Path,
+			Bytes: int64(derefInt(attachment.Bytes)),
+		})
+	}
+
+	rows, err := r.ReportsCtrl.SetSectionAttachments(ctx, uid, reportID, sectionID, specs)
+	if err != nil {
+		return nil, err
+	}
+	return converter.ConvertReportAttachments(rows), nil
 }
 
 // Providers is the resolver for the providers field.
@@ -2871,10 +2906,8 @@ func (r *queryResolver) ReportSections(ctx context.Context, reportID int64) ([]*
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*model.ReportSection, 0, len(rows))
-	for i := range rows {
-		out = append(out, converter.ConvertReportSection(rows[i]))
-	}
+	out := converter.ConvertReportSections(rows)
+	attachAttachments(ctx, r.ReportsCtrl, uid, report.ID, out)
 	return out, nil
 }
 

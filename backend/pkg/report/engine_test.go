@@ -28,6 +28,9 @@ type fakeQuerier struct {
 	nextSecID int64
 	logs      []database.ReportLog
 
+	attachments []database.ReportSectionAttachment
+	nextAttID   int64
+
 	toolcalls map[int64][]database.Toolcall
 	termlogs  map[int64][]database.Termlog
 	shots     map[int64][]database.Screenshot
@@ -124,6 +127,53 @@ func (q *fakeQuerier) GetUserReports(_ context.Context, userID int64) ([]databas
 	return out, nil
 }
 
+func (q *fakeQuerier) CreateReportSectionAttachment(_ context.Context, arg database.CreateReportSectionAttachmentParams) (database.ReportSectionAttachment, error) {
+	q.nextAttID++
+	row := database.ReportSectionAttachment{
+		ID:        q.nextAttID,
+		ReportID:  arg.ReportID,
+		SectionID: arg.SectionID,
+		Label:     arg.Label,
+		Path:      arg.Path,
+		Bytes:     arg.Bytes,
+		CreatedAt: time.Now(),
+	}
+	q.attachments = append(q.attachments, row)
+	return row, nil
+}
+
+func (q *fakeQuerier) DeleteReportSectionAttachments(_ context.Context, arg database.DeleteReportSectionAttachmentsParams) error {
+	kept := make([]database.ReportSectionAttachment, 0, len(q.attachments))
+	for _, row := range q.attachments {
+		if row.ReportID == arg.ReportID && row.SectionID == arg.SectionID {
+			continue
+		}
+		kept = append(kept, row)
+	}
+	q.attachments = kept
+	return nil
+}
+
+func (q *fakeQuerier) GetReportSectionAttachmentsBySection(_ context.Context, arg database.GetReportSectionAttachmentsBySectionParams) ([]database.ReportSectionAttachment, error) {
+	out := make([]database.ReportSectionAttachment, 0)
+	for _, row := range q.attachments {
+		if row.ReportID == arg.ReportID && row.SectionID == arg.SectionID {
+			out = append(out, row)
+		}
+	}
+	return out, nil
+}
+
+func (q *fakeQuerier) GetReportSectionAttachments(_ context.Context, reportID int64) ([]database.ReportSectionAttachment, error) {
+	out := make([]database.ReportSectionAttachment, 0)
+	for _, row := range q.attachments {
+		if row.ReportID == reportID {
+			out = append(out, row)
+		}
+	}
+	return out, nil
+}
+
 func (q *fakeQuerier) GetReportSections(_ context.Context, _ int64) ([]database.ReportSection, error) {
 	out := make([]database.ReportSection, 0, len(q.sections))
 	for id := int64(1); id <= q.nextSecID; id++ {
@@ -132,6 +182,14 @@ func (q *fakeQuerier) GetReportSections(_ context.Context, _ int64) ([]database.
 		}
 	}
 	return out, nil
+}
+
+func (q *fakeQuerier) GetReportSection(_ context.Context, arg database.GetReportSectionParams) (database.ReportSection, error) {
+	row, ok := q.sections[arg.ID]
+	if !ok {
+		return database.ReportSection{}, fmt.Errorf("section %d not found", arg.ID)
+	}
+	return row, nil
 }
 
 func (q *fakeQuerier) GetReportLogs(_ context.Context, arg database.GetReportLogsParams) ([]database.ReportLog, error) {
@@ -622,4 +680,38 @@ func TestController_ListUserReportsScopesToTheCaller(t *testing.T) {
 	for _, row := range rows {
 		assert.Equal(t, int64(7), row.UserID)
 	}
+}
+
+// SetSectionAttachments replaces a section's attachments wholesale, defaults a
+// blank label to the path's base name and drops blank paths (backlog v2, L6).
+func TestController_SetSectionAttachments(t *testing.T) {
+	q := &fakeQuerier{
+		reports:  map[int64]database.Report{1: {ID: 1, FlowID: 3, UserID: 1}},
+		sections: map[int64]database.ReportSection{10: {ID: 10, ReportID: 1}},
+	}
+	c := &Controller{deps: Deps{DB: q}}
+
+	rows, err := c.SetSectionAttachments(context.Background(), 1, 1, 10, []AttachmentSpec{
+		{Path: "uploads/x.txt", Bytes: 12},
+		{Label: "custom", Path: "/work/y.bin", Bytes: 5},
+	})
+	require.NoError(t, err)
+	require.Len(t, rows, 2)
+	assert.Equal(t, "x.txt", rows[0].Label)
+	assert.Equal(t, "custom", rows[1].Label)
+
+	// A second call replaces the previous set.
+	rows, err = c.SetSectionAttachments(context.Background(), 1, 1, 10, []AttachmentSpec{{Path: "resources/z"}})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Equal(t, "z", rows[0].Label)
+
+	// A blank path is dropped, clearing the section.
+	rows, err = c.SetSectionAttachments(context.Background(), 1, 1, 10, []AttachmentSpec{{Path: "   "}})
+	require.NoError(t, err)
+	assert.Empty(t, rows)
+
+	listed, err := c.ListSectionAttachments(context.Background(), 1, 1, 10)
+	require.NoError(t, err)
+	assert.Empty(t, listed)
 }

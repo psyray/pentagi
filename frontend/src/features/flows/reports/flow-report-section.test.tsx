@@ -11,6 +11,7 @@ import { buildReportOutline } from './report-outline';
 const section = (
     overrides: Partial<ReportSectionFragmentFragment> & { id: string },
 ): ReportSectionFragmentFragment => ({
+    attachments: [],
     content: 'Body text',
     createdAt: '2026-10-08T00:00:00Z',
     durationSeconds: 0,
@@ -37,6 +38,7 @@ const editor = (overrides: Partial<ReportSectionEditor> = {}): ReportSectionEdit
     deleteSection: vi.fn().mockResolvedValue(true),
     moveSection: vi.fn().mockResolvedValue(true),
     saveSection: vi.fn().mockResolvedValue(true),
+    setAttachments: vi.fn().mockResolvedValue(true),
     setSectionHidden: vi.fn().mockResolvedValue(true),
     writeSection: vi.fn().mockResolvedValue(true),
     ...overrides,
@@ -51,6 +53,7 @@ const renderSection = (sections: ReportSectionFragmentFragment[], canEdit = true
             canEdit={canEdit}
             depth={0}
             editor={editorInstance}
+            flowId={null}
             node={outline[0]!}
             sections={sections}
         />,

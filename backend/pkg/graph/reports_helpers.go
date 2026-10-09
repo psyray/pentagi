@@ -5,6 +5,7 @@ import (
 
 	"pentagi/pkg/controller"
 	"pentagi/pkg/database"
+	"pentagi/pkg/database/converter"
 	"pentagi/pkg/graph/model"
 )
 
@@ -71,6 +72,38 @@ func validateReportDelete(
 	reportID int64,
 ) (int64, *database.Report, error) {
 	return validateReportPerm(ctx, reports, reportID, "reports.delete")
+}
+
+// attachAttachments fills the Attachments field of converted sections from one
+// report's attachment rows (backlog v2, L6). The field lives on the generated
+// model and a list needs a single query, grouped here by section id. A nil slice
+// would violate the non-null `[ReportAttachment!]!`, so every section gets at
+// least an empty slice. A load failure degrades to empty lists rather than
+// blanking the document.
+func attachAttachments(
+	ctx context.Context,
+	reports controller.ReportController,
+	uid, reportID int64,
+	sections []*model.ReportSection,
+) {
+	if len(sections) == 0 {
+		return
+	}
+
+	bySection := make(map[int64][]*model.ReportAttachment, len(sections))
+	if rows, err := reports.ListReportAttachments(ctx, uid, reportID); err == nil {
+		for i := range rows {
+			bySection[rows[i].SectionID] = append(bySection[rows[i].SectionID], converter.ConvertReportAttachment(rows[i]))
+		}
+	}
+
+	for _, section := range sections {
+		attachments := bySection[section.ID]
+		if attachments == nil {
+			attachments = []*model.ReportAttachment{}
+		}
+		section.Attachments = attachments
+	}
 }
 
 // deref returns the string value or an empty string.

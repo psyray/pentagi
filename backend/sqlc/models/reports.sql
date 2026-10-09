@@ -359,3 +359,36 @@ INSERT INTO report_logs (
   $5
 )
 RETURNING *;
+
+-- name: GetReportSectionAttachments :many
+-- Every operator attachment of one report, in creation order; the controller
+-- groups them by section for the reader and the archive (backlog v2, L6).
+SELECT * FROM report_section_attachments
+WHERE report_id = $1
+ORDER BY id ASC;
+
+-- name: GetReportSectionAttachmentsBySection :many
+SELECT * FROM report_section_attachments
+WHERE report_id = $1 AND section_id = $2
+ORDER BY id ASC;
+
+-- name: DeleteReportSectionAttachments :exec
+-- The set mutation replaces a section's attachments wholesale.
+DELETE FROM report_section_attachments
+WHERE report_id = $1 AND section_id = $2;
+
+-- name: CreateReportSectionAttachment :one
+INSERT INTO report_section_attachments (
+  report_id,
+  section_id,
+  label,
+  path,
+  bytes
+) VALUES (
+  $1,
+  $2,
+  $3,
+  $4,
+  $5
+)
+RETURNING *;

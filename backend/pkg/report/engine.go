@@ -1594,5 +1594,16 @@ func (w *worker) publishSection(sectionID int64) {
 		w.logger.WithError(err).Warn("failed to reload section for publish")
 		return
 	}
-	w.pub.ReportSectionUpdated(w.stateCtx, converter.ConvertReportSection(row))
+
+	// Operator attachments travel with the frame: a nil list would violate the
+	// non-null `[ReportAttachment!]!` field (backlog v2, L6).
+	section := converter.ConvertReportSection(row)
+	if attachments, err := w.deps.DB.GetReportSectionAttachmentsBySection(w.stateCtx, database.GetReportSectionAttachmentsBySectionParams{
+		ReportID: w.report.ID, SectionID: sectionID,
+	}); err == nil {
+		section.Attachments = converter.ConvertReportAttachments(attachments)
+	} else {
+		section.Attachments = converter.ConvertReportAttachments(nil)
+	}
+	w.pub.ReportSectionUpdated(w.stateCtx, section)
 }

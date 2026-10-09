@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"path"
 	"strings"
 	"sync"
 	"time"
@@ -762,6 +763,98 @@ func (c *Controller) SetReportSectionContent(
 	return &updated, nil
 }
 
+// AttachmentSpec is one operator attachment to set on a section (backlog v2, L6).
+type AttachmentSpec struct {
+	Label string
+	Path  string
+	Bytes int64
+}
+
+// SetSectionAttachments replaces a section's operator attachments wholesale. The
+// attachments do not feed the generation, so they are readable/editable whatever
+// the run status (like the branding). The section must belong to the report.
+func (c *Controller) SetSectionAttachments(
+	ctx context.Context, userID, reportID, sectionID int64, attachments []AttachmentSpec,
+) ([]database.ReportSectionAttachment, error) {
+	if _, err := c.GetReport(ctx, userID, reportID); err != nil {
+		return nil, err
+	}
+	if _, err := c.deps.DB.GetReportSection(ctx, database.GetReportSectionParams{
+		ID: sectionID, ReportID: reportID,
+	}); err != nil {
+		return nil, err
+	}
+
+	cleaned := make([]AttachmentSpec, 0, len(attachments))
+	for _, att := range attachments {
+		att.Path = strings.TrimSpace(att.Path)
+		if att.Path == "" {
+			continue
+		}
+		att.Label = strings.TrimSpace(att.Label)
+		if att.Label == "" {
+			att.Label = path.Base(att.Path)
+		}
+		if att.Bytes < 0 {
+			att.Bytes = 0
+		}
+		cleaned = append(cleaned, att)
+	}
+
+	if err := c.deps.DB.DeleteReportSectionAttachments(ctx, database.DeleteReportSectionAttachmentsParams{
+		ReportID: reportID, SectionID: sectionID,
+	}); err != nil {
+		return nil, fmt.Errorf("failed to clear section %d attachments: %w", sectionID, err)
+	}
+
+	out := make([]database.ReportSectionAttachment, 0, len(cleaned))
+	for _, att := range cleaned {
+		row, err := c.deps.DB.CreateReportSectionAttachment(ctx, database.CreateReportSectionAttachmentParams{
+			ReportID:  reportID,
+			SectionID: sectionID,
+			Label:     att.Label,
+			Path:      att.Path,
+			Bytes:     att.Bytes,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to add section %d attachment: %w", sectionID, err)
+		}
+		out = append(out, row)
+	}
+
+	return out, nil
+}
+
+// ListSectionAttachments returns one section's operator attachments, ownership checked.
+func (c *Controller) ListSectionAttachments(
+	ctx context.Context, userID, reportID, sectionID int64,
+) ([]database.ReportSectionAttachment, error) {
+	if _, err := c.GetReport(ctx, userID, reportID); err != nil {
+		return nil, err
+	}
+	rows, err := c.deps.DB.GetReportSectionAttachmentsBySection(ctx, database.GetReportSectionAttachmentsBySectionParams{
+		ReportID: reportID, SectionID: sectionID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+// ListReportAttachments returns every operator attachment of a report (the archive).
+func (c *Controller) ListReportAttachments(
+	ctx context.Context, userID, reportID int64,
+) ([]database.ReportSectionAttachment, error) {
+	if _, err := c.GetReport(ctx, userID, reportID); err != nil {
+		return nil, err
+	}
+	rows, err := c.deps.DB.GetReportSectionAttachments(ctx, reportID)
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
 // HideReportSection toggles the editorial hidden flag (document + export).
 func (c *Controller) HideReportSection(
 	ctx context.Context, userID, reportID, sectionID int64, hidden bool,
@@ -1081,7 +1174,17 @@ func (c *Controller) publishAll(ctx context.Context, userID, reportID int64, sec
 		if row, err := c.deps.DB.GetReportSection(ctx, database.GetReportSectionParams{
 			ID: sectionID, ReportID: reportID,
 		}); err == nil {
-			pub.ReportSectionUpdated(ctx, converter.ConvertReportSection(row))
+			// Fill the section's operator attachments so a subscription frame never
+			// carries a nil list for the non-null `[ReportAttachment!]!` field (L6).
+			section := converter.ConvertReportSection(row)
+			if rows, err := c.deps.DB.GetReportSectionAttachmentsBySection(ctx, database.GetReportSectionAttachmentsBySectionParams{
+				ReportID: reportID, SectionID: row.ID,
+			}); err == nil {
+				section.Attachments = converter.ConvertReportAttachments(rows)
+			} else {
+				section.Attachments = converter.ConvertReportAttachments(nil)
+			}
+			pub.ReportSectionUpdated(ctx, section)
 		}
 	}
 	pub.ReportUpdated(ctx, converter.ConvertReport(report))

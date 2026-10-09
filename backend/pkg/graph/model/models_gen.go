@@ -492,6 +492,20 @@ type Report struct {
 	StartedAt              *time.Time       `json:"startedAt,omitempty"`
 }
 
+type ReportAttachment struct {
+	ID        int64     `json:"id"`
+	Label     string    `json:"label"`
+	Path      string    `json:"path"`
+	Bytes     int       `json:"bytes"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type ReportAttachmentInput struct {
+	Label *string `json:"label,omitempty"`
+	Path  string  `json:"path"`
+	Bytes *int    `json:"bytes,omitempty"`
+}
+
 type ReportBranding struct {
 	Title            *string `json:"title,omitempty"`
 	Subtitle         *string `json:"subtitle,omitempty"`
@@ -544,6 +558,7 @@ type ReportSection struct {
 	DurationSeconds float64                 `json:"durationSeconds"`
 	CreatedAt       time.Time               `json:"createdAt"`
 	UpdatedAt       time.Time               `json:"updatedAt"`
+	Attachments     []*ReportAttachment     `json:"attachments"`
 }
 
 type ReportSectionInput struct {

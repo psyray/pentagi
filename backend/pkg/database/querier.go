@@ -40,6 +40,7 @@ type Querier interface {
 	CreateReport(ctx context.Context, arg CreateReportParams) (Report, error)
 	CreateReportLog(ctx context.Context, arg CreateReportLogParams) (ReportLog, error)
 	CreateReportSection(ctx context.Context, arg CreateReportSectionParams) (ReportSection, error)
+	CreateReportSectionAttachment(ctx context.Context, arg CreateReportSectionAttachmentParams) (ReportSectionAttachment, error)
 	CreateResultAssistantLog(ctx context.Context, arg CreateResultAssistantLogParams) (Assistantlog, error)
 	CreateResultMsgLog(ctx context.Context, arg CreateResultMsgLogParams) (Msglog, error)
 	CreateScreenshot(ctx context.Context, arg CreateScreenshotParams) (Screenshot, error)
@@ -69,6 +70,8 @@ type Querier interface {
 	DeleteProvider(ctx context.Context, id int64) (Provider, error)
 	DeleteReport(ctx context.Context, arg DeleteReportParams) error
 	DeleteReportSection(ctx context.Context, arg DeleteReportSectionParams) error
+	// The set mutation replaces a section's attachments wholesale.
+	DeleteReportSectionAttachments(ctx context.Context, arg DeleteReportSectionAttachmentsParams) error
 	DeleteSubtask(ctx context.Context, id int64) error
 	DeleteSubtasks(ctx context.Context, ids []int64) error
 	DeleteUser(ctx context.Context, id int64) error
@@ -162,6 +165,10 @@ type Querier interface {
 	GetReportByID(ctx context.Context, id int64) (Report, error)
 	GetReportLogs(ctx context.Context, arg GetReportLogsParams) ([]ReportLog, error)
 	GetReportSection(ctx context.Context, arg GetReportSectionParams) (ReportSection, error)
+	// Every operator attachment of one report, in creation order; the controller
+	// groups them by section for the reader and the archive (backlog v2, L6).
+	GetReportSectionAttachments(ctx context.Context, reportID int64) ([]ReportSectionAttachment, error)
+	GetReportSectionAttachmentsBySection(ctx context.Context, arg GetReportSectionAttachmentsBySectionParams) ([]ReportSectionAttachment, error)
 	GetReportSections(ctx context.Context, reportID int64) ([]ReportSection, error)
 	GetRole(ctx context.Context, id int64) (GetRoleRow, error)
 	GetRoleByName(ctx context.Context, name string) (GetRoleByNameRow, error)

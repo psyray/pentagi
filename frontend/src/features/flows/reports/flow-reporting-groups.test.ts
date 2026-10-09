@@ -21,6 +21,7 @@ const log = (overrides: Partial<ReportLogFragmentFragment> & { id: string }): Re
 });
 
 const section = (id: string, title: string): ReportSectionFragmentFragment => ({
+    attachments: [],
     content: '',
     createdAt: '2026-10-08T00:00:00Z',
     durationSeconds: 0,
