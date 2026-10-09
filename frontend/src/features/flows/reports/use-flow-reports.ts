@@ -10,6 +10,7 @@ import {
     ReportDeletedDocument,
     ReportUpdatedDocument,
     ReportVisionDocument,
+    ResumeReportDocument,
 } from '@/graphql/types';
 import { type ReportFragmentFragment } from '@/graphql/types';
 import { Log } from '@/lib/log';
@@ -149,6 +150,7 @@ export function useFlowReports() {
 
     const [createMutation] = useMutation(CreateReportDocument);
     const [deleteMutation] = useMutation(DeleteReportDocument);
+    const [resumeMutation] = useMutation(ResumeReportDocument);
 
     // Probed before creating a report: warns when the chosen model cannot read
     // images, so screenshots would not be analysed (plan § 6.10).
@@ -218,6 +220,31 @@ export function useFlowReports() {
         [deleteMutation, dropReport],
     );
 
+    // resumeReport re-queues a report's unwritten sections and relaunches the
+    // run; contentBudgetSeconds grants fresh content time (plan backlog v2, L1).
+    const resumeReport = useCallback(
+        async (report: ReportProgress, contentBudgetSeconds?: number): Promise<boolean> => {
+            try {
+                const response = await resumeMutation({
+                    variables: { contentBudgetSeconds, reportId: report.id },
+                });
+                const updated = response.data?.resumeReport as ReportProgress | undefined;
+
+                if (updated) {
+                    mergeReport(updated);
+                }
+
+                return true;
+            } catch (error) {
+                Log.error('Failed to resume report:', error);
+                toast.error('Failed to resume the report');
+
+                return false;
+            }
+        },
+        [mergeReport, resumeMutation],
+    );
+
     return {
         checkVision,
         createReport,
@@ -225,5 +252,6 @@ export function useFlowReports() {
         loading: loading,
         refetch,
         reports,
+        resumeReport,
     };
 }

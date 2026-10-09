@@ -1139,6 +1139,11 @@ type Mutation {
   putReportNote(reportId: ID!, note: String!): ResultType!
   stopReport(reportId: ID!): ResultType!
   deleteReport(reportId: ID!): ResultType!
+  # resumeReport re-queues the unwritten sections and relaunches a finished,
+  # failed or canceled report; contentBudgetSeconds grants fresh content time.
+  resumeReport(reportId: ID!, contentBudgetSeconds: Int): Report!
+  # writeReportSection runs the writer on a single section.
+  writeReportSection(reportId: ID!, sectionId: ID!): ReportSection!
   updateReportSection(reportId: ID!, sectionId: ID!, input: ReportSectionInput!): ReportSection!
   setReportSectionContent(reportId: ID!, sectionId: ID!, content: String!): ReportSection!
   moveReportSection(reportId: ID!, sectionId: ID!, direction: SectionDirection!): ResultType!

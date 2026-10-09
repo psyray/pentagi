@@ -278,6 +278,9 @@ type Querier interface {
 	ListFlowKnowledgeDocuments(ctx context.Context, flowID sql.NullString) ([]ListFlowKnowledgeDocumentsRow, error)
 	// List all non-memory knowledge documents owned by a specific user (user-scoped view).
 	ListUserKnowledgeDocuments(ctx context.Context, userID sql.NullString) ([]ListUserKnowledgeDocumentsRow, error)
+	// A resume restarts the run cleanly: the previous finished_at and error must
+	// not linger while the worker is generating again.
+	ResetReportForResume(ctx context.Context, arg ResetReportForResumeParams) (Report, error)
 	SaveAssistantLog(ctx context.Context, arg SaveAssistantLogParams) error
 	SaveAssistantLogContent(ctx context.Context, arg SaveAssistantLogContentParams) error
 	// Vector similarity search over all knowledge documents (admin view, no user filter).
@@ -296,12 +299,15 @@ type Querier interface {
 	SearchUserKnowledgeDocuments(ctx context.Context, arg SearchUserKnowledgeDocumentsParams) ([]SearchUserKnowledgeDocumentsRow, error)
 	SetReportBrandingLogo(ctx context.Context, arg SetReportBrandingLogoParams) error
 	SetReportBrandingText(ctx context.Context, arg SetReportBrandingTextParams) (Report, error)
+	// Used by resumeReport when the operator grants fresh content seconds.
+	SetReportContentBudget(ctx context.Context, arg SetReportContentBudgetParams) (Report, error)
 	SetReportEstimate(ctx context.Context, arg SetReportEstimateParams) (Report, error)
 	SetReportLabels(ctx context.Context, arg SetReportLabelsParams) (Report, error)
 	SetReportPlan(ctx context.Context, arg SetReportPlanParams) (Report, error)
 	SetReportSectionEvidence(ctx context.Context, arg SetReportSectionEvidenceParams) (ReportSection, error)
 	SetReportSectionHidden(ctx context.Context, arg SetReportSectionHiddenParams) (ReportSection, error)
 	SetReportSectionPosition(ctx context.Context, arg SetReportSectionPositionParams) (ReportSection, error)
+	SetReportSectionRegenRequested(ctx context.Context, arg SetReportSectionRegenRequestedParams) (ReportSection, error)
 	SetReportSectionSources(ctx context.Context, arg SetReportSectionSourcesParams) (ReportSection, error)
 	SetReportSectionStatus(ctx context.Context, arg SetReportSectionStatusParams) (ReportSection, error)
 	SetReportSectionTitle(ctx context.Context, arg SetReportSectionTitleParams) (ReportSection, error)

@@ -23,7 +23,7 @@ interface FlowReportsProps {
 }
 
 function FlowReports({ className }: FlowReportsProps) {
-    const { checkVision, createReport, deleteReport, loading, reports } = useFlowReports();
+    const { checkVision, createReport, deleteReport, loading, reports, resumeReport } = useFlowReports();
     const permissions = useReportPermissions();
     const { flowId } = useFlow();
     const navigate = useNavigate();
@@ -121,10 +121,12 @@ function FlowReports({ className }: FlowReportsProps) {
                         {reports.map((report) => (
                             <FlowReportCard
                                 canDelete={permissions.canDelete}
+                                canEdit={permissions.canEdit}
                                 key={report.id}
                                 onDelete={deleteReport}
                                 onDownload={handleDownload}
                                 onOpen={handleOpen}
+                                onResume={resumeReport}
                                 report={report}
                             />
                         ))}

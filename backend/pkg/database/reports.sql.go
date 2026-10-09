@@ -20,7 +20,7 @@ SET
   warnings = array_append(COALESCE(warnings, '{}'), $2),
   updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs
+RETURNING id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs, regen_requested
 `
 
 type AppendReportSectionWarningParams struct {
@@ -52,6 +52,7 @@ func (q *Queries) AppendReportSectionWarning(ctx context.Context, arg AppendRepo
 		&i.UpdatedAt,
 		pq.Array(&i.SourceSubtaskIds),
 		&i.EvidenceRefs,
+		&i.RegenRequested,
 	)
 	return i, err
 }
@@ -245,7 +246,7 @@ INSERT INTO report_sections (
   $6,
   $7
 )
-RETURNING id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs
+RETURNING id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs, regen_requested
 `
 
 type CreateReportSectionParams struct {
@@ -290,6 +291,7 @@ func (q *Queries) CreateReportSection(ctx context.Context, arg CreateReportSecti
 		&i.UpdatedAt,
 		pq.Array(&i.SourceSubtaskIds),
 		&i.EvidenceRefs,
+		&i.RegenRequested,
 	)
 	return i, err
 }
@@ -729,7 +731,7 @@ func (q *Queries) GetReportLogs(ctx context.Context, arg GetReportLogsParams) ([
 }
 
 const getReportSection = `-- name: GetReportSection :one
-SELECT id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs FROM report_sections
+SELECT id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs, regen_requested FROM report_sections
 WHERE id = $1 AND report_id = $2 LIMIT 1
 `
 
@@ -762,12 +764,13 @@ func (q *Queries) GetReportSection(ctx context.Context, arg GetReportSectionPara
 		&i.UpdatedAt,
 		pq.Array(&i.SourceSubtaskIds),
 		&i.EvidenceRefs,
+		&i.RegenRequested,
 	)
 	return i, err
 }
 
 const getReportSections = `-- name: GetReportSections :many
-SELECT id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs FROM report_sections
+SELECT id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs, regen_requested FROM report_sections
 WHERE report_id = $1
 ORDER BY position ASC, id ASC
 `
@@ -802,6 +805,7 @@ func (q *Queries) GetReportSections(ctx context.Context, reportID int64) ([]Repo
 			&i.UpdatedAt,
 			pq.Array(&i.SourceSubtaskIds),
 			&i.EvidenceRefs,
+			&i.RegenRequested,
 		); err != nil {
 			return nil, err
 		}
@@ -814,6 +818,61 @@ func (q *Queries) GetReportSections(ctx context.Context, reportID int64) ([]Repo
 		return nil, err
 	}
 	return items, nil
+}
+
+const resetReportForResume = `-- name: ResetReportForResume :one
+UPDATE reports
+SET
+  status = $2,
+  finished_at = NULL,
+  error = NULL,
+  updated_at = CURRENT_TIMESTAMP
+WHERE id = $1
+RETURNING id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer
+`
+
+type ResetReportForResumeParams struct {
+	ID     int64  `json:"id"`
+	Status string `json:"status"`
+}
+
+// A resume restarts the run cleanly: the previous finished_at and error must
+// not linger while the worker is generating again.
+func (q *Queries) ResetReportForResume(ctx context.Context, arg ResetReportForResumeParams) (Report, error) {
+	row := q.db.QueryRowContext(ctx, resetReportForResume, arg.ID, arg.Status)
+	var i Report
+	err := row.Scan(
+		&i.ID,
+		&i.FlowID,
+		&i.UserID,
+		&i.Status,
+		&i.Title,
+		&i.TemplateKey,
+		&i.TemplateLabel,
+		&i.ProviderName,
+		&i.ProviderType,
+		&i.Language,
+		&i.AdditionalInstructions,
+		&i.ControlBudgetSeconds,
+		&i.ContentBudgetSeconds,
+		&i.ControlUsedSeconds,
+		&i.ContentUsedSeconds,
+		&i.SectionsEstimate,
+		&i.SectionsTotal,
+		&i.SectionsDone,
+		&i.TokensIn,
+		&i.TokensOut,
+		&i.Error,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.FinishedAt,
+		&i.Labels,
+		&i.BrandingTitle,
+		&i.BrandingSubtitle,
+		&i.BrandingHeader,
+		&i.BrandingFooter,
+	)
+	return i, err
 }
 
 const setReportBrandingLogo = `-- name: SetReportBrandingLogo :exec
@@ -871,6 +930,58 @@ func (q *Queries) SetReportBrandingText(ctx context.Context, arg SetReportBrandi
 		arg.BrandingHeader,
 		arg.BrandingFooter,
 	)
+	var i Report
+	err := row.Scan(
+		&i.ID,
+		&i.FlowID,
+		&i.UserID,
+		&i.Status,
+		&i.Title,
+		&i.TemplateKey,
+		&i.TemplateLabel,
+		&i.ProviderName,
+		&i.ProviderType,
+		&i.Language,
+		&i.AdditionalInstructions,
+		&i.ControlBudgetSeconds,
+		&i.ContentBudgetSeconds,
+		&i.ControlUsedSeconds,
+		&i.ContentUsedSeconds,
+		&i.SectionsEstimate,
+		&i.SectionsTotal,
+		&i.SectionsDone,
+		&i.TokensIn,
+		&i.TokensOut,
+		&i.Error,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.FinishedAt,
+		&i.Labels,
+		&i.BrandingTitle,
+		&i.BrandingSubtitle,
+		&i.BrandingHeader,
+		&i.BrandingFooter,
+	)
+	return i, err
+}
+
+const setReportContentBudget = `-- name: SetReportContentBudget :one
+UPDATE reports
+SET
+  content_budget_seconds = $2,
+  updated_at = CURRENT_TIMESTAMP
+WHERE id = $1
+RETURNING id, flow_id, user_id, status, title, template_key, template_label, provider_name, provider_type, language, additional_instructions, control_budget_seconds, content_budget_seconds, control_used_seconds, content_used_seconds, sections_estimate, sections_total, sections_done, tokens_in, tokens_out, error, created_at, updated_at, finished_at, labels, branding_title, branding_subtitle, branding_header, branding_footer
+`
+
+type SetReportContentBudgetParams struct {
+	ID                   int64 `json:"id"`
+	ContentBudgetSeconds int32 `json:"content_budget_seconds"`
+}
+
+// Used by resumeReport when the operator grants fresh content seconds.
+func (q *Queries) SetReportContentBudget(ctx context.Context, arg SetReportContentBudgetParams) (Report, error) {
+	row := q.db.QueryRowContext(ctx, setReportContentBudget, arg.ID, arg.ContentBudgetSeconds)
 	var i Report
 	err := row.Scan(
 		&i.ID,
@@ -1077,7 +1188,7 @@ SET
   evidence_refs = $2,
   updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs
+RETURNING id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs, regen_requested
 `
 
 type SetReportSectionEvidenceParams struct {
@@ -1109,6 +1220,7 @@ func (q *Queries) SetReportSectionEvidence(ctx context.Context, arg SetReportSec
 		&i.UpdatedAt,
 		pq.Array(&i.SourceSubtaskIds),
 		&i.EvidenceRefs,
+		&i.RegenRequested,
 	)
 	return i, err
 }
@@ -1119,7 +1231,7 @@ SET
   hidden = $2,
   updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs
+RETURNING id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs, regen_requested
 `
 
 type SetReportSectionHiddenParams struct {
@@ -1151,6 +1263,7 @@ func (q *Queries) SetReportSectionHidden(ctx context.Context, arg SetReportSecti
 		&i.UpdatedAt,
 		pq.Array(&i.SourceSubtaskIds),
 		&i.EvidenceRefs,
+		&i.RegenRequested,
 	)
 	return i, err
 }
@@ -1161,7 +1274,7 @@ SET
   position = $2,
   updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs
+RETURNING id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs, regen_requested
 `
 
 type SetReportSectionPositionParams struct {
@@ -1193,6 +1306,50 @@ func (q *Queries) SetReportSectionPosition(ctx context.Context, arg SetReportSec
 		&i.UpdatedAt,
 		pq.Array(&i.SourceSubtaskIds),
 		&i.EvidenceRefs,
+		&i.RegenRequested,
+	)
+	return i, err
+}
+
+const setReportSectionRegenRequested = `-- name: SetReportSectionRegenRequested :one
+UPDATE report_sections
+SET
+  regen_requested = $2,
+  updated_at = CURRENT_TIMESTAMP
+WHERE id = $1
+RETURNING id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs, regen_requested
+`
+
+type SetReportSectionRegenRequestedParams struct {
+	ID             int64 `json:"id"`
+	RegenRequested bool  `json:"regen_requested"`
+}
+
+func (q *Queries) SetReportSectionRegenRequested(ctx context.Context, arg SetReportSectionRegenRequestedParams) (ReportSection, error) {
+	row := q.db.QueryRowContext(ctx, setReportSectionRegenRequested, arg.ID, arg.RegenRequested)
+	var i ReportSection
+	err := row.Scan(
+		&i.ID,
+		&i.ReportID,
+		&i.ParentID,
+		&i.Position,
+		&i.Key,
+		&i.Kind,
+		&i.Title,
+		&i.Status,
+		&i.Content,
+		&i.Instructions,
+		&i.Variables,
+		pq.Array(&i.Warnings),
+		&i.Hidden,
+		&i.TokensIn,
+		&i.TokensOut,
+		&i.DurationSeconds,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		pq.Array(&i.SourceSubtaskIds),
+		&i.EvidenceRefs,
+		&i.RegenRequested,
 	)
 	return i, err
 }
@@ -1203,7 +1360,7 @@ SET
   source_subtask_ids = $2,
   updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs
+RETURNING id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs, regen_requested
 `
 
 type SetReportSectionSourcesParams struct {
@@ -1235,6 +1392,7 @@ func (q *Queries) SetReportSectionSources(ctx context.Context, arg SetReportSect
 		&i.UpdatedAt,
 		pq.Array(&i.SourceSubtaskIds),
 		&i.EvidenceRefs,
+		&i.RegenRequested,
 	)
 	return i, err
 }
@@ -1245,7 +1403,7 @@ SET
   status = $2,
   updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs
+RETURNING id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs, regen_requested
 `
 
 type SetReportSectionStatusParams struct {
@@ -1277,6 +1435,7 @@ func (q *Queries) SetReportSectionStatus(ctx context.Context, arg SetReportSecti
 		&i.UpdatedAt,
 		pq.Array(&i.SourceSubtaskIds),
 		&i.EvidenceRefs,
+		&i.RegenRequested,
 	)
 	return i, err
 }
@@ -1287,7 +1446,7 @@ SET
   title = $2,
   updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs
+RETURNING id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs, regen_requested
 `
 
 type SetReportSectionTitleParams struct {
@@ -1319,6 +1478,7 @@ func (q *Queries) SetReportSectionTitle(ctx context.Context, arg SetReportSectio
 		&i.UpdatedAt,
 		pq.Array(&i.SourceSubtaskIds),
 		&i.EvidenceRefs,
+		&i.RegenRequested,
 	)
 	return i, err
 }
@@ -1419,7 +1579,7 @@ SET
   duration_seconds = $6,
   updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs
+RETURNING id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs, regen_requested
 `
 
 type UpdateReportSectionContentParams struct {
@@ -1462,6 +1622,7 @@ func (q *Queries) UpdateReportSectionContent(ctx context.Context, arg UpdateRepo
 		&i.UpdatedAt,
 		pq.Array(&i.SourceSubtaskIds),
 		&i.EvidenceRefs,
+		&i.RegenRequested,
 	)
 	return i, err
 }
@@ -1475,7 +1636,7 @@ SET
   warnings = $5,
   updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs
+RETURNING id, report_id, parent_id, position, key, kind, title, status, content, instructions, variables, warnings, hidden, tokens_in, tokens_out, duration_seconds, created_at, updated_at, source_subtask_ids, evidence_refs, regen_requested
 `
 
 type UpdateReportSectionFieldsParams struct {
@@ -1516,6 +1677,7 @@ func (q *Queries) UpdateReportSectionFields(ctx context.Context, arg UpdateRepor
 		&i.UpdatedAt,
 		pq.Array(&i.SourceSubtaskIds),
 		&i.EvidenceRefs,
+		&i.RegenRequested,
 	)
 	return i, err
 }

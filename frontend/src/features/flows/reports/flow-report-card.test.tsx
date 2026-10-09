@@ -40,6 +40,7 @@ const card = (overrides: Partial<ReportProgress> = {}, onDelete = vi.fn(() => Pr
             onDelete={onDelete}
             onDownload={() => {}}
             onOpen={() => {}}
+            onResume={() => {}}
             report={{ ...base, ...overrides }}
         />,
     );

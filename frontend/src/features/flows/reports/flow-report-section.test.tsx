@@ -38,14 +38,16 @@ const editor = (overrides: Partial<ReportSectionEditor> = {}): ReportSectionEdit
     moveSection: vi.fn().mockResolvedValue(true),
     saveSection: vi.fn().mockResolvedValue(true),
     setSectionHidden: vi.fn().mockResolvedValue(true),
+    writeSection: vi.fn().mockResolvedValue(true),
     ...overrides,
 });
 
-const renderSection = (sections: ReportSectionFragmentFragment[], canEdit = true) => {
+const renderSection = (sections: ReportSectionFragmentFragment[], canEdit = true, active = false) => {
     const outline = buildReportOutline(sections);
 
     return render(
         <FlowReportSection
+            active={active}
             canEdit={canEdit}
             depth={0}
             editor={editorInstance}
@@ -78,11 +80,30 @@ describe('FlowReportSection', () => {
         expect(screen.getByRole('button', { name: 'Show section' })).toBeInTheDocument();
     });
 
-    it('renders no action while the report is generating', () => {
+    it('renders no action without the edit right', () => {
         editorInstance = editor();
         renderSection([section({ id: '1' })], false);
 
         expect(screen.queryByRole('button', { name: 'Edit section' })).not.toBeInTheDocument();
+    });
+
+    it('keeps the edit affordance but disables structural actions while generating', () => {
+        editorInstance = editor();
+        renderSection([section({ id: '1' })], true, true);
+
+        expect(screen.getByRole('button', { name: 'Edit section' })).toBeEnabled();
+        expect(screen.getByRole('button', { name: 'Move section up' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Add section' })).toBeDisabled();
+        expect(screen.queryByRole('button', { name: 'Write section' })).not.toBeInTheDocument();
+    });
+
+    it('writes a section through the editor', () => {
+        editorInstance = editor();
+        renderSection([section({ id: '1' })]);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Write section' }));
+
+        expect(editorInstance.writeSection).toHaveBeenCalledWith('1');
     });
 
     it('opens the inline editor on edit and closes it on cancel', () => {

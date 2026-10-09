@@ -10,6 +10,7 @@ import {
     ReportSectionsDocument,
     ReportSectionUpdatedDocument,
     ReportUpdatedDocument,
+    ResumeReportDocument,
 } from '@/graphql/types';
 import { Log } from '@/lib/log';
 
@@ -35,6 +36,7 @@ export function useFlowReportDocument() {
     const client = useApolloClient();
     const [downloading, setDownloading] = useState(false);
     const [deleteMutation] = useMutation(DeleteReportDocument);
+    const [resumeMutation] = useMutation(ResumeReportDocument);
 
     const reportsQuery = useQuery(FlowReportsDocument, {
         fetchPolicy: 'cache-and-network',
@@ -126,6 +128,26 @@ export function useFlowReportDocument() {
         }
     }, [deleteMutation, reportId]);
 
+    const resume = useCallback(
+        async (contentBudgetSeconds?: number): Promise<boolean> => {
+            if (!reportId) {
+                return false;
+            }
+
+            try {
+                await resumeMutation({ variables: { contentBudgetSeconds, reportId } });
+
+                return true;
+            } catch (error) {
+                Log.error('Failed to resume the report:', error);
+                toast.error('Failed to resume the report');
+
+                return false;
+            }
+        },
+        [reportId, resumeMutation],
+    );
+
     return {
         download,
         downloading,
@@ -133,6 +155,7 @@ export function useFlowReportDocument() {
         remove,
         report,
         reportId: reportId ?? '',
+        resume,
         sections,
     };
 }

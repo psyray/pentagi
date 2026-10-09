@@ -4,6 +4,7 @@ import {
     CircleSlash,
     Download,
     ExternalLink,
+    RotateCcw,
     Trash2,
     TrendingUp,
     XCircle,
@@ -20,7 +21,7 @@ import { cn } from '@/lib/utils';
 import type { ReportProgress } from './use-flow-reports';
 
 import FlowReportSections from './flow-report-sections';
-import { formatDuration, formatTokens, isReportActive } from './report-format';
+import { formatDuration, formatTokens, isReportActive, isReportResumable } from './report-format';
 
 const TICK_INTERVAL_MS = 15_000;
 
@@ -40,13 +41,23 @@ const statusIconClass = (report: ReportProgress): string => {
 
 interface FlowReportCardProps {
     canDelete?: boolean;
+    canEdit?: boolean;
     onDelete: (report: ReportProgress) => Promise<boolean> | void;
     onDownload: (report: ReportProgress) => void;
     onOpen: (report: ReportProgress) => void;
+    onResume: (report: ReportProgress) => Promise<boolean> | void;
     report: ReportProgress;
 }
 
-function FlowReportCard({ canDelete = true, onDelete, onDownload, onOpen, report }: FlowReportCardProps) {
+function FlowReportCard({
+    canDelete = true,
+    canEdit = true,
+    onDelete,
+    onDownload,
+    onOpen,
+    onResume,
+    report,
+}: FlowReportCardProps) {
     const active = isRunActive(report);
     const [now, setNow] = useState(() => Date.now());
     const [expanded, setExpanded] = useState(false);
@@ -130,6 +141,19 @@ function FlowReportCard({ canDelete = true, onDelete, onDownload, onOpen, report
                     >
                         <Download />
                     </Button>
+                    {canEdit && isReportResumable(report) && (
+                        <Button
+                            aria-label="Resume report"
+                            onClick={() => {
+                                void onResume(report);
+                            }}
+                            size="icon"
+                            title="Resume the report"
+                            variant="ghost"
+                        >
+                            <RotateCcw />
+                        </Button>
+                    )}
                     {canDelete && (
                         <Button
                             aria-label="Delete report"
