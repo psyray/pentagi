@@ -1,7 +1,10 @@
-import { useCallback, useMemo } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Trash2 } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'sonner';
 
 import { AppHeader, AppHeaderActions, AppHeaderContent } from '@/components/layouts/app/app-header';
+import ConfirmationDialog from '@/components/shared/confirmation-dialog';
 import {
     Breadcrumb,
     BreadcrumbItem,
@@ -10,6 +13,7 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
+import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { ReportSectionStatusType } from '@/graphql/types';
 import { routes } from '@/lib/routes';
@@ -26,8 +30,21 @@ import { useFlowReportEditor } from './use-flow-report-editor';
 
 function FlowReportPage() {
     const { flowId } = useParams<{ flowId: string }>();
-    const { download, downloading, loading, report, reportId, sections } = useFlowReportDocument();
+    const navigate = useNavigate();
+    const { download, downloading, loading, remove, report, reportId, sections } = useFlowReportDocument();
     const editor = useFlowReportEditor(reportId || null);
+    const [deleteOpen, setDeleteOpen] = useState(false);
+
+    const handleSelectSection = useCallback((sectionId: string) => {
+        document.getElementById(`report-section-${sectionId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, []);
+
+    const handleDelete = useCallback(async () => {
+        if (await remove()) {
+            toast.success('Report deleted');
+            void navigate(flowId ? routes.flow(flowId) : routes.flows);
+        }
+    }, [flowId, navigate, remove]);
 
     const outline = useMemo(() => buildReportOutline(sections), [sections]);
     const flat = useMemo(() => flattenReportOutline(outline), [outline]);
@@ -36,10 +53,6 @@ function FlowReportPage() {
         () => flat.find((node) => node.section.status === ReportSectionStatusType.Writing)?.section.id ?? null,
         [flat],
     );
-
-    const handleSelectSection = useCallback((sectionId: string) => {
-        document.getElementById(`report-section-${sectionId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, []);
 
     const progress =
         report && report.sectionsTotal > 0
@@ -80,6 +93,17 @@ function FlowReportPage() {
                         downloading={downloading}
                         onDownload={download}
                     />
+                    <Button
+                        aria-label="Delete report"
+                        disabled={!report}
+                        onClick={() => setDeleteOpen(true)}
+                        size="sm"
+                        title="Delete report"
+                        variant="outline"
+                    >
+                        <Trash2 className="size-4" />
+                        Delete
+                    </Button>
                 </AppHeaderActions>
             </AppHeader>
 
@@ -158,6 +182,21 @@ function FlowReportPage() {
                     </div>
                 </div>
             )}
+
+            <ConfirmationDialog
+                confirmText="Delete"
+                description={
+                    active
+                        ? `Delete "${report?.title || 'this report'}"? The run is stopped and the document, its sections and its logs are removed for good.`
+                        : `Delete "${report?.title || 'this report'}"? The document, its sections and its logs are removed for good.`
+                }
+                handleConfirm={handleDelete}
+                handleOpenChange={setDeleteOpen}
+                isOpen={deleteOpen}
+                itemName={report?.title || 'this report'}
+                itemType="report"
+                title="Delete report"
+            />
         </>
     );
 }
