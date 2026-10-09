@@ -1,5 +1,6 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
 
 import { ProviderType, ReportStatusType } from '@/graphql/types';
 
@@ -33,9 +34,10 @@ const base: ReportProgress = {
     userId: '1',
 };
 
-const card = (overrides: Partial<ReportProgress> = {}) =>
+const card = (overrides: Partial<ReportProgress> = {}, onDelete = vi.fn(() => Promise.resolve(true))) =>
     render(
         <FlowReportCard
+            onDelete={onDelete}
             onDownload={() => {}}
             onOpen={() => {}}
             report={{ ...base, ...overrides }}
@@ -74,5 +76,19 @@ describe('FlowReportCard', () => {
         card();
 
         expect(screen.getByRole('button', { name: 'Expand the report sections' })).toBeInTheDocument();
+    });
+
+    it('deletes the report after the confirmation dialog is confirmed', async () => {
+        const onDelete = vi.fn(() => Promise.resolve(true));
+        card({ finishedAt: new Date().toISOString(), sectionsDone: 25, status: ReportStatusType.Completed }, onDelete);
+
+        await userEvent.click(screen.getByRole('button', { name: 'Delete report' }));
+
+        expect(await screen.findByText('Delete report')).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+        await waitFor(() => expect(onDelete).toHaveBeenCalledTimes(1));
+        expect(onDelete).toHaveBeenCalledWith(expect.objectContaining({ id: '1' }));
     });
 });

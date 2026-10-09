@@ -22,7 +22,7 @@ interface FlowReportsProps {
 }
 
 function FlowReports({ className }: FlowReportsProps) {
-    const { checkVision, createReport, loading, reports } = useFlowReports();
+    const { checkVision, createReport, deleteReport, loading, reports } = useFlowReports();
     const { flowId } = useFlow();
     const navigate = useNavigate();
     const client = useApolloClient();
@@ -117,6 +117,7 @@ function FlowReports({ className }: FlowReportsProps) {
                         {reports.map((report) => (
                             <FlowReportCard
                                 key={report.id}
+                                onDelete={deleteReport}
                                 onDownload={handleDownload}
                                 onOpen={handleOpen}
                                 report={report}
