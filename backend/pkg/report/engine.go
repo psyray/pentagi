@@ -342,9 +342,20 @@ func newWorker(deps Deps, report database.Report) (*worker, error) {
 	return w, nil
 }
 
-// start wires the cancellable context and launches the run goroutine. Called
-// once per worker lifecycle; LoadReports also goes through it.
+// start wires the cancellable context and launches the full run goroutine.
+// Called once per worker lifecycle; LoadReports also goes through it.
 func (w *worker) start() {
+	w.launch(nil)
+}
+
+// runSections launches a run scoped to the given section ids (nil = the whole
+// report, planner included). Backs the resume and single-section entrypoints:
+// the planner is skipped and only the listed sections are (re)written.
+func (w *worker) runSections(ids []int64) {
+	w.launch(ids)
+}
+
+func (w *worker) launch(ids []int64) {
 	ctx, cancel := context.WithCancel(context.Background())
 	w.ctx = ctx
 	w.stateCtx = context.WithoutCancel(ctx)
@@ -360,14 +371,14 @@ func (w *worker) start() {
 
 		w.putLog(LogStatus, "report run started", nil)
 
-		if w.report.SectionsTotal == 0 {
+		if ids == nil && w.report.SectionsTotal == 0 {
 			if err := w.plan(ctx); err != nil {
 				w.finish(StatusFailed, err.Error())
 				return
 			}
 		}
 
-		if err := w.writeAll(ctx); err != nil {
+		if err := w.writeAll(ctx, ids); err != nil {
 			if w.stopped.Load() || ctx.Err() != nil {
 				w.setStopState()
 				return
@@ -766,8 +777,9 @@ func (w *worker) loadNotes() string {
 }
 
 // writeAll walks the derived write order (body phase, then deferred) and
-// produces the not-yet-written sections; budget exhaustion marks the rest.
-func (w *worker) writeAll(ctx context.Context) error {
+// produces the not-yet-written sections; budget exhaustion marks the rest. A
+// non-nil ids restricts the run to those sections (resume / single-section).
+func (w *worker) writeAll(ctx context.Context, ids []int64) error {
 	if _, err := w.deps.DB.UpdateReportStatus(ctx, database.UpdateReportStatusParams{
 		ID: w.report.ID, Status: StatusGenerating,
 	}); err != nil {
@@ -778,6 +790,9 @@ func (w *worker) writeAll(ctx context.Context) error {
 	sections, err := w.loadSections()
 	if err != nil {
 		return fmt.Errorf("failed to load report sections: %w", err)
+	}
+	if ids != nil {
+		sections = filterSectionsByID(sections, ids)
 	}
 	body, deferred := writeOrder(sections, w.tpl)
 
@@ -791,6 +806,93 @@ func (w *worker) writeAll(ctx context.Context) error {
 		return err
 	}
 
+	// Regeneration queue: sections an operator edited while the run was live are
+	// flagged by the resolver; drain them so one run reflects the edits. A scoped
+	// run (resume / single section) does not drain: it only writes its target.
+	if ids == nil {
+		if err := w.drainRegen(ctx); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// filterSectionsByID keeps the sections whose id is in ids, preserving order.
+func filterSectionsByID(sections []database.ReportSection, ids []int64) []database.ReportSection {
+	wanted := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		wanted[id] = struct{}{}
+	}
+	out := make([]database.ReportSection, 0, len(ids))
+	for i := range sections {
+		if _, ok := wanted[sections[i].ID]; ok {
+			out = append(out, sections[i])
+		}
+	}
+	return out
+}
+
+// maxRegenRounds bounds the drain loop so a section repeatedly edited during its
+// own write cannot loop forever.
+const maxRegenRounds = 100
+
+// drainRegen rewrites the sections an operator flagged while the run was live
+// (regen_requested). Each round re-reads the rows, so an edit made during a
+// rewrite is picked up by the next round.
+func (w *worker) drainRegen(ctx context.Context) error {
+	for round := 0; round < maxRegenRounds; round++ {
+		if w.stopped.Load() || ctx.Err() != nil {
+			return nil
+		}
+
+		sections, err := w.loadSections()
+		if err != nil {
+			return fmt.Errorf("failed to load report sections for regen: %w", err)
+		}
+
+		pending := make([]database.ReportSection, 0)
+		for i := range sections {
+			if !sections[i].RegenRequested || sections[i].Hidden {
+				continue
+			}
+			if _, err := w.deps.DB.SetReportSectionRegenRequested(w.stateCtx, database.SetReportSectionRegenRequestedParams{
+				ID: sections[i].ID, RegenRequested: false,
+			}); err != nil {
+				return fmt.Errorf("failed to clear regen flag on section %d: %w", sections[i].ID, err)
+			}
+			if _, err := w.deps.DB.SetReportSectionStatus(w.stateCtx, database.SetReportSectionStatusParams{
+				ID: sections[i].ID, Status: SectionQueued,
+			}); err != nil {
+				return fmt.Errorf("failed to requeue section %d: %w", sections[i].ID, err)
+			}
+			row := sections[i]
+			row.Status = SectionQueued
+			row.RegenRequested = false
+			pending = append(pending, row)
+		}
+		if len(pending) == 0 {
+			return nil
+		}
+
+		w.putLog(LogControl, fmt.Sprintf("regeneration queue: rewriting %d edited section(s)", len(pending)), nil)
+		body, deferred := writeOrder(pending, w.tpl)
+		if err := w.writeList(ctx, body); err != nil {
+			return err
+		}
+		if w.stopped.Load() || ctx.Err() != nil {
+			return nil
+		}
+		if err := w.writeList(ctx, deferred); err != nil {
+			return err
+		}
+		if w.contentBudgetExhausted() {
+			w.putLog(LogControl, "content node budget exhausted during the regeneration queue", nil)
+			return nil
+		}
+	}
+
+	w.logger.Warn("regeneration drain reached its round cap")
 	return nil
 }
 
@@ -917,6 +1019,13 @@ func (w *worker) writeSection(ctx context.Context, st database.ReportSection) er
 		ID: st.ID, Status: SectionWriting,
 	}); err != nil {
 		return fmt.Errorf("failed to mark section %d writing: %w", st.ID, err)
+	}
+	// The writer clears the regeneration flag at the start: an edit made while
+	// this write runs sets it again and the drain picks it up next round.
+	if _, err := w.deps.DB.SetReportSectionRegenRequested(ctx, database.SetReportSectionRegenRequestedParams{
+		ID: st.ID, RegenRequested: false,
+	}); err != nil {
+		w.logger.WithError(err).Warn("failed to clear the section regen flag")
 	}
 	w.putLog(LogSection, fmt.Sprintf("Writing section %q", st.Title), map[string]any{
 		"section_id": st.ID, "key": st.Key, "title": st.Title,

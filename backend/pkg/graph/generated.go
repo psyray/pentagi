@@ -486,6 +486,7 @@ type ComplexityRoot struct {
 		PutUserInput            func(childComplexity int, flowID int64, input string, modelProvider *string, resourceIds []int64) int
 		RenameFlow              func(childComplexity int, flowID int64, title string) int
 		RenameKnowledgeDocument func(childComplexity int, id string, question string) int
+		ResumeReport            func(childComplexity int, reportID int64, contentBudgetSeconds *int) int
 		SetReportSectionContent func(childComplexity int, reportID int64, sectionID int64, content string) int
 		StopAssistant           func(childComplexity int, flowID int64, assistantID int64) int
 		StopFlow                func(childComplexity int, flowID int64) int
@@ -500,6 +501,7 @@ type ComplexityRoot struct {
 		UpdateReportBranding    func(childComplexity int, reportID int64, input model.ReportBrandingInput) int
 		UpdateReportSection     func(childComplexity int, reportID int64, sectionID int64, input model.ReportSectionInput) int
 		ValidatePrompt          func(childComplexity int, typeArg model.PromptType, template string) int
+		WriteReportSection      func(childComplexity int, reportID int64, sectionID int64) int
 	}
 
 	OpenPortRow struct {
@@ -1065,6 +1067,8 @@ type MutationResolver interface {
 	PutReportNote(ctx context.Context, reportID int64, note string) (model.ResultType, error)
 	StopReport(ctx context.Context, reportID int64) (model.ResultType, error)
 	DeleteReport(ctx context.Context, reportID int64) (model.ResultType, error)
+	ResumeReport(ctx context.Context, reportID int64, contentBudgetSeconds *int) (*model.Report, error)
+	WriteReportSection(ctx context.Context, reportID int64, sectionID int64) (*model.ReportSection, error)
 	UpdateReportSection(ctx context.Context, reportID int64, sectionID int64, input model.ReportSectionInput) (*model.ReportSection, error)
 	SetReportSectionContent(ctx context.Context, reportID int64, sectionID int64, content string) (*model.ReportSection, error)
 	MoveReportSection(ctx context.Context, reportID int64, sectionID int64, direction model.SectionDirection) (model.ResultType, error)
@@ -3431,6 +3435,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.RenameKnowledgeDocument(childComplexity, args["id"].(string), args["question"].(string)), true
 
+	case "Mutation.resumeReport":
+		if e.complexity.Mutation.ResumeReport == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_resumeReport_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ResumeReport(childComplexity, args["reportId"].(int64), args["contentBudgetSeconds"].(*int)), true
+
 	case "Mutation.setReportSectionContent":
 		if e.complexity.Mutation.SetReportSectionContent == nil {
 			break
@@ -3598,6 +3614,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.ValidatePrompt(childComplexity, args["type"].(model.PromptType), args["template"].(string)), true
+
+	case "Mutation.writeReportSection":
+		if e.complexity.Mutation.WriteReportSection == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_writeReportSection_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.WriteReportSection(childComplexity, args["reportId"].(int64), args["sectionId"].(int64)), true
 
 	case "OpenPortRow.host":
 		if e.complexity.OpenPortRow.Host == nil {
@@ -8668,6 +8696,65 @@ func (ec *executionContext) field_Mutation_renameKnowledgeDocument_argsQuestion(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_resumeReport_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Mutation_resumeReport_argsReportID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["reportId"] = arg0
+	arg1, err := ec.field_Mutation_resumeReport_argsContentBudgetSeconds(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["contentBudgetSeconds"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_resumeReport_argsReportID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["reportId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("reportId"))
+	if tmp, ok := rawArgs["reportId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_resumeReport_argsContentBudgetSeconds(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (*int, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["contentBudgetSeconds"]
+	if !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("contentBudgetSeconds"))
+	if tmp, ok := rawArgs["contentBudgetSeconds"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Mutation_setReportSectionContent_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -9572,6 +9659,65 @@ func (ec *executionContext) field_Mutation_validatePrompt_argsTemplate(
 	}
 
 	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_writeReportSection_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Mutation_writeReportSection_argsReportID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["reportId"] = arg0
+	arg1, err := ec.field_Mutation_writeReportSection_argsSectionID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["sectionId"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_writeReportSection_argsReportID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["reportId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("reportId"))
+	if tmp, ok := rawArgs["reportId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_writeReportSection_argsSectionID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["sectionId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("sectionId"))
+	if tmp, ok := rawArgs["sectionId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
 	return zeroVal, nil
 }
 
@@ -27563,6 +27709,204 @@ func (ec *executionContext) fieldContext_Mutation_deleteReport(ctx context.Conte
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_deleteReport_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_resumeReport(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_resumeReport(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().ResumeReport(rctx, fc.Args["reportId"].(int64), fc.Args["contentBudgetSeconds"].(*int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Report)
+	fc.Result = res
+	return ec.marshalNReport2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐReport(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_resumeReport(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Report_id(ctx, field)
+			case "flowId":
+				return ec.fieldContext_Report_flowId(ctx, field)
+			case "userId":
+				return ec.fieldContext_Report_userId(ctx, field)
+			case "status":
+				return ec.fieldContext_Report_status(ctx, field)
+			case "title":
+				return ec.fieldContext_Report_title(ctx, field)
+			case "templateKey":
+				return ec.fieldContext_Report_templateKey(ctx, field)
+			case "templateLabel":
+				return ec.fieldContext_Report_templateLabel(ctx, field)
+			case "providerName":
+				return ec.fieldContext_Report_providerName(ctx, field)
+			case "providerType":
+				return ec.fieldContext_Report_providerType(ctx, field)
+			case "language":
+				return ec.fieldContext_Report_language(ctx, field)
+			case "additionalInstructions":
+				return ec.fieldContext_Report_additionalInstructions(ctx, field)
+			case "controlBudgetSeconds":
+				return ec.fieldContext_Report_controlBudgetSeconds(ctx, field)
+			case "contentBudgetSeconds":
+				return ec.fieldContext_Report_contentBudgetSeconds(ctx, field)
+			case "controlUsedSeconds":
+				return ec.fieldContext_Report_controlUsedSeconds(ctx, field)
+			case "contentUsedSeconds":
+				return ec.fieldContext_Report_contentUsedSeconds(ctx, field)
+			case "sectionsEstimate":
+				return ec.fieldContext_Report_sectionsEstimate(ctx, field)
+			case "sectionsTotal":
+				return ec.fieldContext_Report_sectionsTotal(ctx, field)
+			case "sectionsDone":
+				return ec.fieldContext_Report_sectionsDone(ctx, field)
+			case "tokensIn":
+				return ec.fieldContext_Report_tokensIn(ctx, field)
+			case "tokensOut":
+				return ec.fieldContext_Report_tokensOut(ctx, field)
+			case "error":
+				return ec.fieldContext_Report_error(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Report_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Report_updatedAt(ctx, field)
+			case "finishedAt":
+				return ec.fieldContext_Report_finishedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Report", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_resumeReport_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_writeReportSection(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_writeReportSection(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().WriteReportSection(rctx, fc.Args["reportId"].(int64), fc.Args["sectionId"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.ReportSection)
+	fc.Result = res
+	return ec.marshalNReportSection2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐReportSection(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_writeReportSection(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_ReportSection_id(ctx, field)
+			case "reportId":
+				return ec.fieldContext_ReportSection_reportId(ctx, field)
+			case "parentId":
+				return ec.fieldContext_ReportSection_parentId(ctx, field)
+			case "position":
+				return ec.fieldContext_ReportSection_position(ctx, field)
+			case "key":
+				return ec.fieldContext_ReportSection_key(ctx, field)
+			case "kind":
+				return ec.fieldContext_ReportSection_kind(ctx, field)
+			case "title":
+				return ec.fieldContext_ReportSection_title(ctx, field)
+			case "status":
+				return ec.fieldContext_ReportSection_status(ctx, field)
+			case "content":
+				return ec.fieldContext_ReportSection_content(ctx, field)
+			case "instructions":
+				return ec.fieldContext_ReportSection_instructions(ctx, field)
+			case "variables":
+				return ec.fieldContext_ReportSection_variables(ctx, field)
+			case "warnings":
+				return ec.fieldContext_ReportSection_warnings(ctx, field)
+			case "hidden":
+				return ec.fieldContext_ReportSection_hidden(ctx, field)
+			case "tokensIn":
+				return ec.fieldContext_ReportSection_tokensIn(ctx, field)
+			case "tokensOut":
+				return ec.fieldContext_ReportSection_tokensOut(ctx, field)
+			case "durationSeconds":
+				return ec.fieldContext_ReportSection_durationSeconds(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_ReportSection_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_ReportSection_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ReportSection", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_writeReportSection_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -55346,6 +55690,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "deleteReport":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteReport(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "resumeReport":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_resumeReport(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "writeReportSection":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_writeReportSection(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

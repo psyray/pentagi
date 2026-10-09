@@ -37,6 +37,11 @@ type ReportController interface {
 	PutNote(ctx context.Context, userID, reportID int64, note string) error
 	Stop(ctx context.Context, userID, reportID int64) error
 	Delete(ctx context.Context, userID, reportID int64) error
+	// ResumeReport re-queues the unwritten sections and relaunches a worker on a
+	// finished/failed/canceled report.
+	ResumeReport(ctx context.Context, userID, reportID int64, contentBudgetOverride *int) (*database.Report, error)
+	// WriteReportSection runs the writer on a single section (manual write).
+	WriteReportSection(ctx context.Context, userID, reportID, sectionID int64) (*database.ReportSection, error)
 
 	// GetBranding returns the report's export branding (stored overrides + the
 	// values the exports print). SetBranding persists it. BrandingLogo returns
@@ -221,6 +226,18 @@ func (a *reportControllerAdapter) Stop(ctx context.Context, userID, reportID int
 
 func (a *reportControllerAdapter) Delete(ctx context.Context, userID, reportID int64) error {
 	return a.ctrl.DeleteReport(ctx, userID, reportID)
+}
+
+func (a *reportControllerAdapter) ResumeReport(
+	ctx context.Context, userID, reportID int64, contentBudgetOverride *int,
+) (*database.Report, error) {
+	return a.ctrl.ResumeReport(ctx, userID, reportID, contentBudgetOverride)
+}
+
+func (a *reportControllerAdapter) WriteReportSection(
+	ctx context.Context, userID, reportID, sectionID int64,
+) (*database.ReportSection, error) {
+	return a.ctrl.WriteReportSection(ctx, userID, reportID, sectionID)
 }
 
 func (a *reportControllerAdapter) GetBranding(

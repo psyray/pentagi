@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Eye, EyeOff, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Eye, EyeOff, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
 import ConfirmationDialog from '@/components/shared/confirmation-dialog';
@@ -35,6 +35,7 @@ interface FlowReportAddSectionDialogProps {
 }
 
 interface FlowReportSectionActionsProps {
+    active: boolean;
     boundaries: SiblingMoveBoundaries;
     busy: boolean;
     editor: ReportSectionEditor;
@@ -131,11 +132,21 @@ function FlowReportAddSectionDialog({
 // The row of per-section actions the enterprise edition shows on hover. Hidden
 // from the pointer until the header is hovered or focused; a hidden section keeps
 // its own row visible so the "show" affordance stays reachable.
-function FlowReportSectionActions({ boundaries, busy, editor, onEdit, section }: FlowReportSectionActionsProps) {
+function FlowReportSectionActions({
+    active,
+    boundaries,
+    busy,
+    editor,
+    onEdit,
+    section,
+}: FlowReportSectionActionsProps) {
     const [addPlacement, setAddPlacement] = useState<'after' | 'child' | null>(null);
     const [deleteOpen, setDeleteOpen] = useState(false);
 
-    const disabled = busy;
+    // Structural actions are refused while the run is generating; the edit
+    // action stays live (it re-queues the section for regeneration).
+    const disabled = busy || active;
+    const editDisabled = busy;
 
     return (
         <div
@@ -182,14 +193,28 @@ function FlowReportSectionActions({ boundaries, busy, editor, onEdit, section }:
             </Button>
             <Button
                 aria-label="Edit section"
-                disabled={disabled}
+                disabled={editDisabled}
                 onClick={onEdit}
                 size="icon-sm"
-                title="Edit"
+                title={active ? 'Edit (re-generates this section)' : 'Edit'}
                 variant="ghost"
             >
                 <Pencil />
             </Button>
+            {!active && (
+                <Button
+                    aria-label="Write section"
+                    disabled={busy}
+                    onClick={() => {
+                        void editor.writeSection(section.id);
+                    }}
+                    size="icon-sm"
+                    title="Write this section"
+                    variant="ghost"
+                >
+                    <Sparkles />
+                </Button>
+            )}
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button

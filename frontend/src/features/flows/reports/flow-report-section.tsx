@@ -19,6 +19,7 @@ const HEADING_CLASSES = ['text-xl font-semibold', 'text-lg font-semibold', 'text
 const headingClass = (depth: number): string => HEADING_CLASSES[Math.min(depth, HEADING_CLASSES.length - 1)] ?? '';
 
 interface FlowReportSectionProps {
+    active: boolean;
     canEdit: boolean;
     depth: number;
     editor: ReportSectionEditor;
@@ -26,7 +27,7 @@ interface FlowReportSectionProps {
     sections: readonly ReportSectionFragmentFragment[];
 }
 
-function FlowReportSection({ canEdit, depth, editor, node, sections }: FlowReportSectionProps) {
+function FlowReportSection({ active, canEdit, depth, editor, node, sections }: FlowReportSectionProps) {
     const { section } = node;
     const [editing, setEditing] = useState(false);
     const boundaries = useMemo(() => siblingMoveBoundaries(sections, section.id), [sections, section.id]);
@@ -60,6 +61,7 @@ function FlowReportSection({ canEdit, depth, editor, node, sections }: FlowRepor
                 )}
                 {canEdit && (
                     <FlowReportSectionActions
+                        active={active}
                         boundaries={boundaries}
                         busy={editor.busy}
                         editor={editor}
@@ -88,6 +90,7 @@ function FlowReportSection({ canEdit, depth, editor, node, sections }: FlowRepor
                 <div className="border-border/60 mt-3 flex flex-col border-l pl-5">
                     {node.children.map((child) => (
                         <FlowReportSection
+                            active={active}
                             canEdit={canEdit}
                             depth={depth + 1}
                             editor={editor}

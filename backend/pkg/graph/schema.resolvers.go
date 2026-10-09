@@ -1318,7 +1318,7 @@ func (r *mutationResolver) AnonymizeText(ctx context.Context, text string) (stri
 
 // CreateReport is the resolver for the createReport field.
 func (r *mutationResolver) CreateReport(ctx context.Context, flowID int64, input model.CreateReportInput) (*model.Report, error) {
-	uid, err := validatePermissionWithFlowID(ctx, "flows.edit", flowID, r.DB)
+	uid, err := validatePermissionWithFlowID(ctx, "reports.create", flowID, r.DB)
 	if err != nil {
 		return nil, err
 	}
@@ -1343,7 +1343,7 @@ func (r *mutationResolver) CreateReport(ctx context.Context, flowID int64, input
 
 // UpdateReportBranding is the resolver for the updateReportBranding field.
 func (r *mutationResolver) UpdateReportBranding(ctx context.Context, reportID int64, input model.ReportBrandingInput) (*model.ReportBranding, error) {
-	uid, err := validateReport(ctx, r.ReportsCtrl, reportID)
+	uid, _, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)
 	if err != nil {
 		return nil, err
 	}
@@ -1365,7 +1365,7 @@ func (r *mutationResolver) UpdateReportBranding(ctx context.Context, reportID in
 
 // PutReportNote is the resolver for the putReportNote field.
 func (r *mutationResolver) PutReportNote(ctx context.Context, reportID int64, note string) (model.ResultType, error) {
-	uid, err := validateReport(ctx, r.ReportsCtrl, reportID)
+	uid, _, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)
 	if err != nil {
 		return model.ResultTypeError, err
 	}
@@ -1377,7 +1377,7 @@ func (r *mutationResolver) PutReportNote(ctx context.Context, reportID int64, no
 
 // StopReport is the resolver for the stopReport field.
 func (r *mutationResolver) StopReport(ctx context.Context, reportID int64) (model.ResultType, error) {
-	uid, err := validateReport(ctx, r.ReportsCtrl, reportID)
+	uid, _, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)
 	if err != nil {
 		return model.ResultTypeError, err
 	}
@@ -1389,7 +1389,7 @@ func (r *mutationResolver) StopReport(ctx context.Context, reportID int64) (mode
 
 // DeleteReport is the resolver for the deleteReport field.
 func (r *mutationResolver) DeleteReport(ctx context.Context, reportID int64) (model.ResultType, error) {
-	uid, err := validateReport(ctx, r.ReportsCtrl, reportID)
+	uid, _, err := validateReportDelete(ctx, r.ReportsCtrl, reportID)
 	if err != nil {
 		return model.ResultTypeError, err
 	}
@@ -1399,9 +1399,35 @@ func (r *mutationResolver) DeleteReport(ctx context.Context, reportID int64) (mo
 	return model.ResultTypeSuccess, nil
 }
 
+// ResumeReport is the resolver for the resumeReport field.
+func (r *mutationResolver) ResumeReport(ctx context.Context, reportID int64, contentBudgetSeconds *int) (*model.Report, error) {
+	uid, _, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)
+	if err != nil {
+		return nil, err
+	}
+	report, err := r.ReportsCtrl.ResumeReport(ctx, uid, reportID, contentBudgetSeconds)
+	if err != nil {
+		return nil, err
+	}
+	return converter.ConvertReport(*report), nil
+}
+
+// WriteReportSection is the resolver for the writeReportSection field.
+func (r *mutationResolver) WriteReportSection(ctx context.Context, reportID int64, sectionID int64) (*model.ReportSection, error) {
+	uid, _, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)
+	if err != nil {
+		return nil, err
+	}
+	row, err := r.ReportsCtrl.WriteReportSection(ctx, uid, reportID, sectionID)
+	if err != nil {
+		return nil, err
+	}
+	return converter.ConvertReportSection(*row), nil
+}
+
 // UpdateReportSection is the resolver for the updateReportSection field.
 func (r *mutationResolver) UpdateReportSection(ctx context.Context, reportID int64, sectionID int64, input model.ReportSectionInput) (*model.ReportSection, error) {
-	uid, err := validateReport(ctx, r.ReportsCtrl, reportID)
+	uid, _, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)
 	if err != nil {
 		return nil, err
 	}
@@ -1414,7 +1440,7 @@ func (r *mutationResolver) UpdateReportSection(ctx context.Context, reportID int
 
 // SetReportSectionContent is the resolver for the setReportSectionContent field.
 func (r *mutationResolver) SetReportSectionContent(ctx context.Context, reportID int64, sectionID int64, content string) (*model.ReportSection, error) {
-	uid, err := validateReport(ctx, r.ReportsCtrl, reportID)
+	uid, _, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)
 	if err != nil {
 		return nil, err
 	}
@@ -1427,7 +1453,7 @@ func (r *mutationResolver) SetReportSectionContent(ctx context.Context, reportID
 
 // MoveReportSection is the resolver for the moveReportSection field.
 func (r *mutationResolver) MoveReportSection(ctx context.Context, reportID int64, sectionID int64, direction model.SectionDirection) (model.ResultType, error) {
-	uid, err := validateReport(ctx, r.ReportsCtrl, reportID)
+	uid, _, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)
 	if err != nil {
 		return model.ResultTypeError, err
 	}
@@ -1439,7 +1465,7 @@ func (r *mutationResolver) MoveReportSection(ctx context.Context, reportID int64
 
 // HideReportSection is the resolver for the hideReportSection field.
 func (r *mutationResolver) HideReportSection(ctx context.Context, reportID int64, sectionID int64, hidden bool) (*model.ReportSection, error) {
-	uid, err := validateReport(ctx, r.ReportsCtrl, reportID)
+	uid, _, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)
 	if err != nil {
 		return nil, err
 	}
@@ -1452,7 +1478,7 @@ func (r *mutationResolver) HideReportSection(ctx context.Context, reportID int64
 
 // AddReportSection is the resolver for the addReportSection field.
 func (r *mutationResolver) AddReportSection(ctx context.Context, reportID int64, afterSectionID *int64, parentID *int64, title string) (*model.ReportSection, error) {
-	uid, err := validateReport(ctx, r.ReportsCtrl, reportID)
+	uid, _, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)
 	if err != nil {
 		return nil, err
 	}
@@ -1465,7 +1491,7 @@ func (r *mutationResolver) AddReportSection(ctx context.Context, reportID int64,
 
 // DeleteReportSection is the resolver for the deleteReportSection field.
 func (r *mutationResolver) DeleteReportSection(ctx context.Context, reportID int64, sectionID int64) (model.ResultType, error) {
-	uid, err := validateReport(ctx, r.ReportsCtrl, reportID)
+	uid, _, err := validateReportEdit(ctx, r.ReportsCtrl, reportID)
 	if err != nil {
 		return model.ResultTypeError, err
 	}
@@ -3153,7 +3179,7 @@ func (r *queryResolver) FlowArtifacts(ctx context.Context, flowID int64) ([]*mod
 
 // Reports is the resolver for the reports field.
 func (r *queryResolver) Reports(ctx context.Context, flowID int64) ([]*model.Report, error) {
-	uid, err := validatePermissionWithFlowID(ctx, "flows.read", flowID, r.DB)
+	uid, err := validatePermissionWithFlowID(ctx, "reports.read", flowID, r.DB)
 	if err != nil {
 		return nil, err
 	}
@@ -3234,7 +3260,7 @@ func (r *queryResolver) ReportDocument(ctx context.Context, reportID int64) (str
 
 // ReportVision is the resolver for the reportVision field.
 func (r *queryResolver) ReportVision(ctx context.Context, flowID int64, providerName *string) (*model.ReportVision, error) {
-	uid, err := validatePermissionWithFlowID(ctx, "flows.read", flowID, r.DB)
+	uid, err := validatePermissionWithFlowID(ctx, "reports.read", flowID, r.DB)
 	if err != nil {
 		return nil, err
 	}
@@ -3753,7 +3779,7 @@ func (r *subscriptionResolver) KnowledgeDocumentDeleted(ctx context.Context) (<-
 
 // ReportCreated is the resolver for the reportCreated field.
 func (r *subscriptionResolver) ReportCreated(ctx context.Context, flowID int64) (<-chan *model.Report, error) {
-	uid, err := validatePermissionWithFlowID(ctx, "flows.read", flowID, r.DB)
+	uid, err := validatePermissionWithFlowID(ctx, "reports.read", flowID, r.DB)
 	if err != nil {
 		return nil, err
 	}
@@ -3763,7 +3789,7 @@ func (r *subscriptionResolver) ReportCreated(ctx context.Context, flowID int64) 
 
 // ReportUpdated is the resolver for the reportUpdated field.
 func (r *subscriptionResolver) ReportUpdated(ctx context.Context, flowID int64) (<-chan *model.Report, error) {
-	uid, err := validatePermissionWithFlowID(ctx, "flows.read", flowID, r.DB)
+	uid, err := validatePermissionWithFlowID(ctx, "reports.read", flowID, r.DB)
 	if err != nil {
 		return nil, err
 	}
@@ -3773,7 +3799,7 @@ func (r *subscriptionResolver) ReportUpdated(ctx context.Context, flowID int64) 
 
 // ReportDeleted is the resolver for the reportDeleted field.
 func (r *subscriptionResolver) ReportDeleted(ctx context.Context, flowID int64) (<-chan *model.Report, error) {
-	uid, err := validatePermissionWithFlowID(ctx, "flows.read", flowID, r.DB)
+	uid, err := validatePermissionWithFlowID(ctx, "reports.read", flowID, r.DB)
 	if err != nil {
 		return nil, err
 	}
@@ -3783,7 +3809,7 @@ func (r *subscriptionResolver) ReportDeleted(ctx context.Context, flowID int64) 
 
 // ReportSectionUpdated is the resolver for the reportSectionUpdated field.
 func (r *subscriptionResolver) ReportSectionUpdated(ctx context.Context, flowID int64) (<-chan *model.ReportSection, error) {
-	uid, err := validatePermissionWithFlowID(ctx, "flows.read", flowID, r.DB)
+	uid, err := validatePermissionWithFlowID(ctx, "reports.read", flowID, r.DB)
 	if err != nil {
 		return nil, err
 	}
@@ -3793,7 +3819,7 @@ func (r *subscriptionResolver) ReportSectionUpdated(ctx context.Context, flowID 
 
 // ReportLogAdded is the resolver for the reportLogAdded field.
 func (r *subscriptionResolver) ReportLogAdded(ctx context.Context, flowID int64) (<-chan *model.ReportLog, error) {
-	uid, err := validatePermissionWithFlowID(ctx, "flows.read", flowID, r.DB)
+	uid, err := validatePermissionWithFlowID(ctx, "reports.read", flowID, r.DB)
 	if err != nil {
 		return nil, err
 	}

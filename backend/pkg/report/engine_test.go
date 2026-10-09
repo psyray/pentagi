@@ -553,3 +553,19 @@ func rawVariables(values map[string]any) []byte {
 	}
 	return blob
 }
+
+func TestFilterSectionsByID(t *testing.T) {
+	sections := []database.ReportSection{
+		{ID: 1, Key: "a"},
+		{ID: 2, Key: "b"},
+		{ID: 3, Key: "c"},
+	}
+
+	filtered := filterSectionsByID(sections, []int64{3, 1})
+	require.Len(t, filtered, 2)
+	assert.Equal(t, int64(1), filtered[0].ID)
+	assert.Equal(t, int64(3), filtered[1].ID)
+
+	assert.Empty(t, filterSectionsByID(sections, []int64{9}))
+	assert.Empty(t, filterSectionsByID(sections, nil))
+}

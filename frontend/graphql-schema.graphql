@@ -1866,6 +1866,18 @@ mutation deleteReport($reportId: ID!) {
     deleteReport(reportId: $reportId)
 }
 
+mutation resumeReport($reportId: ID!, $contentBudgetSeconds: Int) {
+    resumeReport(reportId: $reportId, contentBudgetSeconds: $contentBudgetSeconds) {
+        ...reportFragment
+    }
+}
+
+mutation writeReportSection($reportId: ID!, $sectionId: ID!) {
+    writeReportSection(reportId: $reportId, sectionId: $sectionId) {
+        ...reportSectionFragment
+    }
+}
+
 mutation updateReportSection($reportId: ID!, $sectionId: ID!, $input: ReportSectionInput!) {
     updateReportSection(reportId: $reportId, sectionId: $sectionId, input: $input) {
         ...reportSectionFragment

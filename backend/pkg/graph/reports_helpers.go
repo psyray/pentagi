@@ -12,33 +12,16 @@ import (
 // gqlgen would park them inside schema.resolvers.go's "moved code" block on
 // the next regeneration and the build would fail.
 
-// validateReport checks the flows.read permission and the report ownership
-// (the controller GetReport is user-scoped, so admins see only their own
-// reports in v1).
-func validateReport(
+// validateReportPerm checks a report permission and the report ownership (the
+// controller GetReport is user-scoped, so a user only reaches their own
+// reports; admins included, as in v1).
+func validateReportPerm(
 	ctx context.Context,
 	reports controller.ReportController,
 	reportID int64,
-) (int64, error) {
-	uid, _, err := validatePermission(ctx, "flows.read")
-	if err != nil {
-		return 0, err
-	}
-
-	if _, err := reports.GetReport(ctx, uid, reportID); err != nil {
-		return 0, err
-	}
-
-	return uid, nil
-}
-
-// validateReportRow returns the owned report row on top of the check above.
-func validateReportRow(
-	ctx context.Context,
-	reports controller.ReportController,
-	reportID int64,
+	perm string,
 ) (int64, *database.Report, error) {
-	uid, _, err := validatePermission(ctx, "flows.read")
+	uid, _, err := validatePermission(ctx, perm)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -49,6 +32,45 @@ func validateReportRow(
 	}
 
 	return uid, report, nil
+}
+
+// validateReport checks the reports.read permission and the report ownership.
+func validateReport(
+	ctx context.Context,
+	reports controller.ReportController,
+	reportID int64,
+) (int64, error) {
+	uid, _, err := validateReportPerm(ctx, reports, reportID, "reports.read")
+	return uid, err
+}
+
+// validateReportRow returns the owned report row under reports.read.
+func validateReportRow(
+	ctx context.Context,
+	reports controller.ReportController,
+	reportID int64,
+) (int64, *database.Report, error) {
+	return validateReportPerm(ctx, reports, reportID, "reports.read")
+}
+
+// validateReportEdit checks reports.edit, the permission behind every content
+// mutation (sections, branding, notes, stop).
+func validateReportEdit(
+	ctx context.Context,
+	reports controller.ReportController,
+	reportID int64,
+) (int64, *database.Report, error) {
+	return validateReportPerm(ctx, reports, reportID, "reports.edit")
+}
+
+// validateReportDelete checks reports.delete, the permission behind the report
+// removal (a distinct right from editing).
+func validateReportDelete(
+	ctx context.Context,
+	reports controller.ReportController,
+	reportID int64,
+) (int64, *database.Report, error) {
+	return validateReportPerm(ctx, reports, reportID, "reports.delete")
 }
 
 // deref returns the string value or an empty string.

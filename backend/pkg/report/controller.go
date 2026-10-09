@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -398,6 +399,181 @@ func (c *Controller) DeleteReport(ctx context.Context, userID, reportID int64) e
 	return nil
 }
 
+// ResumeReport relaunches a completed, failed or canceled report: the sections
+// left unwritten (or failed) are re-queued and a fresh worker writes them. An
+// optional contentBudgetOverride grants fresh content seconds, so a run that
+// stopped on budget (or a report whose sections were added by hand) can make
+// progress; without it a budget-exhausted report would re-mark everything.
+func (c *Controller) ResumeReport(
+	ctx context.Context, userID, reportID int64, contentBudgetOverride *int,
+) (*database.Report, error) {
+	if !c.Enabled() {
+		return nil, fmt.Errorf("reports are disabled (REPORT_ENABLED=false)")
+	}
+
+	report, err := c.GetReport(ctx, userID, reportID)
+	if err != nil {
+		return nil, err
+	}
+
+	if !c.claimRun(reportID) {
+		return nil, ErrReportBusy
+	}
+	// claimRun registered a placeholder; replace it once the worker is built, or
+	// release the claim if anything below fails.
+	claimed := true
+	defer func() {
+		if claimed {
+			c.releaseRun(reportID)
+		}
+	}()
+
+	if contentBudgetOverride != nil && *contentBudgetOverride > 0 {
+		budget := int32(math.Ceil(report.ContentUsedSeconds)) + int32(*contentBudgetOverride)
+		if _, err := c.deps.DB.SetReportContentBudget(ctx, database.SetReportContentBudgetParams{
+			ID: reportID, ContentBudgetSeconds: budget,
+		}); err != nil {
+			return nil, fmt.Errorf("failed to extend the report content budget: %w", err)
+		}
+		report, err = c.GetReport(ctx, userID, reportID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if err := c.requeueUnwritten(ctx, reportID); err != nil {
+		return nil, err
+	}
+
+	resumed, err := c.deps.DB.ResetReportForResume(ctx, database.ResetReportForResumeParams{
+		ID: reportID, Status: StatusCreated,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to reset report %d for resume: %w", reportID, err)
+	}
+
+	w, err := newWorker(c.deps, resumed)
+	if err != nil {
+		return nil, err
+	}
+
+	c.mx.Lock()
+	c.workers[reportID] = w
+	c.mx.Unlock()
+	claimed = false
+
+	w.runSections(nil)
+	c.deps.Subs.NewFlowPublisher(resumed.UserID, resumed.FlowID).
+		ReportUpdated(ctx, converter.ConvertReport(resumed))
+
+	return &resumed, nil
+}
+
+// WriteReportSection writes a single section through the writer (the manual
+// "write this section"): used after a hand-added section, or a section left
+// unwritten by a budget stop. The report must not carry a live run.
+func (c *Controller) WriteReportSection(
+	ctx context.Context, userID, reportID, sectionID int64,
+) (*database.ReportSection, error) {
+	if !c.Enabled() {
+		return nil, fmt.Errorf("reports are disabled (REPORT_ENABLED=false)")
+	}
+
+	_, err := c.GetReport(ctx, userID, reportID)
+	if err != nil {
+		return nil, err
+	}
+
+	if !c.claimRun(reportID) {
+		return nil, ErrReportBusy
+	}
+	claimed := true
+	defer func() {
+		if claimed {
+			c.releaseRun(reportID)
+		}
+	}()
+
+	if _, err := c.deps.DB.GetReportSection(ctx, database.GetReportSectionParams{
+		ID: sectionID, ReportID: reportID,
+	}); err != nil {
+		return nil, err
+	}
+
+	st, err := c.deps.DB.SetReportSectionStatus(ctx, database.SetReportSectionStatusParams{
+		ID: sectionID, Status: SectionQueued,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to queue section %d: %w", sectionID, err)
+	}
+
+	report, err := c.deps.DB.ResetReportForResume(ctx, database.ResetReportForResumeParams{
+		ID: reportID, Status: StatusCreated,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to reset report %d: %w", reportID, err)
+	}
+
+	w, err := newWorker(c.deps, report)
+	if err != nil {
+		return nil, err
+	}
+
+	c.mx.Lock()
+	c.workers[reportID] = w
+	c.mx.Unlock()
+	claimed = false
+
+	w.runSections([]int64{sectionID})
+	c.publish(ctx, userID, reportID, sectionID)
+	c.deps.Subs.NewFlowPublisher(report.UserID, report.FlowID).
+		ReportUpdated(ctx, converter.ConvertReport(report))
+
+	return &st, nil
+}
+
+// requeueUnwritten resets the sections that were not written (not_written) or
+// failed back to queued so a resumed run rewrites them.
+func (c *Controller) requeueUnwritten(ctx context.Context, reportID int64) error {
+	sections, err := c.deps.DB.GetReportSections(ctx, reportID)
+	if err != nil {
+		return fmt.Errorf("failed to load sections of report %d: %w", reportID, err)
+	}
+	for i := range sections {
+		st := sections[i]
+		if st.Status != SectionNotWritten && st.Status != SectionFailed {
+			continue
+		}
+		if _, err := c.deps.DB.SetReportSectionStatus(ctx, database.SetReportSectionStatusParams{
+			ID: st.ID, Status: SectionQueued,
+		}); err != nil {
+			return fmt.Errorf("failed to requeue section %d: %w", st.ID, err)
+		}
+	}
+	return nil
+}
+
+// claimRun reserves the report id for a new worker, unless one is already live.
+// A nil sentinel marks the slot while the worker is being built.
+func (c *Controller) claimRun(reportID int64) bool {
+	c.mx.Lock()
+	defer c.mx.Unlock()
+	if _, ok := c.workers[reportID]; ok {
+		return false
+	}
+	c.workers[reportID] = nil
+	return true
+}
+
+// releaseRun drops a claim that did not end in a registered worker.
+func (c *Controller) releaseRun(reportID int64) {
+	c.mx.Lock()
+	if c.workers[reportID] == nil {
+		delete(c.workers, reportID)
+	}
+	c.mx.Unlock()
+}
+
 func isRunActive(report *database.Report) bool {
 	switch report.Status {
 	case StatusCreated, StatusPlanning, StatusGenerating:
@@ -455,7 +631,9 @@ func (c *Controller) sectionIsEditable(ctx context.Context, userID, reportID int
 }
 
 // UpdateReportSectionFields applies the editor mutations on one section
-// (title, instructions, variables as JSON text, warnings).
+// (title, instructions, variables as JSON text, warnings). While the run is
+// generating the edit is accepted and the section is flagged for regeneration
+// (the live worker's drain loop rewrites it) instead of being refused.
 func (c *Controller) UpdateReportSectionFields(
 	ctx context.Context,
 	userID, reportID, sectionID int64,
@@ -464,7 +642,8 @@ func (c *Controller) UpdateReportSectionFields(
 	variablesJSON *string,
 	warnings []string,
 ) (*database.ReportSection, error) {
-	if _, err := c.sectionIsEditable(ctx, userID, reportID); err != nil {
+	report, err := c.GetReport(ctx, userID, reportID)
+	if err != nil {
 		return nil, err
 	}
 	if _, err := c.deps.DB.GetReportSection(ctx, database.GetReportSectionParams{
@@ -483,32 +662,63 @@ func (c *Controller) UpdateReportSectionFields(
 	if err != nil {
 		return nil, fmt.Errorf("failed to update section %d: %w", sectionID, err)
 	}
+
+	if isRunActive(report) {
+		if _, err := c.deps.DB.SetReportSectionRegenRequested(ctx, database.SetReportSectionRegenRequestedParams{
+			ID: sectionID, RegenRequested: true,
+		}); err != nil {
+			return nil, fmt.Errorf("failed to request section %d regeneration: %w", sectionID, err)
+		}
+	}
+
 	c.publish(ctx, userID, reportID, sectionID)
 	return &updated, nil
 }
 
-// SetReportSectionContent writes the section content by hand (the editor);
-// a not-written section becomes done once its content is set.
+// SetReportSectionContent writes the section content by hand (the editor); a
+// not-written section becomes done once its content is set. While the run is
+// generating the content is stored but the section is flagged for regeneration
+// (a section the writer currently holds keeps its writing status and is
+// rewritten by the drain loop).
 func (c *Controller) SetReportSectionContent(
 	ctx context.Context,
 	userID, reportID, sectionID int64,
 	content string,
 ) (*database.ReportSection, error) {
-	if _, err := c.sectionIsEditable(ctx, userID, reportID); err != nil {
+	report, err := c.GetReport(ctx, userID, reportID)
+	if err != nil {
 		return nil, err
 	}
-	if _, err := c.deps.DB.GetReportSection(ctx, database.GetReportSectionParams{
+	st, err := c.deps.DB.GetReportSection(ctx, database.GetReportSectionParams{
 		ID: sectionID, ReportID: reportID,
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, err
 	}
 
+	status := SectionDone
+	if isRunActive(report) {
+		status = SectionQueued
+		if st.Status == SectionWriting {
+			status = SectionWriting
+		}
+	}
+
 	updated, err := c.deps.DB.UpdateReportSectionContent(ctx, database.UpdateReportSectionContentParams{
-		ID: sectionID, Content: content, Status: SectionDone,
+		ID: sectionID, Content: content, Status: status,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to set section %d content: %w", sectionID, err)
 	}
+
+	if isRunActive(report) {
+		if _, err := c.deps.DB.SetReportSectionRegenRequested(ctx, database.SetReportSectionRegenRequestedParams{
+			ID: sectionID, RegenRequested: true,
+		}); err != nil {
+			return nil, fmt.Errorf("failed to request section %d regeneration: %w", sectionID, err)
+		}
+	}
+
 	c.publish(ctx, userID, reportID, sectionID)
 	return &updated, nil
 }

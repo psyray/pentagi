@@ -24,6 +24,7 @@ import FlowReportCreateDialog from './flow-report-create-dialog';
 import FlowReportingConversation from './flow-reporting-conversation';
 import { formatDuration, formatTokens, isReportActive, reportStatusLabel } from './report-format';
 import { useFlowReporting } from './use-flow-reporting';
+import { useReportPermissions } from './use-report-permissions';
 
 const TICK_INTERVAL_MS = 15_000;
 
@@ -55,6 +56,7 @@ function FlowReportingTab() {
     const [note, setNote] = useState('');
     const [stopOpen, setStopOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
+    const permissions = useReportPermissions();
     const containerRef = useRef<HTMLDivElement>(null);
     const endRef = useRef<HTMLDivElement>(null);
     const atBottomRef = useRef(true);
@@ -110,14 +112,16 @@ function FlowReportingTab() {
                             A report can be written from this engagement record at any point in the run.
                         </EmptyDescription>
                     </EmptyHeader>
-                    <Button
-                        disabled={loading}
-                        onClick={() => setCreateOpen(true)}
-                        variant="outline"
-                    >
-                        <Plus className="size-4" />
-                        Create report
-                    </Button>
+                    {permissions.canCreate && (
+                        <Button
+                            disabled={loading}
+                            onClick={() => setCreateOpen(true)}
+                            variant="outline"
+                        >
+                            <Plus className="size-4" />
+                            Create report
+                        </Button>
+                    )}
                 </Empty>
 
                 <FlowReportCreateDialog
@@ -143,23 +147,27 @@ function FlowReportingTab() {
                         selected={selectedReport}
                     />
                     <div className="ml-auto flex shrink-0 items-center gap-2">
-                        <Button
-                            aria-label="Delete the report"
-                            onClick={() => setDeleteOpen(true)}
-                            size="icon-sm"
-                            title="Delete the report"
-                            variant="outline"
-                        >
-                            <Trash2 />
-                        </Button>
-                        <Button
-                            onClick={() => setCreateOpen(true)}
-                            size="sm"
-                            variant="outline"
-                        >
-                            <Plus className="size-4" />
-                            Create report
-                        </Button>
+                        {permissions.canDelete && (
+                            <Button
+                                aria-label="Delete the report"
+                                onClick={() => setDeleteOpen(true)}
+                                size="icon-sm"
+                                title="Delete the report"
+                                variant="outline"
+                            >
+                                <Trash2 />
+                            </Button>
+                        )}
+                        {permissions.canCreate && (
+                            <Button
+                                onClick={() => setCreateOpen(true)}
+                                size="sm"
+                                variant="outline"
+                            >
+                                <Plus className="size-4" />
+                                Create report
+                            </Button>
+                        )}
                     </div>
                 </div>
                 <ReportStatusLine report={selectedReport} />

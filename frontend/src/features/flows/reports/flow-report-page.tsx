@@ -1,4 +1,4 @@
-import { Trash2 } from 'lucide-react';
+import { RotateCcw, Trash2 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -23,17 +23,19 @@ import FlowReportDownload from './flow-report-download';
 import FlowReportRun from './flow-report-run';
 import FlowReportSection from './flow-report-section';
 import FlowReportToc from './flow-report-toc';
-import { formatDuration, isReportActive } from './report-format';
+import { formatDuration, isReportActive, isReportResumable } from './report-format';
 import { buildReportOutline, flattenReportOutline } from './report-outline';
 import { useFlowReportDocument } from './use-flow-report-document';
 import { useFlowReportEditor } from './use-flow-report-editor';
+import { useReportPermissions } from './use-report-permissions';
 
 function FlowReportPage() {
     const { flowId } = useParams<{ flowId: string }>();
     const navigate = useNavigate();
-    const { download, downloading, loading, remove, report, reportId, sections } = useFlowReportDocument();
+    const { download, downloading, loading, remove, report, reportId, resume, sections } = useFlowReportDocument();
     const editor = useFlowReportEditor(reportId || null);
     const [deleteOpen, setDeleteOpen] = useState(false);
+    const permissions = useReportPermissions();
 
     const handleSelectSection = useCallback((sectionId: string) => {
         document.getElementById(`report-section-${sectionId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -45,6 +47,12 @@ function FlowReportPage() {
             void navigate(flowId ? routes.flow(flowId) : routes.flows);
         }
     }, [flowId, navigate, remove]);
+
+    const handleResume = useCallback(async () => {
+        if (await resume()) {
+            toast.success('Report resumed');
+        }
+    }, [resume]);
 
     const outline = useMemo(() => buildReportOutline(sections), [sections]);
     const flat = useMemo(() => flattenReportOutline(outline), [outline]);
@@ -59,7 +67,8 @@ function FlowReportPage() {
             ? Math.min(100, Math.round((report.sectionsDone / report.sectionsTotal) * 100))
             : 0;
     const active = report ? isReportActive(report.status) : false;
-    const canEdit = !!report && !active;
+    const canEdit = !!report && permissions.canEdit;
+    const resumable = !!report && isReportResumable(report);
     const activeTitle = flat.find((node) => node.section.id === activeSectionId)?.section.title ?? null;
 
     return (
@@ -88,22 +97,38 @@ function FlowReportPage() {
                     </Breadcrumb>
                 </AppHeaderContent>
                 <AppHeaderActions>
+                    {resumable && permissions.canEdit && (
+                        <Button
+                            aria-label="Resume report"
+                            onClick={() => {
+                                void handleResume();
+                            }}
+                            size="sm"
+                            title="Resume the report"
+                            variant="outline"
+                        >
+                            <RotateCcw className="size-4" />
+                            Resume
+                        </Button>
+                    )}
                     <FlowReportDownload
                         canDownload={!!report && !active}
                         downloading={downloading}
                         onDownload={download}
                     />
-                    <Button
-                        aria-label="Delete report"
-                        disabled={!report}
-                        onClick={() => setDeleteOpen(true)}
-                        size="sm"
-                        title="Delete report"
-                        variant="outline"
-                    >
-                        <Trash2 className="size-4" />
-                        Delete
-                    </Button>
+                    {permissions.canDelete && (
+                        <Button
+                            aria-label="Delete report"
+                            disabled={!report}
+                            onClick={() => setDeleteOpen(true)}
+                            size="sm"
+                            title="Delete report"
+                            variant="outline"
+                        >
+                            <Trash2 className="size-4" />
+                            Delete
+                        </Button>
+                    )}
                 </AppHeaderActions>
             </AppHeader>
 
@@ -170,6 +195,7 @@ function FlowReportPage() {
                             <h1 className="mb-6 text-2xl font-bold">{report.title || 'Untitled report'}</h1>
                             {outline.map((node) => (
                                 <FlowReportSection
+                                    active={active}
                                     canEdit={canEdit}
                                     depth={0}
                                     editor={editor}
