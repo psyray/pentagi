@@ -198,9 +198,11 @@ func int64Null(id int64) sql.NullInt64 {
 	return sql.NullInt64{Valid: true, Int64: id}
 }
 
-// writeOrder returns the flat write order: top-level sections in document
-// order, each followed by its children. Deferred nodes (Executive Summary)
-// are reported separately so they are written after the body exists.
+// writeOrder returns the flat write order: each top-level section in document
+// order followed by its whole subtree. Deferred nodes (Executive Summary) are
+// reported separately so they are written after the body exists. Walking the
+// subtree (not only aggregate children) means a hand-added subsection under any
+// parent is written too.
 func writeOrder(sections []database.ReportSection, tpl *Template) (body, deferred []database.ReportSection) {
 	byParent := make(map[int64][]database.ReportSection)
 	for _, st := range sections {
@@ -218,23 +220,28 @@ func writeOrder(sections []database.ReportSection, tpl *Template) (body, deferre
 		})
 	}
 
+	var walk func(st database.ReportSection, into *[]database.ReportSection)
+	walk = func(st database.ReportSection, into *[]database.ReportSection) {
+		*into = append(*into, st)
+		for _, child := range byParent[st.ID] {
+			walk(child, into)
+		}
+	}
+
 	for _, st := range orderedSections(sections, sql.NullInt64{}) {
 		if st.ParentID.Valid {
 			continue
 		}
 		node := outlineNodeOf(tpl, st)
 		switch st.Kind {
-		case KindAggregate:
-			body = append(body, st)
-			body = append(body, byParent[st.ID]...)
-		case KindComposed:
-			body = append(body, st)
+		case KindAggregate, KindComposed:
+			walk(st, &body)
 		default:
 			if node != nil && node.Defer {
-				deferred = append(deferred, st)
+				walk(st, &deferred)
 				continue
 			}
-			body = append(body, st)
+			walk(st, &body)
 		}
 	}
 
@@ -797,10 +804,14 @@ func (w *worker) writeAll(ctx context.Context, ids []int64) error {
 	if err != nil {
 		return fmt.Errorf("failed to load report sections: %w", err)
 	}
+	var body, deferred []database.ReportSection
 	if ids != nil {
-		sections = filterSectionsByID(sections, ids)
+		// A scoped run writes exactly the ids it was given, regardless of where
+		// they sit in the tree (the tree walk only yields top-level headings).
+		body = filterSectionsByID(sections, ids)
+	} else {
+		body, deferred = writeOrder(sections, w.tpl)
 	}
-	body, deferred := writeOrder(sections, w.tpl)
 
 	if err := w.writeList(ctx, body); err != nil {
 		return err
@@ -882,15 +893,11 @@ func (w *worker) drainRegen(ctx context.Context) error {
 		}
 
 		w.putLog(LogControl, fmt.Sprintf("regeneration queue: rewriting %d edited section(s)", len(pending)), nil)
-		body, deferred := writeOrder(pending, w.tpl)
-		if err := w.writeList(ctx, body); err != nil {
+		if err := w.writeList(ctx, pending); err != nil {
 			return err
 		}
 		if w.stopped.Load() || ctx.Err() != nil {
 			return nil
-		}
-		if err := w.writeList(ctx, deferred); err != nil {
-			return err
 		}
 		if w.contentBudgetExhausted() {
 			w.putLog(LogControl, "content node budget exhausted during the regeneration queue", nil)
