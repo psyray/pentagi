@@ -22,7 +22,7 @@ import { useFlow } from '@/providers/flow-provider';
 
 import FlowReportCreateDialog from './flow-report-create-dialog';
 import FlowReportingConversation from './flow-reporting-conversation';
-import { formatDuration, formatTokens, isReportActive, reportStatusLabel } from './report-format';
+import { formatDuration, formatTokens, isReportActive, reportStatusLabel, reportTookSeconds } from './report-format';
 import { useFlowReporting } from './use-flow-reporting';
 import { useReportPermissions } from './use-report-permissions';
 
@@ -321,10 +321,7 @@ function ReportStatusLine({ report }: { report: ReportFragmentFragment }) {
         return () => clearInterval(interval);
     }, [active]);
 
-    const startedAt = new Date(report.createdAt).getTime();
-    const tookSeconds = report.finishedAt
-        ? (new Date(report.finishedAt).getTime() - startedAt) / 1000
-        : Math.max(0, (now - startedAt) / 1000);
+    const tookSeconds = reportTookSeconds(report, now);
     const budgetSeconds = report.controlBudgetSeconds + report.contentBudgetSeconds;
     const progress =
         report.sectionsTotal > 0 ? Math.min(100, Math.round((report.sectionsDone / report.sectionsTotal) * 100)) : 0;

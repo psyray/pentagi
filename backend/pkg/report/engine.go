@@ -384,6 +384,12 @@ func (w *worker) launch(ids []int64) {
 
 		w.putLog(LogStatus, "report run started", nil)
 
+		// Stamp the run start so the panel's Took is the run duration, not the
+		// report's whole lifetime (a report can be resumed much later).
+		if _, err := w.deps.DB.SetReportStartedAt(w.stateCtx, w.report.ID); err != nil {
+			w.logger.WithError(err).Warn("failed to stamp the report run start")
+		}
+
 		if ids == nil && w.report.SectionsTotal == 0 {
 			if err := w.plan(ctx); err != nil {
 				w.finish(StatusFailed, err.Error())
@@ -1426,6 +1432,13 @@ func (w *worker) refreshProgress(ctx context.Context) {
 
 	if _, err := w.deps.DB.UpdateReportProgress(w.stateCtx, params); err != nil {
 		w.logger.WithError(err).Warn("failed to persist report progress")
+	}
+
+	// Keep the section counters honest with the rows: a hand-added or removed
+	// section changes the total, which the in-memory done count cannot express.
+	reportID := w.report.ID
+	if _, err := w.deps.DB.SyncReportSectionCounts(w.stateCtx, database.Int64ToNullInt64(&reportID)); err != nil {
+		w.logger.WithError(err).Warn("failed to sync report section counts")
 	}
 }
 

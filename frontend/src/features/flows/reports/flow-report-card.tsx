@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils';
 import type { ReportProgress } from './use-flow-reports';
 
 import FlowReportSections from './flow-report-sections';
-import { formatDuration, formatTokens, isReportActive, isReportResumable } from './report-format';
+import { formatDuration, formatTokens, isReportActive, isReportResumable, reportTookSeconds } from './report-format';
 
 const TICK_INTERVAL_MS = 15_000;
 
@@ -73,10 +73,7 @@ function FlowReportCard({
         return () => clearInterval(interval);
     }, [active]);
 
-    const startedAt = new Date(report.createdAt).getTime();
-    const tookSeconds = report.finishedAt
-        ? (new Date(report.finishedAt).getTime() - startedAt) / 1000
-        : Math.max(0, (now - startedAt) / 1000);
+    const tookSeconds = reportTookSeconds(report, now);
 
     const budgetSeconds = (report.controlBudgetSeconds || 0) + (report.contentBudgetSeconds || 0);
     const progress =
