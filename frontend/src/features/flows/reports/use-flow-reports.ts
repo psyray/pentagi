@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 
 import {
     CreateReportDocument,
+    DeleteReportDocument,
     FlowReportsDocument,
     ReportCreatedDocument,
     ReportDeletedDocument,
@@ -147,6 +148,7 @@ export function useFlowReports() {
     });
 
     const [createMutation] = useMutation(CreateReportDocument);
+    const [deleteMutation] = useMutation(DeleteReportDocument);
 
     // Probed before creating a report: warns when the chosen model cannot read
     // images, so screenshots would not be analysed (plan § 6.10).
@@ -199,9 +201,27 @@ export function useFlowReports() {
         [createMutation, flowId, mergeReport],
     );
 
+    const deleteReport = useCallback(
+        async (report: ReportProgress): Promise<boolean> => {
+            try {
+                await deleteMutation({ variables: { reportId: report.id } });
+                dropReport(report);
+
+                return true;
+            } catch (error) {
+                Log.error('Failed to delete report:', error);
+                toast.error('Failed to delete the report');
+
+                return false;
+            }
+        },
+        [deleteMutation, dropReport],
+    );
+
     return {
         checkVision,
         createReport,
+        deleteReport,
         loading: loading,
         refetch,
         reports,

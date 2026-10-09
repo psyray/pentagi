@@ -1,6 +1,16 @@
-import { CheckCircle2, ChevronRight, CircleSlash, Download, ExternalLink, TrendingUp, XCircle } from 'lucide-react';
+import {
+    CheckCircle2,
+    ChevronRight,
+    CircleSlash,
+    Download,
+    ExternalLink,
+    Trash2,
+    TrendingUp,
+    XCircle,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import ConfirmationDialog from '@/components/shared/confirmation-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -29,15 +39,17 @@ const statusIconClass = (report: ReportProgress): string => {
 };
 
 interface FlowReportCardProps {
+    onDelete: (report: ReportProgress) => Promise<boolean> | void;
     onDownload: (report: ReportProgress) => void;
     onOpen: (report: ReportProgress) => void;
     report: ReportProgress;
 }
 
-function FlowReportCard({ onDownload, onOpen, report }: FlowReportCardProps) {
+function FlowReportCard({ onDelete, onDownload, onOpen, report }: FlowReportCardProps) {
     const active = isRunActive(report);
     const [now, setNow] = useState(() => Date.now());
     const [expanded, setExpanded] = useState(false);
+    const [deleteOpen, setDeleteOpen] = useState(false);
 
     useEffect(() => {
         if (!active) {
@@ -117,6 +129,15 @@ function FlowReportCard({ onDownload, onOpen, report }: FlowReportCardProps) {
                     >
                         <Download />
                     </Button>
+                    <Button
+                        aria-label="Delete report"
+                        onClick={() => setDeleteOpen(true)}
+                        size="icon"
+                        title="Delete report"
+                        variant="ghost"
+                    >
+                        <Trash2 />
+                    </Button>
                 </div>
             </div>
 
@@ -155,6 +176,23 @@ function FlowReportCard({ onDownload, onOpen, report }: FlowReportCardProps) {
                     {expanded && <FlowReportSections reportId={String(report.id)} />}
                 </div>
             </CollapsibleContent>
+
+            <ConfirmationDialog
+                confirmText="Delete"
+                description={
+                    active
+                        ? `Delete "${report.title || 'this report'}"? The run is stopped and the document, its sections and its logs are removed for good.`
+                        : `Delete "${report.title || 'this report'}"? The document, its sections and its logs are removed for good.`
+                }
+                handleConfirm={async () => {
+                    await onDelete(report);
+                }}
+                handleOpenChange={setDeleteOpen}
+                isOpen={deleteOpen}
+                itemName={report.title || 'this report'}
+                itemType="report"
+                title="Delete report"
+            />
         </Collapsible>
     );
 }

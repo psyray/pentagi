@@ -1,9 +1,10 @@
-import { useApolloClient, useQuery, useSubscription } from '@apollo/client/react';
+import { useApolloClient, useMutation, useQuery, useSubscription } from '@apollo/client/react';
 import { useCallback, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import {
+    DeleteReportDocument,
     FlowReportsDocument,
     ReportBrandingDocument,
     ReportSectionsDocument,
@@ -33,6 +34,7 @@ export function useFlowReportDocument() {
     const { flowId, reportId } = useParams<{ flowId: string; reportId: string }>();
     const client = useApolloClient();
     const [downloading, setDownloading] = useState(false);
+    const [deleteMutation] = useMutation(DeleteReportDocument);
 
     const reportsQuery = useQuery(FlowReportsDocument, {
         fetchPolicy: 'cache-and-network',
@@ -107,10 +109,28 @@ export function useFlowReportDocument() {
         [branding, client, flowId, report, reportId],
     );
 
+    const remove = useCallback(async (): Promise<boolean> => {
+        if (!reportId) {
+            return false;
+        }
+
+        try {
+            await deleteMutation({ variables: { reportId } });
+
+            return true;
+        } catch (error) {
+            Log.error('Failed to delete the report:', error);
+            toast.error('Failed to delete the report');
+
+            return false;
+        }
+    }, [deleteMutation, reportId]);
+
     return {
         download,
         downloading,
         loading: (reportsQuery.loading && !report) || (sectionsQuery.loading && sections.length === 0),
+        remove,
         report,
         reportId: reportId ?? '',
         sections,
