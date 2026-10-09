@@ -191,9 +191,7 @@ func (c *Controller) CreateReport(
 		return nil, err
 	}
 
-	c.mx.Lock()
-	c.workers[report.ID] = w
-	c.mx.Unlock()
+	c.registerWorker(report.ID, w)
 
 	w.start()
 	c.deps.Subs.NewFlowPublisher(userID, flowID).ReportCreated(ctx, converter.ConvertReport(report))
@@ -263,9 +261,7 @@ func (c *Controller) LoadReports(ctx context.Context) error {
 			continue
 		}
 
-		c.mx.Lock()
-		c.workers[report.ID] = w
-		c.mx.Unlock()
+		c.registerWorker(report.ID, w)
 
 		w.start()
 		logrus.WithContext(ctx).WithFields(logrus.Fields{
@@ -457,9 +453,7 @@ func (c *Controller) ResumeReport(
 		return nil, err
 	}
 
-	c.mx.Lock()
-	c.workers[reportID] = w
-	c.mx.Unlock()
+	c.registerWorker(reportID, w)
 	claimed = false
 
 	w.runSections(nil)
@@ -519,9 +513,7 @@ func (c *Controller) WriteReportSection(
 		return nil, err
 	}
 
-	c.mx.Lock()
-	c.workers[reportID] = w
-	c.mx.Unlock()
+	c.registerWorker(reportID, w)
 	claimed = false
 
 	w.runSections([]int64{sectionID})
@@ -569,6 +561,25 @@ func (c *Controller) claimRun(reportID int64) bool {
 func (c *Controller) releaseRun(reportID int64) {
 	c.mx.Lock()
 	if c.workers[reportID] == nil {
+		delete(c.workers, reportID)
+	}
+	c.mx.Unlock()
+}
+
+// registerWorker stores a live worker and arms its self-removal: the entry is
+// dropped when the run ends, so a finished report can be resumed or rewritten
+// again later (a stale entry would read as "report is generating" forever).
+func (c *Controller) registerWorker(reportID int64, w *worker) {
+	w.onDone = func() { c.forgetWorker(reportID, w) }
+	c.mx.Lock()
+	c.workers[reportID] = w
+	c.mx.Unlock()
+}
+
+// forgetWorker drops the worker for a report unless a newer one took its place.
+func (c *Controller) forgetWorker(reportID int64, w *worker) {
+	c.mx.Lock()
+	if cur, ok := c.workers[reportID]; ok && cur == w {
 		delete(c.workers, reportID)
 	}
 	c.mx.Unlock()
