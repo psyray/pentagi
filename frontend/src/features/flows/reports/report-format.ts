@@ -96,3 +96,25 @@ export const formatBytes = (text: string): string => {
 
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
+
+// The panel's "Took": the wall time of the current run (finished_at - started_at).
+// started_at is stamped when a run begins, so a report resumed long after it was
+// created no longer reports its whole lifetime. Falls back to createdAt for rows
+// written before the started_at column existed.
+interface TookReport {
+    createdAt: string;
+    finishedAt?: null | string;
+    startedAt?: null | string;
+}
+
+export const reportTookSeconds = (report: TookReport, now: number): number => {
+    const startMs = new Date(report.startedAt ?? report.createdAt).getTime();
+
+    if (!Number.isFinite(startMs)) {
+        return 0;
+    }
+
+    const endMs = report.finishedAt ? new Date(report.finishedAt).getTime() : now;
+
+    return Math.max(0, (endMs - startMs) / 1000);
+};

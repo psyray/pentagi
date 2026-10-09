@@ -1485,6 +1485,7 @@ fragment reportFragment on Report {
     createdAt
     updatedAt
     finishedAt
+    startedAt
 }
 
 fragment reportSectionFragment on ReportSection {

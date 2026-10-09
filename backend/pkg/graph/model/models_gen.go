@@ -489,6 +489,7 @@ type Report struct {
 	CreatedAt              time.Time        `json:"createdAt"`
 	UpdatedAt              time.Time        `json:"updatedAt"`
 	FinishedAt             *time.Time       `json:"finishedAt,omitempty"`
+	StartedAt              *time.Time       `json:"startedAt,omitempty"`
 }
 
 type ReportBranding struct {

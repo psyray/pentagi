@@ -311,10 +311,18 @@ type Querier interface {
 	SetReportSectionSources(ctx context.Context, arg SetReportSectionSourcesParams) (ReportSection, error)
 	SetReportSectionStatus(ctx context.Context, arg SetReportSectionStatusParams) (ReportSection, error)
 	SetReportSectionTitle(ctx context.Context, arg SetReportSectionTitleParams) (ReportSection, error)
+	// Stamps the current run's start so the panel can show the run duration
+	// (finished_at - started_at) instead of the report's whole lifetime.
+	SetReportStartedAt(ctx context.Context, id int64) (Report, error)
 	// IS NOT DISTINCT FROM so a NULL parent (top-level sections) matches the NULL
 	// argument: `parent_id = NULL` never matched and silently skipped the shift,
 	// leaving the new section on top of an existing position.
 	ShiftReportSectionPositions(ctx context.Context, arg ShiftReportSectionPositionsParams) error
+	// Derives the counters from the section rows so a hand-added (or deleted)
+	// section is reflected: total excludes the skipped alternatives, done counts the
+	// resolved ones. The planner's own total only holds until the first sync, which
+	// keeps a fresh report's "not planned yet" signal (sections_total = 0) intact.
+	SyncReportSectionCounts(ctx context.Context, reportID sql.NullInt64) (Report, error)
 	UpdateAPIToken(ctx context.Context, arg UpdateAPITokenParams) (ApiToken, error)
 	UpdateAssistant(ctx context.Context, arg UpdateAssistantParams) (Assistant, error)
 	UpdateAssistantLanguage(ctx context.Context, arg UpdateAssistantLanguageParams) (Assistant, error)

@@ -579,6 +579,7 @@ type ComplexityRoot struct {
 		SectionsDone           func(childComplexity int) int
 		SectionsEstimate       func(childComplexity int) int
 		SectionsTotal          func(childComplexity int) int
+		StartedAt              func(childComplexity int) int
 		Status                 func(childComplexity int) int
 		TemplateKey            func(childComplexity int) int
 		TemplateLabel          func(childComplexity int) int
@@ -4178,6 +4179,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Report.SectionsTotal(childComplexity), true
+
+	case "Report.startedAt":
+		if e.complexity.Report.StartedAt == nil {
+			break
+		}
+
+		return e.complexity.Report.StartedAt(childComplexity), true
 
 	case "Report.status":
 		if e.complexity.Report.Status == nil {
@@ -23562,6 +23570,8 @@ func (ec *executionContext) fieldContext_Mutation_createReport(ctx context.Conte
 				return ec.fieldContext_Report_updatedAt(ctx, field)
 			case "finishedAt":
 				return ec.fieldContext_Report_finishedAt(ctx, field)
+			case "startedAt":
+				return ec.fieldContext_Report_startedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Report", field.Name)
 		},
@@ -30370,6 +30380,8 @@ func (ec *executionContext) fieldContext_Query_reports(ctx context.Context, fiel
 				return ec.fieldContext_Report_updatedAt(ctx, field)
 			case "finishedAt":
 				return ec.fieldContext_Report_finishedAt(ctx, field)
+			case "startedAt":
+				return ec.fieldContext_Report_startedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Report", field.Name)
 		},
@@ -30475,6 +30487,8 @@ func (ec *executionContext) fieldContext_Query_report(ctx context.Context, field
 				return ec.fieldContext_Report_updatedAt(ctx, field)
 			case "finishedAt":
 				return ec.fieldContext_Report_finishedAt(ctx, field)
+			case "startedAt":
+				return ec.fieldContext_Report_startedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Report", field.Name)
 		},
@@ -32139,6 +32153,47 @@ func (ec *executionContext) _Report_finishedAt(ctx context.Context, field graphq
 }
 
 func (ec *executionContext) fieldContext_Report_finishedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Report",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Report_startedAt(ctx context.Context, field graphql.CollectedField, obj *model.Report) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Report_startedAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.StartedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*time.Time)
+	fc.Result = res
+	return ec.marshalOTime2ᚖtimeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Report_startedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Report",
 		Field:      field,
@@ -38175,6 +38230,8 @@ func (ec *executionContext) fieldContext_Subscription_reportCreated(ctx context.
 				return ec.fieldContext_Report_updatedAt(ctx, field)
 			case "finishedAt":
 				return ec.fieldContext_Report_finishedAt(ctx, field)
+			case "startedAt":
+				return ec.fieldContext_Report_startedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Report", field.Name)
 		},
@@ -38294,6 +38351,8 @@ func (ec *executionContext) fieldContext_Subscription_reportUpdated(ctx context.
 				return ec.fieldContext_Report_updatedAt(ctx, field)
 			case "finishedAt":
 				return ec.fieldContext_Report_finishedAt(ctx, field)
+			case "startedAt":
+				return ec.fieldContext_Report_startedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Report", field.Name)
 		},
@@ -38413,6 +38472,8 @@ func (ec *executionContext) fieldContext_Subscription_reportDeleted(ctx context.
 				return ec.fieldContext_Report_updatedAt(ctx, field)
 			case "finishedAt":
 				return ec.fieldContext_Report_finishedAt(ctx, field)
+			case "startedAt":
+				return ec.fieldContext_Report_startedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Report", field.Name)
 		},
@@ -50544,6 +50605,8 @@ func (ec *executionContext) _Report(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "finishedAt":
 			out.Values[i] = ec._Report_finishedAt(ctx, field, obj)
+		case "startedAt":
+			out.Values[i] = ec._Report_startedAt(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

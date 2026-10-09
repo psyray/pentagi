@@ -38,6 +38,7 @@ func ConvertReport(report database.Report) *model.Report {
 		CreatedAt:              report.CreatedAt.Time,
 		UpdatedAt:              report.UpdatedAt.Time,
 		FinishedAt:             nullTimePtr(report.FinishedAt),
+		StartedAt:              nullTimePtr(report.StartedAt),
 	}
 }
 

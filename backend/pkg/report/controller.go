@@ -529,6 +529,19 @@ func (c *Controller) WriteReportSection(
 	return &st, nil
 }
 
+// syncSectionCounts recomputes the section counters from the rows and publishes
+// the report, so a hand-added or removed section is reflected in the header and
+// the list card (the planner's total does not know about manual edits).
+func (c *Controller) syncSectionCounts(ctx context.Context, userID, reportID int64) {
+	id := reportID
+	row, err := c.deps.DB.SyncReportSectionCounts(ctx, database.Int64ToNullInt64(&id))
+	if err != nil {
+		logrus.WithContext(ctx).WithError(err).Warnf("failed to sync report %d section counts", reportID)
+		return
+	}
+	c.deps.Subs.NewFlowPublisher(userID, row.FlowID).ReportUpdated(ctx, converter.ConvertReport(row))
+}
+
 // requeueUnwritten resets the sections that were not written (not_written) or
 // failed back to queued so a resumed run rewrites them.
 func (c *Controller) requeueUnwritten(ctx context.Context, reportID int64) error {
@@ -889,6 +902,7 @@ func (c *Controller) AddReportSection(
 		}
 	}
 	c.publishAll(ctx, userID, reportID, changed)
+	c.syncSectionCounts(ctx, userID, reportID)
 
 	return &row, nil
 }
@@ -925,6 +939,7 @@ func (c *Controller) DeleteReportSection(ctx context.Context, userID, reportID, 
 		}
 	}
 	c.publishAll(ctx, userID, reportID, changed)
+	c.syncSectionCounts(ctx, userID, reportID)
 
 	return nil
 }
