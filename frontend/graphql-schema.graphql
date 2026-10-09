@@ -1528,6 +1528,12 @@ query flowReports($flowId: ID!) {
     }
 }
 
+query allReports {
+    reports {
+        ...reportFragment
+    }
+}
+
 query reportRow($reportId: ID!) {
     report(reportId: $reportId) {
         ...reportFragment

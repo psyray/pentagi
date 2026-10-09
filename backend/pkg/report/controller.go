@@ -310,6 +310,16 @@ func (c *Controller) ListFlowReports(ctx context.Context, userID, flowID int64) 
 	return rows, nil
 }
 
+// ListUserReports returns every report owned by the user, across flows (global
+// Reports page, L5).
+func (c *Controller) ListUserReports(ctx context.Context, userID int64) ([]database.Report, error) {
+	rows, err := c.deps.DB.GetUserReports(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
 // GetReport returns one report owned by the user.
 func (c *Controller) GetReport(ctx context.Context, userID, reportID int64) (*database.Report, error) {
 	report, err := c.deps.DB.GetReport(ctx, database.GetReportParams{ID: reportID, UserID: userID})
