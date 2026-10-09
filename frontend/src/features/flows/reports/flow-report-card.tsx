@@ -39,13 +39,14 @@ const statusIconClass = (report: ReportProgress): string => {
 };
 
 interface FlowReportCardProps {
+    canDelete?: boolean;
     onDelete: (report: ReportProgress) => Promise<boolean> | void;
     onDownload: (report: ReportProgress) => void;
     onOpen: (report: ReportProgress) => void;
     report: ReportProgress;
 }
 
-function FlowReportCard({ onDelete, onDownload, onOpen, report }: FlowReportCardProps) {
+function FlowReportCard({ canDelete = true, onDelete, onDownload, onOpen, report }: FlowReportCardProps) {
     const active = isRunActive(report);
     const [now, setNow] = useState(() => Date.now());
     const [expanded, setExpanded] = useState(false);
@@ -129,15 +130,17 @@ function FlowReportCard({ onDelete, onDownload, onOpen, report }: FlowReportCard
                     >
                         <Download />
                     </Button>
-                    <Button
-                        aria-label="Delete report"
-                        onClick={() => setDeleteOpen(true)}
-                        size="icon"
-                        title="Delete report"
-                        variant="ghost"
-                    >
-                        <Trash2 />
-                    </Button>
+                    {canDelete && (
+                        <Button
+                            aria-label="Delete report"
+                            onClick={() => setDeleteOpen(true)}
+                            size="icon"
+                            title="Delete report"
+                            variant="ghost"
+                        >
+                            <Trash2 />
+                        </Button>
+                    )}
                 </div>
             </div>
 

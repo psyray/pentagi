@@ -27,6 +27,7 @@ import { formatDuration, isReportActive } from './report-format';
 import { buildReportOutline, flattenReportOutline } from './report-outline';
 import { useFlowReportDocument } from './use-flow-report-document';
 import { useFlowReportEditor } from './use-flow-report-editor';
+import { useReportPermissions } from './use-report-permissions';
 
 function FlowReportPage() {
     const { flowId } = useParams<{ flowId: string }>();
@@ -34,6 +35,7 @@ function FlowReportPage() {
     const { download, downloading, loading, remove, report, reportId, sections } = useFlowReportDocument();
     const editor = useFlowReportEditor(reportId || null);
     const [deleteOpen, setDeleteOpen] = useState(false);
+    const permissions = useReportPermissions();
 
     const handleSelectSection = useCallback((sectionId: string) => {
         document.getElementById(`report-section-${sectionId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -59,7 +61,7 @@ function FlowReportPage() {
             ? Math.min(100, Math.round((report.sectionsDone / report.sectionsTotal) * 100))
             : 0;
     const active = report ? isReportActive(report.status) : false;
-    const canEdit = !!report && !active;
+    const canEdit = !!report && !active && permissions.canEdit;
     const activeTitle = flat.find((node) => node.section.id === activeSectionId)?.section.title ?? null;
 
     return (
@@ -93,17 +95,19 @@ function FlowReportPage() {
                         downloading={downloading}
                         onDownload={download}
                     />
-                    <Button
-                        aria-label="Delete report"
-                        disabled={!report}
-                        onClick={() => setDeleteOpen(true)}
-                        size="sm"
-                        title="Delete report"
-                        variant="outline"
-                    >
-                        <Trash2 className="size-4" />
-                        Delete
-                    </Button>
+                    {permissions.canDelete && (
+                        <Button
+                            aria-label="Delete report"
+                            disabled={!report}
+                            onClick={() => setDeleteOpen(true)}
+                            size="sm"
+                            title="Delete report"
+                            variant="outline"
+                        >
+                            <Trash2 className="size-4" />
+                            Delete
+                        </Button>
+                    )}
                 </AppHeaderActions>
             </AppHeader>
 

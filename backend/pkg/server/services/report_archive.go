@@ -80,7 +80,7 @@ func (s *ReportArchiveService) ReportBrandingLogo(c *gin.Context) {
 	}
 
 	privs := c.GetStringSlice("prm")
-	if !slices.Contains(privs, "flows.read") && !slices.Contains(privs, "flows.admin") {
+	if !slices.Contains(privs, "reports.read") && !slices.Contains(privs, "reports.admin") {
 		response.Error(c, response.ErrNotPermitted, nil)
 		return
 	}
@@ -134,7 +134,7 @@ func (s *ReportArchiveService) ArchiveReport(c *gin.Context) {
 	}
 
 	privs := c.GetStringSlice("prm")
-	if !slices.Contains(privs, "flows.read") && !slices.Contains(privs, "flows.admin") {
+	if !slices.Contains(privs, "reports.read") && !slices.Contains(privs, "reports.admin") {
 		response.Error(c, response.ErrNotPermitted, nil)
 		return
 	}
