@@ -46,6 +46,7 @@ export const routes = {
         prompts: '/settings/prompts',
         provider: (id: string) => `/settings/providers/${id}`,
         providers: '/settings/providers',
+        reportTemplates: '/settings/report-templates',
         root: '/settings',
     },
 

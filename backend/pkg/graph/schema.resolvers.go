@@ -1534,6 +1534,103 @@ func (r *mutationResolver) SetReportSectionAttachments(ctx context.Context, repo
 	return converter.ConvertReportAttachments(rows), nil
 }
 
+// CreateReportTemplate is the resolver for the createReportTemplate field.
+func (r *mutationResolver) CreateReportTemplate(ctx context.Context, input model.ReportTemplateInput) (*model.ReportTemplate, error) {
+	uid, isAdmin, err := validatePermission(ctx, "reports.edit")
+	if err != nil {
+		return nil, err
+	}
+
+	global := input.Global != nil && *input.Global
+	row, err := r.ReportsCtrl.CreateReportTemplate(ctx, uid, isAdmin, report.TemplateParams{
+		Yaml:    input.Yaml,
+		Enabled: input.Enabled == nil || *input.Enabled,
+	}, global)
+	if err != nil {
+		return nil, err
+	}
+
+	return reportTemplateView(ctx, r.ReportsCtrl, uid, *row), nil
+}
+
+// UpdateReportTemplate is the resolver for the updateReportTemplate field.
+func (r *mutationResolver) UpdateReportTemplate(ctx context.Context, templateID int64, input model.ReportTemplateInput) (*model.ReportTemplate, error) {
+	uid, isAdmin, err := validatePermission(ctx, "reports.edit")
+	if err != nil {
+		return nil, err
+	}
+
+	existing, err := r.ReportsCtrl.GetReportTemplate(ctx, uid, templateID)
+	if err != nil {
+		return nil, err
+	}
+	enabled := existing.Enabled
+	if input.Enabled != nil {
+		enabled = *input.Enabled
+	}
+
+	row, err := r.ReportsCtrl.UpdateReportTemplate(ctx, uid, templateID, isAdmin, report.TemplateParams{
+		Yaml:    input.Yaml,
+		Enabled: enabled,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return reportTemplateView(ctx, r.ReportsCtrl, uid, *row), nil
+}
+
+// SetReportTemplateEnabled is the resolver for the setReportTemplateEnabled field.
+func (r *mutationResolver) SetReportTemplateEnabled(ctx context.Context, templateID int64, enabled bool) (*model.ReportTemplate, error) {
+	uid, isAdmin, err := validatePermission(ctx, "reports.edit")
+	if err != nil {
+		return nil, err
+	}
+
+	row, err := r.ReportsCtrl.SetReportTemplateEnabled(ctx, uid, templateID, isAdmin, enabled)
+	if err != nil {
+		return nil, err
+	}
+
+	return reportTemplateView(ctx, r.ReportsCtrl, uid, *row), nil
+}
+
+// DeleteReportTemplate is the resolver for the deleteReportTemplate field.
+func (r *mutationResolver) DeleteReportTemplate(ctx context.Context, templateID int64) (model.ResultType, error) {
+	uid, isAdmin, err := validatePermission(ctx, "reports.edit")
+	if err != nil {
+		return model.ResultTypeError, err
+	}
+
+	if err := r.ReportsCtrl.DeleteReportTemplate(ctx, uid, templateID, isAdmin); err != nil {
+		return model.ResultTypeError, err
+	}
+
+	return model.ResultTypeSuccess, nil
+}
+
+// SetReportTemplateBranding is the resolver for the setReportTemplateBranding field.
+func (r *mutationResolver) SetReportTemplateBranding(ctx context.Context, templateID int64, input model.ReportTemplateBrandingInput) (*model.ReportTemplateBranding, error) {
+	uid, isAdmin, err := validatePermission(ctx, "reports.edit")
+	if err != nil {
+		return nil, err
+	}
+
+	view, err := r.ReportsCtrl.SetReportTemplateBranding(ctx, uid, templateID, isAdmin, report.TemplateBrandingParams{
+		Title:    input.Title,
+		Subtitle: input.Subtitle,
+		Header:   input.Header,
+		Footer:   input.Footer,
+		Logo:     input.Logo,
+		LogoName: deref(input.LogoName),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return templateBrandingModel(view), nil
+}
+
 // Providers is the resolver for the providers field.
 func (r *queryResolver) Providers(ctx context.Context) ([]*model.Provider, error) {
 	uid, _, err := validatePermission(ctx, "providers.view")
@@ -3342,6 +3439,30 @@ func (r *queryResolver) ReportBranding(ctx context.Context, reportID int64) (*mo
 	}
 
 	return brandingModel(view), nil
+}
+
+// ReportTemplates is the resolver for the reportTemplates field.
+func (r *queryResolver) ReportTemplates(ctx context.Context) ([]*model.ReportTemplate, error) {
+	uid, _, err := validatePermission(ctx, "reports.read")
+	if err != nil {
+		return nil, err
+	}
+
+	infos, err := r.ReportsCtrl.ListReportTemplates(ctx, uid)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]*model.ReportTemplate, 0, len(infos))
+	for _, info := range infos {
+		var branding report.TemplateBrandingView
+		if info.ID != 0 {
+			branding, _ = r.ReportsCtrl.GetReportTemplateBranding(ctx, uid, info.ID)
+		}
+		out = append(out, reportTemplateModel(info, branding))
+	}
+
+	return out, nil
 }
 
 // FlowCreated is the resolver for the flowCreated field.

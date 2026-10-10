@@ -27,6 +27,7 @@ const EXCLUDED: Record<string, string> = {
     '/reports': 'global reports list; needs a cross-flow reports cassette before joining the sweep',
     '/settings': 'redirects to /settings/account',
     '/settings/account': 'needs an account cassette + visual baseline before joining the sweep',
+    '/settings/report-templates': 'settings CRUD page; unit-covered by settings-report-templates.test.tsx',
     '/templates/new': 'create-mode variant of the template detail page',
 };
 

@@ -38,15 +38,41 @@ func BuildDocument(
 	if err != nil {
 		return "", fmt.Errorf("failed to load report sections: %w", err)
 	}
-	tpl, tplErr := GetTemplate(report.TemplateKey)
+	tpl, tplErr := ResolveTemplate(ctx, db, report.UserID, report.TemplateKey)
 	if tplErr != nil {
 		tpl = &Template{Key: report.TemplateKey}
 	}
+	tplBranding := templateBrandingFor(ctx, db, report.UserID, report.TemplateKey)
 
-	return composeDocument(report, tpl, sections), nil
+	return composeDocument(report, tpl, tplBranding, sections), nil
 }
 
-func composeDocument(report database.Report, tpl *Template, sections []database.ReportSection) string {
+// templateBrandingFor loads the branding a report inherits from its template,
+// nil when the template is bundled, missing or carries no branding (L3).
+func templateBrandingFor(ctx context.Context, q database.Querier, userID int64, key string) *TemplateBranding {
+	if q == nil || userID == 0 {
+		return nil
+	}
+	row, err := q.GetReportTemplateByKey(ctx, database.GetReportTemplateByKeyParams{
+		Key:    strings.TrimPrefix(key, "bundled/"),
+		UserID: sql.NullInt64{Int64: userID, Valid: true},
+	})
+	if err != nil {
+		return nil
+	}
+	branding := TemplateBrandingFromRow(row)
+	if branding == (TemplateBranding{}) {
+		return nil
+	}
+	return &branding
+}
+
+func composeDocument(
+	report database.Report,
+	tpl *Template,
+	tplBranding *TemplateBranding,
+	sections []database.ReportSection,
+) string {
 	b := &strings.Builder{}
 	title := strings.TrimSpace(report.Title)
 	if title == "" {
@@ -60,7 +86,7 @@ func composeDocument(report database.Report, tpl *Template, sections []database.
 		if st.Hidden {
 			continue
 		}
-		writeSection(b, numberer, report, labels, st, sections)
+		writeSection(b, numberer, report, labels, tplBranding, st, sections)
 	}
 
 	return normalizeDocument(b.String())
@@ -135,6 +161,7 @@ func writeSection(
 	numberer *numberer,
 	report database.Report,
 	labels map[string]string,
+	tplBranding *TemplateBranding,
 	st database.ReportSection,
 	sections []database.ReportSection,
 ) {
@@ -144,7 +171,7 @@ func writeSection(
 	case KindComposed, KindAggregate:
 		// Computed at export; aggregate children are written by their owners.
 		if st.Kind == KindComposed {
-			b.WriteString(composeSectionBody(numberer, report, labels, st, sections))
+			b.WriteString(composeSectionBody(numberer, report, labels, tplBranding, st, sections))
 		}
 	default:
 		switch st.Status {
@@ -166,7 +193,7 @@ func writeSection(
 		if child.Hidden {
 			continue
 		}
-		writeSection(b, numberer, report, labels, child, sections)
+		writeSection(b, numberer, report, labels, tplBranding, child, sections)
 	}
 }
 
@@ -177,12 +204,13 @@ func composeSectionBody(
 	numberer *numberer,
 	report database.Report,
 	labels map[string]string,
+	tplBranding *TemplateBranding,
 	st database.ReportSection,
 	sections []database.ReportSection,
 ) string {
 	switch st.Key {
 	case "cover-page":
-		return composeCover(report, labels)
+		return composeCover(report, labels, tplBranding)
 	case "engagement-metrics":
 		return composeMetrics(report, labels)
 	case "risk-rankings":
@@ -192,7 +220,7 @@ func composeSectionBody(
 	case "closing":
 		return composeClosing(report, labels)
 	case "page-header-footer":
-		return composeHeaderFooter(report, labels)
+		return composeHeaderFooter(report, labels, tplBranding)
 	default:
 		return fmt.Sprintf("*Composed from the document when the report is exported (unknown composer %q).*\n\n", st.Key)
 	}
@@ -205,9 +233,9 @@ func nullTimeOrNow(value sql.NullTime) time.Time {
 	return time.Now()
 }
 
-func composeCover(report database.Report, labels map[string]string) string {
+func composeCover(report database.Report, labels map[string]string, tplBranding *TemplateBranding) string {
 	b := &strings.Builder{}
-	branding := ResolveReportBranding(report)
+	branding := ResolveReportBranding(report, tplBranding)
 	fmt.Fprintf(b, "**%s**\n\n", escapeTitle(branding.Title))
 	if branding.Subtitle != "" {
 		fmt.Fprintf(b, "*%s*\n\n", escapeTitle(branding.Subtitle))
@@ -324,8 +352,8 @@ func composeClosing(report database.Report, labels map[string]string) string {
 	}) + "\n\n"
 }
 
-func composeHeaderFooter(report database.Report, labels map[string]string) string {
-	branding := ResolveReportBranding(report)
+func composeHeaderFooter(report database.Report, labels map[string]string, tplBranding *TemplateBranding) string {
+	branding := ResolveReportBranding(report, tplBranding)
 	// title and date travel alongside header/footer so a label stored before the
 	// header_text/footer_text keys existed still resolves its placeholders.
 	return renderLabel(labels, "header_footer.line", map[string]string{

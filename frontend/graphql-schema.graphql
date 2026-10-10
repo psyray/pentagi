@@ -1868,6 +1868,66 @@ mutation updateReportBranding($reportId: ID!, $input: ReportBrandingInput!) {
     }
 }
 
+fragment reportTemplateBrandingFragment on ReportTemplateBranding {
+    title
+    subtitle
+    header
+    footer
+    hasLogo
+    logoName
+    logoMediaType
+}
+
+fragment reportTemplateFragment on ReportTemplate {
+    id
+    key
+    label
+    version
+    yaml
+    enabled
+    source
+    userId
+    createdAt
+    updatedAt
+    branding {
+        ...reportTemplateBrandingFragment
+    }
+}
+
+query reportTemplates {
+    reportTemplates {
+        ...reportTemplateFragment
+    }
+}
+
+mutation createReportTemplate($input: ReportTemplateInput!) {
+    createReportTemplate(input: $input) {
+        ...reportTemplateFragment
+    }
+}
+
+mutation updateReportTemplate($templateId: ID!, $input: ReportTemplateInput!) {
+    updateReportTemplate(templateId: $templateId, input: $input) {
+        ...reportTemplateFragment
+    }
+}
+
+mutation setReportTemplateEnabled($templateId: ID!, $enabled: Boolean!) {
+    setReportTemplateEnabled(templateId: $templateId, enabled: $enabled) {
+        ...reportTemplateFragment
+    }
+}
+
+mutation deleteReportTemplate($templateId: ID!) {
+    deleteReportTemplate(templateId: $templateId)
+}
+
+mutation setReportTemplateBranding($templateId: ID!, $input: ReportTemplateBrandingInput!) {
+    setReportTemplateBranding(templateId: $templateId, input: $input) {
+        ...reportTemplateBrandingFragment
+    }
+}
+
 mutation createReport($flowId: ID!, $input: CreateReportInput!) {
     createReport(flowId: $flowId, input: $input) {
         ...reportFragment

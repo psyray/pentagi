@@ -470,6 +470,7 @@ type ComplexityRoot struct {
 		CreatePrompt                func(childComplexity int, typeArg model.PromptType, template string) int
 		CreateProvider              func(childComplexity int, name string, typeArg model.ProviderType, agents model.AgentsConfig) int
 		CreateReport                func(childComplexity int, flowID int64, input model.CreateReportInput) int
+		CreateReportTemplate        func(childComplexity int, input model.ReportTemplateInput) int
 		DeleteAPIToken              func(childComplexity int, tokenID string) int
 		DeleteAssistant             func(childComplexity int, flowID int64, assistantID int64) int
 		DeleteFavoriteFlow          func(childComplexity int, flowID int64) int
@@ -480,6 +481,7 @@ type ComplexityRoot struct {
 		DeleteProvider              func(childComplexity int, providerID int64) int
 		DeleteReport                func(childComplexity int, reportID int64) int
 		DeleteReportSection         func(childComplexity int, reportID int64, sectionID int64) int
+		DeleteReportTemplate        func(childComplexity int, templateID int64) int
 		FinishFlow                  func(childComplexity int, flowID int64) int
 		HideReportSection           func(childComplexity int, reportID int64, sectionID int64, hidden bool) int
 		MoveReportSection           func(childComplexity int, reportID int64, sectionID int64, direction model.SectionDirection) int
@@ -490,6 +492,8 @@ type ComplexityRoot struct {
 		ResumeReport                func(childComplexity int, reportID int64, contentBudgetSeconds *int) int
 		SetReportSectionAttachments func(childComplexity int, reportID int64, sectionID int64, attachments []*model.ReportAttachmentInput) int
 		SetReportSectionContent     func(childComplexity int, reportID int64, sectionID int64, content string) int
+		SetReportTemplateBranding   func(childComplexity int, templateID int64, input model.ReportTemplateBrandingInput) int
+		SetReportTemplateEnabled    func(childComplexity int, templateID int64, enabled bool) int
 		StopAssistant               func(childComplexity int, flowID int64, assistantID int64) int
 		StopFlow                    func(childComplexity int, flowID int64) int
 		StopReport                  func(childComplexity int, reportID int64) int
@@ -502,6 +506,7 @@ type ComplexityRoot struct {
 		UpdateProvider              func(childComplexity int, providerID int64, name string, agents model.AgentsConfig) int
 		UpdateReportBranding        func(childComplexity int, reportID int64, input model.ReportBrandingInput) int
 		UpdateReportSection         func(childComplexity int, reportID int64, sectionID int64, input model.ReportSectionInput) int
+		UpdateReportTemplate        func(childComplexity int, templateID int64, input model.ReportTemplateInput) int
 		ValidatePrompt              func(childComplexity int, typeArg model.PromptType, template string) int
 		WriteReportSection          func(childComplexity int, reportID int64, sectionID int64) int
 	}
@@ -640,6 +645,7 @@ type ComplexityRoot struct {
 		ReportDocument                  func(childComplexity int, reportID int64) int
 		ReportLogs                      func(childComplexity int, reportID int64, limit *int) int
 		ReportSections                  func(childComplexity int, reportID int64) int
+		ReportTemplates                 func(childComplexity int) int
 		ReportVision                    func(childComplexity int, flowID int64, providerName *string) int
 		Reports                         func(childComplexity int, flowID *int64) int
 		Resources                       func(childComplexity int, path *string, recursive *bool) int
@@ -757,6 +763,30 @@ type ComplexityRoot struct {
 		UpdatedAt       func(childComplexity int) int
 		Variables       func(childComplexity int) int
 		Warnings        func(childComplexity int) int
+	}
+
+	ReportTemplate struct {
+		Branding  func(childComplexity int) int
+		CreatedAt func(childComplexity int) int
+		Enabled   func(childComplexity int) int
+		ID        func(childComplexity int) int
+		Key       func(childComplexity int) int
+		Label     func(childComplexity int) int
+		Source    func(childComplexity int) int
+		UpdatedAt func(childComplexity int) int
+		UserID    func(childComplexity int) int
+		Version   func(childComplexity int) int
+		Yaml      func(childComplexity int) int
+	}
+
+	ReportTemplateBranding struct {
+		Footer        func(childComplexity int) int
+		HasLogo       func(childComplexity int) int
+		Header        func(childComplexity int) int
+		LogoMediaType func(childComplexity int) int
+		LogoName      func(childComplexity int) int
+		Subtitle      func(childComplexity int) int
+		Title         func(childComplexity int) int
 	}
 
 	ReportVariable struct {
@@ -1089,6 +1119,11 @@ type MutationResolver interface {
 	AddReportSection(ctx context.Context, reportID int64, afterSectionID *int64, parentID *int64, title string) (*model.ReportSection, error)
 	DeleteReportSection(ctx context.Context, reportID int64, sectionID int64) (model.ResultType, error)
 	SetReportSectionAttachments(ctx context.Context, reportID int64, sectionID int64, attachments []*model.ReportAttachmentInput) ([]*model.ReportAttachment, error)
+	CreateReportTemplate(ctx context.Context, input model.ReportTemplateInput) (*model.ReportTemplate, error)
+	UpdateReportTemplate(ctx context.Context, templateID int64, input model.ReportTemplateInput) (*model.ReportTemplate, error)
+	SetReportTemplateEnabled(ctx context.Context, templateID int64, enabled bool) (*model.ReportTemplate, error)
+	DeleteReportTemplate(ctx context.Context, templateID int64) (model.ResultType, error)
+	SetReportTemplateBranding(ctx context.Context, templateID int64, input model.ReportTemplateBrandingInput) (*model.ReportTemplateBranding, error)
 }
 type QueryResolver interface {
 	Providers(ctx context.Context) ([]*model.Provider, error)
@@ -1159,6 +1194,7 @@ type QueryResolver interface {
 	ReportDocument(ctx context.Context, reportID int64) (string, error)
 	ReportVision(ctx context.Context, flowID int64, providerName *string) (*model.ReportVision, error)
 	ReportBranding(ctx context.Context, reportID int64) (*model.ReportBranding, error)
+	ReportTemplates(ctx context.Context) ([]*model.ReportTemplate, error)
 }
 type SubscriptionResolver interface {
 	FlowCreated(ctx context.Context) (<-chan *model.Flow, error)
@@ -3252,6 +3288,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.CreateReport(childComplexity, args["flowId"].(int64), args["input"].(model.CreateReportInput)), true
 
+	case "Mutation.createReportTemplate":
+		if e.complexity.Mutation.CreateReportTemplate == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createReportTemplate_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.CreateReportTemplate(childComplexity, args["input"].(model.ReportTemplateInput)), true
+
 	case "Mutation.deleteAPIToken":
 		if e.complexity.Mutation.DeleteAPIToken == nil {
 			break
@@ -3372,6 +3420,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.DeleteReportSection(childComplexity, args["reportId"].(int64), args["sectionId"].(int64)), true
 
+	case "Mutation.deleteReportTemplate":
+		if e.complexity.Mutation.DeleteReportTemplate == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteReportTemplate_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteReportTemplate(childComplexity, args["templateId"].(int64)), true
+
 	case "Mutation.finishFlow":
 		if e.complexity.Mutation.FinishFlow == nil {
 			break
@@ -3491,6 +3551,30 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.SetReportSectionContent(childComplexity, args["reportId"].(int64), args["sectionId"].(int64), args["content"].(string)), true
+
+	case "Mutation.setReportTemplateBranding":
+		if e.complexity.Mutation.SetReportTemplateBranding == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setReportTemplateBranding_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.SetReportTemplateBranding(childComplexity, args["templateId"].(int64), args["input"].(model.ReportTemplateBrandingInput)), true
+
+	case "Mutation.setReportTemplateEnabled":
+		if e.complexity.Mutation.SetReportTemplateEnabled == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setReportTemplateEnabled_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.SetReportTemplateEnabled(childComplexity, args["templateId"].(int64), args["enabled"].(bool)), true
 
 	case "Mutation.stopAssistant":
 		if e.complexity.Mutation.StopAssistant == nil {
@@ -3635,6 +3719,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.UpdateReportSection(childComplexity, args["reportId"].(int64), args["sectionId"].(int64), args["input"].(model.ReportSectionInput)), true
+
+	case "Mutation.updateReportTemplate":
+		if e.complexity.Mutation.UpdateReportTemplate == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateReportTemplate_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateReportTemplate(childComplexity, args["templateId"].(int64), args["input"].(model.ReportTemplateInput)), true
 
 	case "Mutation.validatePrompt":
 		if e.complexity.Mutation.ValidatePrompt == nil {
@@ -4546,6 +4642,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Query.ReportSections(childComplexity, args["reportId"].(int64)), true
 
+	case "Query.reportTemplates":
+		if e.complexity.Query.ReportTemplates == nil {
+			break
+		}
+
+		return e.complexity.Query.ReportTemplates(childComplexity), true
+
 	case "Query.reportVision":
 		if e.complexity.Query.ReportVision == nil {
 			break
@@ -5328,6 +5431,132 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.ReportSection.Warnings(childComplexity), true
+
+	case "ReportTemplate.branding":
+		if e.complexity.ReportTemplate.Branding == nil {
+			break
+		}
+
+		return e.complexity.ReportTemplate.Branding(childComplexity), true
+
+	case "ReportTemplate.createdAt":
+		if e.complexity.ReportTemplate.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.ReportTemplate.CreatedAt(childComplexity), true
+
+	case "ReportTemplate.enabled":
+		if e.complexity.ReportTemplate.Enabled == nil {
+			break
+		}
+
+		return e.complexity.ReportTemplate.Enabled(childComplexity), true
+
+	case "ReportTemplate.id":
+		if e.complexity.ReportTemplate.ID == nil {
+			break
+		}
+
+		return e.complexity.ReportTemplate.ID(childComplexity), true
+
+	case "ReportTemplate.key":
+		if e.complexity.ReportTemplate.Key == nil {
+			break
+		}
+
+		return e.complexity.ReportTemplate.Key(childComplexity), true
+
+	case "ReportTemplate.label":
+		if e.complexity.ReportTemplate.Label == nil {
+			break
+		}
+
+		return e.complexity.ReportTemplate.Label(childComplexity), true
+
+	case "ReportTemplate.source":
+		if e.complexity.ReportTemplate.Source == nil {
+			break
+		}
+
+		return e.complexity.ReportTemplate.Source(childComplexity), true
+
+	case "ReportTemplate.updatedAt":
+		if e.complexity.ReportTemplate.UpdatedAt == nil {
+			break
+		}
+
+		return e.complexity.ReportTemplate.UpdatedAt(childComplexity), true
+
+	case "ReportTemplate.userId":
+		if e.complexity.ReportTemplate.UserID == nil {
+			break
+		}
+
+		return e.complexity.ReportTemplate.UserID(childComplexity), true
+
+	case "ReportTemplate.version":
+		if e.complexity.ReportTemplate.Version == nil {
+			break
+		}
+
+		return e.complexity.ReportTemplate.Version(childComplexity), true
+
+	case "ReportTemplate.yaml":
+		if e.complexity.ReportTemplate.Yaml == nil {
+			break
+		}
+
+		return e.complexity.ReportTemplate.Yaml(childComplexity), true
+
+	case "ReportTemplateBranding.footer":
+		if e.complexity.ReportTemplateBranding.Footer == nil {
+			break
+		}
+
+		return e.complexity.ReportTemplateBranding.Footer(childComplexity), true
+
+	case "ReportTemplateBranding.hasLogo":
+		if e.complexity.ReportTemplateBranding.HasLogo == nil {
+			break
+		}
+
+		return e.complexity.ReportTemplateBranding.HasLogo(childComplexity), true
+
+	case "ReportTemplateBranding.header":
+		if e.complexity.ReportTemplateBranding.Header == nil {
+			break
+		}
+
+		return e.complexity.ReportTemplateBranding.Header(childComplexity), true
+
+	case "ReportTemplateBranding.logoMediaType":
+		if e.complexity.ReportTemplateBranding.LogoMediaType == nil {
+			break
+		}
+
+		return e.complexity.ReportTemplateBranding.LogoMediaType(childComplexity), true
+
+	case "ReportTemplateBranding.logoName":
+		if e.complexity.ReportTemplateBranding.LogoName == nil {
+			break
+		}
+
+		return e.complexity.ReportTemplateBranding.LogoName(childComplexity), true
+
+	case "ReportTemplateBranding.subtitle":
+		if e.complexity.ReportTemplateBranding.Subtitle == nil {
+			break
+		}
+
+		return e.complexity.ReportTemplateBranding.Subtitle(childComplexity), true
+
+	case "ReportTemplateBranding.title":
+		if e.complexity.ReportTemplateBranding.Title == nil {
+			break
+		}
+
+		return e.complexity.ReportTemplateBranding.Title(childComplexity), true
 
 	case "ReportVariable.name":
 		if e.complexity.ReportVariable.Name == nil {
@@ -6939,6 +7168,8 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputReportAttachmentInput,
 		ec.unmarshalInputReportBrandingInput,
 		ec.unmarshalInputReportSectionInput,
+		ec.unmarshalInputReportTemplateBrandingInput,
+		ec.unmarshalInputReportTemplateInput,
 		ec.unmarshalInputUpdateAPITokenInput,
 		ec.unmarshalInputUpdateFlowTemplateInput,
 		ec.unmarshalInputUpdateKnowledgeDocumentInput,
@@ -7859,6 +8090,38 @@ func (ec *executionContext) field_Mutation_createProvider_argsAgents(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_createReportTemplate_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Mutation_createReportTemplate_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_createReportTemplate_argsInput(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (model.ReportTemplateInput, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["input"]
+	if !ok {
+		var zeroVal model.ReportTemplateInput
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNReportTemplateInput2pentagiᚋpkgᚋgraphᚋmodelᚐReportTemplateInput(ctx, tmp)
+	}
+
+	var zeroVal model.ReportTemplateInput
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Mutation_createReport_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -8253,6 +8516,38 @@ func (ec *executionContext) field_Mutation_deleteReportSection_argsSectionID(
 
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("sectionId"))
 	if tmp, ok := rawArgs["sectionId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteReportTemplate_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Mutation_deleteReportTemplate_argsTemplateID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["templateId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_deleteReportTemplate_argsTemplateID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["templateId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("templateId"))
+	if tmp, ok := rawArgs["templateId"]; ok {
 		return ec.unmarshalNID2int64(ctx, tmp)
 	}
 
@@ -9017,6 +9312,124 @@ func (ec *executionContext) field_Mutation_setReportSectionContent_argsContent(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_setReportTemplateBranding_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Mutation_setReportTemplateBranding_argsTemplateID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["templateId"] = arg0
+	arg1, err := ec.field_Mutation_setReportTemplateBranding_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_setReportTemplateBranding_argsTemplateID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["templateId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("templateId"))
+	if tmp, ok := rawArgs["templateId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_setReportTemplateBranding_argsInput(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (model.ReportTemplateBrandingInput, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["input"]
+	if !ok {
+		var zeroVal model.ReportTemplateBrandingInput
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNReportTemplateBrandingInput2pentagiᚋpkgᚋgraphᚋmodelᚐReportTemplateBrandingInput(ctx, tmp)
+	}
+
+	var zeroVal model.ReportTemplateBrandingInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_setReportTemplateEnabled_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Mutation_setReportTemplateEnabled_argsTemplateID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["templateId"] = arg0
+	arg1, err := ec.field_Mutation_setReportTemplateEnabled_argsEnabled(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["enabled"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_setReportTemplateEnabled_argsTemplateID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["templateId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("templateId"))
+	if tmp, ok := rawArgs["templateId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_setReportTemplateEnabled_argsEnabled(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (bool, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["enabled"]
+	if !ok {
+		var zeroVal bool
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("enabled"))
+	if tmp, ok := rawArgs["enabled"]; ok {
+		return ec.unmarshalNBoolean2bool(ctx, tmp)
+	}
+
+	var zeroVal bool
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Mutation_stopAssistant_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
 	args := map[string]interface{}{}
@@ -9776,6 +10189,65 @@ func (ec *executionContext) field_Mutation_updateReportSection_argsInput(
 	}
 
 	var zeroVal model.ReportSectionInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateReportTemplate_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Mutation_updateReportTemplate_argsTemplateID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["templateId"] = arg0
+	arg1, err := ec.field_Mutation_updateReportTemplate_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_updateReportTemplate_argsTemplateID(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (int64, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["templateId"]
+	if !ok {
+		var zeroVal int64
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("templateId"))
+	if tmp, ok := rawArgs["templateId"]; ok {
+		return ec.unmarshalNID2int64(ctx, tmp)
+	}
+
+	var zeroVal int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateReportTemplate_argsInput(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (model.ReportTemplateInput, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["input"]
+	if !ok {
+		var zeroVal model.ReportTemplateInput
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNReportTemplateInput2pentagiᚋpkgᚋgraphᚋmodelᚐReportTemplateInput(ctx, tmp)
+	}
+
+	var zeroVal model.ReportTemplateInput
 	return zeroVal, nil
 }
 
@@ -28642,6 +29114,369 @@ func (ec *executionContext) fieldContext_Mutation_setReportSectionAttachments(ct
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_createReportTemplate(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_createReportTemplate(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().CreateReportTemplate(rctx, fc.Args["input"].(model.ReportTemplateInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.ReportTemplate)
+	fc.Result = res
+	return ec.marshalNReportTemplate2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐReportTemplate(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_createReportTemplate(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_ReportTemplate_id(ctx, field)
+			case "key":
+				return ec.fieldContext_ReportTemplate_key(ctx, field)
+			case "label":
+				return ec.fieldContext_ReportTemplate_label(ctx, field)
+			case "version":
+				return ec.fieldContext_ReportTemplate_version(ctx, field)
+			case "yaml":
+				return ec.fieldContext_ReportTemplate_yaml(ctx, field)
+			case "enabled":
+				return ec.fieldContext_ReportTemplate_enabled(ctx, field)
+			case "source":
+				return ec.fieldContext_ReportTemplate_source(ctx, field)
+			case "userId":
+				return ec.fieldContext_ReportTemplate_userId(ctx, field)
+			case "branding":
+				return ec.fieldContext_ReportTemplate_branding(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_ReportTemplate_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_ReportTemplate_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ReportTemplate", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createReportTemplate_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateReportTemplate(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateReportTemplate(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateReportTemplate(rctx, fc.Args["templateId"].(int64), fc.Args["input"].(model.ReportTemplateInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.ReportTemplate)
+	fc.Result = res
+	return ec.marshalNReportTemplate2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐReportTemplate(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateReportTemplate(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_ReportTemplate_id(ctx, field)
+			case "key":
+				return ec.fieldContext_ReportTemplate_key(ctx, field)
+			case "label":
+				return ec.fieldContext_ReportTemplate_label(ctx, field)
+			case "version":
+				return ec.fieldContext_ReportTemplate_version(ctx, field)
+			case "yaml":
+				return ec.fieldContext_ReportTemplate_yaml(ctx, field)
+			case "enabled":
+				return ec.fieldContext_ReportTemplate_enabled(ctx, field)
+			case "source":
+				return ec.fieldContext_ReportTemplate_source(ctx, field)
+			case "userId":
+				return ec.fieldContext_ReportTemplate_userId(ctx, field)
+			case "branding":
+				return ec.fieldContext_ReportTemplate_branding(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_ReportTemplate_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_ReportTemplate_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ReportTemplate", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateReportTemplate_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setReportTemplateEnabled(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_setReportTemplateEnabled(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().SetReportTemplateEnabled(rctx, fc.Args["templateId"].(int64), fc.Args["enabled"].(bool))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.ReportTemplate)
+	fc.Result = res
+	return ec.marshalNReportTemplate2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐReportTemplate(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_setReportTemplateEnabled(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_ReportTemplate_id(ctx, field)
+			case "key":
+				return ec.fieldContext_ReportTemplate_key(ctx, field)
+			case "label":
+				return ec.fieldContext_ReportTemplate_label(ctx, field)
+			case "version":
+				return ec.fieldContext_ReportTemplate_version(ctx, field)
+			case "yaml":
+				return ec.fieldContext_ReportTemplate_yaml(ctx, field)
+			case "enabled":
+				return ec.fieldContext_ReportTemplate_enabled(ctx, field)
+			case "source":
+				return ec.fieldContext_ReportTemplate_source(ctx, field)
+			case "userId":
+				return ec.fieldContext_ReportTemplate_userId(ctx, field)
+			case "branding":
+				return ec.fieldContext_ReportTemplate_branding(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_ReportTemplate_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_ReportTemplate_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ReportTemplate", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setReportTemplateEnabled_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteReportTemplate(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_deleteReportTemplate(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeleteReportTemplate(rctx, fc.Args["templateId"].(int64))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(model.ResultType)
+	fc.Result = res
+	return ec.marshalNResultType2pentagiᚋpkgᚋgraphᚋmodelᚐResultType(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteReportTemplate(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ResultType does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteReportTemplate_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setReportTemplateBranding(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_setReportTemplateBranding(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().SetReportTemplateBranding(rctx, fc.Args["templateId"].(int64), fc.Args["input"].(model.ReportTemplateBrandingInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.ReportTemplateBranding)
+	fc.Result = res
+	return ec.marshalNReportTemplateBranding2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐReportTemplateBranding(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_setReportTemplateBranding(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "title":
+				return ec.fieldContext_ReportTemplateBranding_title(ctx, field)
+			case "subtitle":
+				return ec.fieldContext_ReportTemplateBranding_subtitle(ctx, field)
+			case "header":
+				return ec.fieldContext_ReportTemplateBranding_header(ctx, field)
+			case "footer":
+				return ec.fieldContext_ReportTemplateBranding_footer(ctx, field)
+			case "hasLogo":
+				return ec.fieldContext_ReportTemplateBranding_hasLogo(ctx, field)
+			case "logoName":
+				return ec.fieldContext_ReportTemplateBranding_logoName(ctx, field)
+			case "logoMediaType":
+				return ec.fieldContext_ReportTemplateBranding_logoMediaType(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ReportTemplateBranding", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setReportTemplateBranding_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _OpenPortRow_port(ctx context.Context, field graphql.CollectedField, obj *model.OpenPortRow) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_OpenPortRow_port(ctx, field)
 	if err != nil {
@@ -36377,6 +37212,74 @@ func (ec *executionContext) fieldContext_Query_reportBranding(ctx context.Contex
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_reportTemplates(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_reportTemplates(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().ReportTemplates(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.ReportTemplate)
+	fc.Result = res
+	return ec.marshalNReportTemplate2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐReportTemplateᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_reportTemplates(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_ReportTemplate_id(ctx, field)
+			case "key":
+				return ec.fieldContext_ReportTemplate_key(ctx, field)
+			case "label":
+				return ec.fieldContext_ReportTemplate_label(ctx, field)
+			case "version":
+				return ec.fieldContext_ReportTemplate_version(ctx, field)
+			case "yaml":
+				return ec.fieldContext_ReportTemplate_yaml(ctx, field)
+			case "enabled":
+				return ec.fieldContext_ReportTemplate_enabled(ctx, field)
+			case "source":
+				return ec.fieldContext_ReportTemplate_source(ctx, field)
+			case "userId":
+				return ec.fieldContext_ReportTemplate_userId(ctx, field)
+			case "branding":
+				return ec.fieldContext_ReportTemplate_branding(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_ReportTemplate_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_ReportTemplate_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ReportTemplate", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Query___type(ctx, field)
 	if err != nil {
@@ -39545,6 +40448,787 @@ func (ec *executionContext) fieldContext_ReportSection_attachments(_ context.Con
 				return ec.fieldContext_ReportAttachment_createdAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type ReportAttachment", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportTemplate_id(ctx context.Context, field graphql.CollectedField, obj *model.ReportTemplate) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportTemplate_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int64)
+	fc.Result = res
+	return ec.marshalNID2int64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportTemplate_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportTemplate",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportTemplate_key(ctx context.Context, field graphql.CollectedField, obj *model.ReportTemplate) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportTemplate_key(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Key, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportTemplate_key(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportTemplate",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportTemplate_label(ctx context.Context, field graphql.CollectedField, obj *model.ReportTemplate) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportTemplate_label(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Label, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportTemplate_label(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportTemplate",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportTemplate_version(ctx context.Context, field graphql.CollectedField, obj *model.ReportTemplate) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportTemplate_version(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Version, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportTemplate_version(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportTemplate",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportTemplate_yaml(ctx context.Context, field graphql.CollectedField, obj *model.ReportTemplate) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportTemplate_yaml(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Yaml, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportTemplate_yaml(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportTemplate",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportTemplate_enabled(ctx context.Context, field graphql.CollectedField, obj *model.ReportTemplate) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportTemplate_enabled(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Enabled, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportTemplate_enabled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportTemplate",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportTemplate_source(ctx context.Context, field graphql.CollectedField, obj *model.ReportTemplate) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportTemplate_source(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Source, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(model.ReportTemplateSource)
+	fc.Result = res
+	return ec.marshalNReportTemplateSource2pentagiᚋpkgᚋgraphᚋmodelᚐReportTemplateSource(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportTemplate_source(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportTemplate",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ReportTemplateSource does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportTemplate_userId(ctx context.Context, field graphql.CollectedField, obj *model.ReportTemplate) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportTemplate_userId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UserID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*int64)
+	fc.Result = res
+	return ec.marshalOID2ᚖint64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportTemplate_userId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportTemplate",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportTemplate_branding(ctx context.Context, field graphql.CollectedField, obj *model.ReportTemplate) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportTemplate_branding(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Branding, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.ReportTemplateBranding)
+	fc.Result = res
+	return ec.marshalNReportTemplateBranding2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐReportTemplateBranding(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportTemplate_branding(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportTemplate",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "title":
+				return ec.fieldContext_ReportTemplateBranding_title(ctx, field)
+			case "subtitle":
+				return ec.fieldContext_ReportTemplateBranding_subtitle(ctx, field)
+			case "header":
+				return ec.fieldContext_ReportTemplateBranding_header(ctx, field)
+			case "footer":
+				return ec.fieldContext_ReportTemplateBranding_footer(ctx, field)
+			case "hasLogo":
+				return ec.fieldContext_ReportTemplateBranding_hasLogo(ctx, field)
+			case "logoName":
+				return ec.fieldContext_ReportTemplateBranding_logoName(ctx, field)
+			case "logoMediaType":
+				return ec.fieldContext_ReportTemplateBranding_logoMediaType(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ReportTemplateBranding", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportTemplate_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.ReportTemplate) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportTemplate_createdAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CreatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*time.Time)
+	fc.Result = res
+	return ec.marshalOTime2ᚖtimeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportTemplate_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportTemplate",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportTemplate_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.ReportTemplate) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportTemplate_updatedAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UpdatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*time.Time)
+	fc.Result = res
+	return ec.marshalOTime2ᚖtimeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportTemplate_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportTemplate",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportTemplateBranding_title(ctx context.Context, field graphql.CollectedField, obj *model.ReportTemplateBranding) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportTemplateBranding_title(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Title, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportTemplateBranding_title(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportTemplateBranding",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportTemplateBranding_subtitle(ctx context.Context, field graphql.CollectedField, obj *model.ReportTemplateBranding) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportTemplateBranding_subtitle(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Subtitle, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportTemplateBranding_subtitle(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportTemplateBranding",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportTemplateBranding_header(ctx context.Context, field graphql.CollectedField, obj *model.ReportTemplateBranding) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportTemplateBranding_header(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Header, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportTemplateBranding_header(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportTemplateBranding",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportTemplateBranding_footer(ctx context.Context, field graphql.CollectedField, obj *model.ReportTemplateBranding) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportTemplateBranding_footer(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Footer, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportTemplateBranding_footer(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportTemplateBranding",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportTemplateBranding_hasLogo(ctx context.Context, field graphql.CollectedField, obj *model.ReportTemplateBranding) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportTemplateBranding_hasLogo(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.HasLogo, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportTemplateBranding_hasLogo(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportTemplateBranding",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportTemplateBranding_logoName(ctx context.Context, field graphql.CollectedField, obj *model.ReportTemplateBranding) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportTemplateBranding_logoName(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.LogoName, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportTemplateBranding_logoName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportTemplateBranding",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReportTemplateBranding_logoMediaType(ctx context.Context, field graphql.CollectedField, obj *model.ReportTemplateBranding) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ReportTemplateBranding_logoMediaType(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.LogoMediaType, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ReportTemplateBranding_logoMediaType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReportTemplateBranding",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -53232,6 +54916,109 @@ func (ec *executionContext) unmarshalInputReportSectionInput(ctx context.Context
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputReportTemplateBrandingInput(ctx context.Context, obj interface{}) (model.ReportTemplateBrandingInput, error) {
+	var it model.ReportTemplateBrandingInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"title", "subtitle", "header", "footer", "logo", "logoName"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "title":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("title"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Title = data
+		case "subtitle":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("subtitle"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Subtitle = data
+		case "header":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("header"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Header = data
+		case "footer":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("footer"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Footer = data
+		case "logo":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("logo"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Logo = data
+		case "logoName":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("logoName"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.LogoName = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputReportTemplateInput(ctx context.Context, obj interface{}) (model.ReportTemplateInput, error) {
+	var it model.ReportTemplateInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"yaml", "enabled", "global"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "yaml":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("yaml"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Yaml = data
+		case "enabled":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("enabled"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Enabled = data
+		case "global":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("global"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Global = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputUpdateAPITokenInput(ctx context.Context, obj interface{}) (model.UpdateAPITokenInput, error) {
 	var it model.UpdateAPITokenInput
 	asMap := map[string]interface{}{}
@@ -56438,6 +58225,41 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "createReportTemplate":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createReportTemplate(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateReportTemplate":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateReportTemplate(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setReportTemplateEnabled":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setReportTemplateEnabled(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteReportTemplate":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteReportTemplate(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setReportTemplateBranding":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setReportTemplateBranding(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -58540,6 +60362,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "reportTemplates":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_reportTemplates(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "__type":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___type(ctx, field)
@@ -59048,6 +60892,137 @@ func (ec *executionContext) _ReportSection(ctx context.Context, sel ast.Selectio
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var reportTemplateImplementors = []string{"ReportTemplate"}
+
+func (ec *executionContext) _ReportTemplate(ctx context.Context, sel ast.SelectionSet, obj *model.ReportTemplate) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, reportTemplateImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ReportTemplate")
+		case "id":
+			out.Values[i] = ec._ReportTemplate_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "key":
+			out.Values[i] = ec._ReportTemplate_key(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "label":
+			out.Values[i] = ec._ReportTemplate_label(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "version":
+			out.Values[i] = ec._ReportTemplate_version(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "yaml":
+			out.Values[i] = ec._ReportTemplate_yaml(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "enabled":
+			out.Values[i] = ec._ReportTemplate_enabled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "source":
+			out.Values[i] = ec._ReportTemplate_source(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "userId":
+			out.Values[i] = ec._ReportTemplate_userId(ctx, field, obj)
+		case "branding":
+			out.Values[i] = ec._ReportTemplate_branding(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._ReportTemplate_createdAt(ctx, field, obj)
+		case "updatedAt":
+			out.Values[i] = ec._ReportTemplate_updatedAt(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var reportTemplateBrandingImplementors = []string{"ReportTemplateBranding"}
+
+func (ec *executionContext) _ReportTemplateBranding(ctx context.Context, sel ast.SelectionSet, obj *model.ReportTemplateBranding) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, reportTemplateBrandingImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ReportTemplateBranding")
+		case "title":
+			out.Values[i] = ec._ReportTemplateBranding_title(ctx, field, obj)
+		case "subtitle":
+			out.Values[i] = ec._ReportTemplateBranding_subtitle(ctx, field, obj)
+		case "header":
+			out.Values[i] = ec._ReportTemplateBranding_header(ctx, field, obj)
+		case "footer":
+			out.Values[i] = ec._ReportTemplateBranding_footer(ctx, field, obj)
+		case "hasLogo":
+			out.Values[i] = ec._ReportTemplateBranding_hasLogo(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "logoName":
+			out.Values[i] = ec._ReportTemplateBranding_logoName(ctx, field, obj)
+		case "logoMediaType":
+			out.Values[i] = ec._ReportTemplateBranding_logoMediaType(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -63479,6 +65454,98 @@ func (ec *executionContext) unmarshalNReportStatusType2pentagiᚋpkgᚋgraphᚋm
 }
 
 func (ec *executionContext) marshalNReportStatusType2pentagiᚋpkgᚋgraphᚋmodelᚐReportStatusType(ctx context.Context, sel ast.SelectionSet, v model.ReportStatusType) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNReportTemplate2pentagiᚋpkgᚋgraphᚋmodelᚐReportTemplate(ctx context.Context, sel ast.SelectionSet, v model.ReportTemplate) graphql.Marshaler {
+	return ec._ReportTemplate(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNReportTemplate2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐReportTemplateᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ReportTemplate) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNReportTemplate2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐReportTemplate(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNReportTemplate2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐReportTemplate(ctx context.Context, sel ast.SelectionSet, v *model.ReportTemplate) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ReportTemplate(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNReportTemplateBranding2pentagiᚋpkgᚋgraphᚋmodelᚐReportTemplateBranding(ctx context.Context, sel ast.SelectionSet, v model.ReportTemplateBranding) graphql.Marshaler {
+	return ec._ReportTemplateBranding(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNReportTemplateBranding2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐReportTemplateBranding(ctx context.Context, sel ast.SelectionSet, v *model.ReportTemplateBranding) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ReportTemplateBranding(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNReportTemplateBrandingInput2pentagiᚋpkgᚋgraphᚋmodelᚐReportTemplateBrandingInput(ctx context.Context, v interface{}) (model.ReportTemplateBrandingInput, error) {
+	res, err := ec.unmarshalInputReportTemplateBrandingInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNReportTemplateInput2pentagiᚋpkgᚋgraphᚋmodelᚐReportTemplateInput(ctx context.Context, v interface{}) (model.ReportTemplateInput, error) {
+	res, err := ec.unmarshalInputReportTemplateInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNReportTemplateSource2pentagiᚋpkgᚋgraphᚋmodelᚐReportTemplateSource(ctx context.Context, v interface{}) (model.ReportTemplateSource, error) {
+	var res model.ReportTemplateSource
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNReportTemplateSource2pentagiᚋpkgᚋgraphᚋmodelᚐReportTemplateSource(ctx context.Context, sel ast.SelectionSet, v model.ReportTemplateSource) graphql.Marshaler {
 	return v
 }
 

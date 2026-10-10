@@ -7,6 +7,7 @@ import (
 	"pentagi/pkg/database"
 	"pentagi/pkg/database/converter"
 	"pentagi/pkg/graph/model"
+	"pentagi/pkg/report"
 )
 
 // These helpers back the Report resolvers. They live in a hand-written file:
@@ -145,5 +146,63 @@ func brandingModel(view controller.BrandingView) *model.ReportBranding {
 		HasLogo:          view.HasLogo,
 		LogoName:         optionalString(view.LogoName),
 		LogoMediaType:    optionalString(view.LogoMediaType),
+	}
+}
+
+// reportTemplateModel maps a listed template (plus its branding) onto the
+// GraphQL type (backlog v2, L3). A bundled template (id 0) carries no branding.
+func reportTemplateModel(info report.TemplateInfo, branding report.TemplateBrandingView) *model.ReportTemplate {
+	out := &model.ReportTemplate{
+		ID:      info.ID,
+		Key:     info.Key,
+		Label:   info.Label,
+		Version: int(info.Version),
+		Yaml:    info.Yaml,
+		Enabled: info.Enabled,
+		Source:  model.ReportTemplateSource(info.Source),
+		UserID:  info.UserID,
+		Branding: &model.ReportTemplateBranding{
+			Title:         optionalString(branding.Title),
+			Subtitle:      optionalString(branding.Subtitle),
+			Header:        optionalString(branding.Header),
+			Footer:        optionalString(branding.Footer),
+			HasLogo:       branding.HasLogo,
+			LogoName:      optionalString(branding.LogoName),
+			LogoMediaType: optionalString(branding.LogoMediaType),
+		},
+	}
+	if !info.CreatedAt.IsZero() {
+		created := info.CreatedAt
+		out.CreatedAt = &created
+	}
+	if !info.UpdatedAt.IsZero() {
+		updated := info.UpdatedAt
+		out.UpdatedAt = &updated
+	}
+	return out
+}
+
+// reportTemplateView builds the GraphQL view of one stored template row,
+// loading its branding.
+func reportTemplateView(
+	ctx context.Context,
+	reports controller.ReportController,
+	uid int64,
+	row database.ReportTemplate,
+) *model.ReportTemplate {
+	branding, _ := reports.GetReportTemplateBranding(ctx, uid, row.ID)
+	return reportTemplateModel(report.TemplateInfoOf(row), branding)
+}
+
+// templateBrandingModel maps a template's branding view onto the GraphQL type.
+func templateBrandingModel(view report.TemplateBrandingView) *model.ReportTemplateBranding {
+	return &model.ReportTemplateBranding{
+		Title:         optionalString(view.Title),
+		Subtitle:      optionalString(view.Subtitle),
+		Header:        optionalString(view.Header),
+		Footer:        optionalString(view.Footer),
+		HasLogo:       view.HasLogo,
+		LogoName:      optionalString(view.LogoName),
+		LogoMediaType: optionalString(view.LogoMediaType),
 	}
 }

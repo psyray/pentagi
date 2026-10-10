@@ -665,6 +665,45 @@ type ReportSectionInput struct {
 	Warnings     []string `json:"warnings,omitempty"`
 }
 
+type ReportTemplate struct {
+	ID        int64                   `json:"id"`
+	Key       string                  `json:"key"`
+	Label     string                  `json:"label"`
+	Version   int                     `json:"version"`
+	Yaml      string                  `json:"yaml"`
+	Enabled   bool                    `json:"enabled"`
+	Source    ReportTemplateSource    `json:"source"`
+	UserID    *int64                  `json:"userId,omitempty"`
+	Branding  *ReportTemplateBranding `json:"branding"`
+	CreatedAt *time.Time              `json:"createdAt,omitempty"`
+	UpdatedAt *time.Time              `json:"updatedAt,omitempty"`
+}
+
+type ReportTemplateBranding struct {
+	Title         *string `json:"title,omitempty"`
+	Subtitle      *string `json:"subtitle,omitempty"`
+	Header        *string `json:"header,omitempty"`
+	Footer        *string `json:"footer,omitempty"`
+	HasLogo       bool    `json:"hasLogo"`
+	LogoName      *string `json:"logoName,omitempty"`
+	LogoMediaType *string `json:"logoMediaType,omitempty"`
+}
+
+type ReportTemplateBrandingInput struct {
+	Title    *string `json:"title,omitempty"`
+	Subtitle *string `json:"subtitle,omitempty"`
+	Header   *string `json:"header,omitempty"`
+	Footer   *string `json:"footer,omitempty"`
+	Logo     *string `json:"logo,omitempty"`
+	LogoName *string `json:"logoName,omitempty"`
+}
+
+type ReportTemplateInput struct {
+	Yaml    string `json:"yaml"`
+	Enabled *bool  `json:"enabled,omitempty"`
+	Global  *bool  `json:"global,omitempty"`
+}
+
 type ReportVariable struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
@@ -1895,6 +1934,49 @@ func (e *ReportStatusType) UnmarshalGQL(v interface{}) error {
 }
 
 func (e ReportStatusType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type ReportTemplateSource string
+
+const (
+	ReportTemplateSourceBundled ReportTemplateSource = "bundled"
+	ReportTemplateSourceUser    ReportTemplateSource = "user"
+	ReportTemplateSourceGlobal  ReportTemplateSource = "global"
+)
+
+var AllReportTemplateSource = []ReportTemplateSource{
+	ReportTemplateSourceBundled,
+	ReportTemplateSourceUser,
+	ReportTemplateSourceGlobal,
+}
+
+func (e ReportTemplateSource) IsValid() bool {
+	switch e {
+	case ReportTemplateSourceBundled, ReportTemplateSourceUser, ReportTemplateSourceGlobal:
+		return true
+	}
+	return false
+}
+
+func (e ReportTemplateSource) String() string {
+	return string(e)
+}
+
+func (e *ReportTemplateSource) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ReportTemplateSource(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ReportTemplateSource", str)
+	}
+	return nil
+}
+
+func (e ReportTemplateSource) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 

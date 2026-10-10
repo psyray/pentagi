@@ -68,15 +68,6 @@ func (c *Controller) Enabled() bool {
 	return c.deps.Cfg.ReportEnabled
 }
 
-// templateLabel resolves the human label of one template key, falling back to
-// the key itself.
-func templateLabel(key string) string {
-	if tpl, err := GetTemplate(key); err == nil && tpl.Label != "" {
-		return tpl.Label
-	}
-	return key
-}
-
 // CreateReport validates the request, persists the skeleton outline and
 // starts the run worker.
 func (c *Controller) CreateReport(
@@ -103,11 +94,14 @@ func (c *Controller) CreateReport(
 	if key == "" {
 		key = defaultTemplateKey
 	}
-	tpl, err := GetTemplate(key)
+	tpl, err := ResolveTemplate(ctx, c.deps.DB, userID, key)
 	if err != nil {
 		return nil, fmt.Errorf("unknown report template %q: %w", key, err)
 	}
-	label := templateLabel(key)
+	label := tpl.Label
+	if label == "" {
+		label = tpl.Key
+	}
 
 	prvname := strings.TrimSpace(params.ProviderName)
 	prvtype := provider.ProviderType(flow.ModelProviderType)
@@ -1130,7 +1124,8 @@ func (c *Controller) SetBranding(
 // ErrNoBrandingLogo reports that the report carries no logo.
 var ErrNoBrandingLogo = errors.New("report has no branding logo")
 
-// BrandingLogo returns the stored logo bytes for the download endpoint.
+// BrandingLogo returns the stored logo bytes for the download endpoint: the
+// report's own logo, else the one its template carries (L3).
 func (c *Controller) BrandingLogo(
 	ctx context.Context, userID, reportID int64,
 ) (name, mediaType string, data []byte, err error) {
@@ -1139,22 +1134,48 @@ func (c *Controller) BrandingLogo(
 		return "", "", nil, err
 	}
 
-	logo, err := c.deps.DB.GetReportBrandingLogo(ctx, report.ID)
-	if err != nil {
-		return "", "", nil, ErrNoBrandingLogo
+	if logo, err := c.deps.DB.GetReportBrandingLogo(ctx, report.ID); err == nil {
+		return logo.Name, logo.MediaType, logo.Data, nil
 	}
-	return logo.Name, logo.MediaType, logo.Data, nil
+
+	if tplID, ok := c.templateIDForReport(ctx, *report); ok {
+		if logo, err := c.deps.DB.GetReportTemplateBrandingLogo(ctx, tplID); err == nil {
+			return logo.Name, logo.MediaType, logo.Data, nil
+		}
+	}
+
+	return "", "", nil, ErrNoBrandingLogo
 }
 
-// BrandingLogoInfo tells whether a logo exists without reading its bytes.
+// BrandingLogoInfo tells whether a logo exists without reading its bytes: the
+// report's own, else its template's.
 func (c *Controller) BrandingLogoInfo(
-	ctx context.Context, reportID int64,
+	ctx context.Context, report database.Report,
 ) (name, mediaType string, err error) {
-	info, err := c.deps.DB.GetReportBrandingLogoInfo(ctx, reportID)
-	if err != nil {
-		return "", "", ErrNoBrandingLogo
+	if info, err := c.deps.DB.GetReportBrandingLogoInfo(ctx, report.ID); err == nil {
+		return info.Name, info.MediaType, nil
 	}
-	return info.Name, info.MediaType, nil
+
+	if tplID, ok := c.templateIDForReport(ctx, report); ok {
+		if info, err := c.deps.DB.GetReportTemplateBrandingLogoInfo(ctx, tplID); err == nil {
+			return info.Name, info.MediaType, nil
+		}
+	}
+
+	return "", "", ErrNoBrandingLogo
+}
+
+// templateIDForReport resolves the DB template a report used, so branding can
+// fall back to it. Bundled fallbacks have no row.
+func (c *Controller) templateIDForReport(ctx context.Context, report database.Report) (int64, bool) {
+	row, err := c.deps.DB.GetReportTemplateByKey(ctx, database.GetReportTemplateByKeyParams{
+		Key:    strings.TrimPrefix(report.TemplateKey, "bundled/"),
+		UserID: sql.NullInt64{Int64: report.UserID, Valid: true},
+	})
+	if err != nil {
+		return 0, false
+	}
+	return row.ID, true
 }
 
 func (c *Controller) shiftPositions(
@@ -1249,31 +1270,6 @@ func nullableText(value sql.NullString) string {
 		return value.String
 	}
 	return ""
-}
-
-// TemplateInfo is one selectable template in the Create-report dialog.
-type TemplateInfo struct {
-	Key   string `json:"key"`
-	Label string `json:"label"`
-}
-
-// ListTemplates returns the bundled templates (v1: one default; user-defined
-// templates arrive with the Settings interface, plan § 6.9).
-func (c *Controller) ListTemplates() ([]TemplateInfo, error) {
-	keys, err := ListTemplates()
-	if err != nil {
-		return nil, err
-	}
-
-	out := make([]TemplateInfo, 0, len(keys))
-	for _, key := range keys {
-		label := key
-		if tpl, err := GetTemplate(key); err == nil && tpl.Label != "" {
-			label = tpl.Label
-		}
-		out = append(out, TemplateInfo{Key: key, Label: label})
-	}
-	return out, nil
 }
 
 // ListSections returns the section rows of one report in document order.

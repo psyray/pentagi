@@ -95,7 +95,7 @@ func TestResolveReportBranding(t *testing.T) {
 	}
 
 	t.Run("falls back to the report title and the localized defaults", func(t *testing.T) {
-		effective := ResolveReportBranding(base)
+		effective := ResolveReportBranding(base, nil)
 
 		assert.Equal(t, "Rapport", effective.Title)
 		assert.Empty(t, effective.Subtitle)
@@ -110,7 +110,7 @@ func TestResolveReportBranding(t *testing.T) {
 		overridden.BrandingHeader = sql.NullString{String: "[[title]] — Confidential", Valid: true}
 		overridden.BrandingFooter = sql.NullString{String: "Page [[page]]/[[pages]] · [[date]]", Valid: true}
 
-		effective := ResolveReportBranding(overridden)
+		effective := ResolveReportBranding(overridden, nil)
 
 		assert.Equal(t, "Brand Title", effective.Title)
 		assert.Equal(t, "Client X", effective.Subtitle)
@@ -123,7 +123,22 @@ func TestResolveReportBranding(t *testing.T) {
 		untitled := base
 		untitled.Title = ""
 
-		assert.Equal(t, "PentAGI Penetration Testing Report", ResolveReportBranding(untitled).Title)
+		assert.Equal(t, "PentAGI Penetration Testing Report", ResolveReportBranding(untitled, nil).Title)
+	})
+
+	t.Run("sits the template branding between the report override and the title", func(t *testing.T) {
+		tpl := &TemplateBranding{Title: "Template Title", Subtitle: "Template Subtitle", Header: "Template Header"}
+
+		// No report override: the template values win over the report title.
+		effective := ResolveReportBranding(base, tpl)
+		assert.Equal(t, "Template Title", effective.Title)
+		assert.Equal(t, "Template Subtitle", effective.Subtitle)
+		assert.Equal(t, "Template Header", effective.Header)
+
+		// A report override still wins over the template.
+		overridden := base
+		overridden.BrandingTitle = sql.NullString{String: "Report Title", Valid: true}
+		assert.Equal(t, "Report Title", ResolveReportBranding(overridden, tpl).Title)
 	})
 }
 
@@ -144,7 +159,7 @@ func TestComposeCoverAndHeaderFooterUseBranding(t *testing.T) {
 		composedSection(2, "page-header-footer", "En-tête et pied de page", 2),
 	}
 
-	out := composeDocument(report, &Template{Key: report.TemplateKey}, sections)
+	out := composeDocument(report, &Template{Key: report.TemplateKey}, nil, sections)
 
 	assert.Contains(t, out, "**Acme — Rapport d'audit**")
 	assert.Contains(t, out, "*Périmètre externe*")

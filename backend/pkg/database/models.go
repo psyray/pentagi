@@ -1126,6 +1126,30 @@ type ReportSectionAttachment struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type ReportTemplate struct {
+	ID               int64          `json:"id"`
+	UserID           sql.NullInt64  `json:"user_id"`
+	Key              string         `json:"key"`
+	Label            string         `json:"label"`
+	Version          int32          `json:"version"`
+	Yaml             string         `json:"yaml"`
+	Enabled          bool           `json:"enabled"`
+	BrandingTitle    sql.NullString `json:"branding_title"`
+	BrandingSubtitle sql.NullString `json:"branding_subtitle"`
+	BrandingHeader   sql.NullString `json:"branding_header"`
+	BrandingFooter   sql.NullString `json:"branding_footer"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
+}
+
+type ReportTemplateBrandingLogo struct {
+	TemplateID int64     `json:"template_id"`
+	Data       []byte    `json:"data"`
+	Name       string    `json:"name"`
+	MediaType  string    `json:"media_type"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
 type Role struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
