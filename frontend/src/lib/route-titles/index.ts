@@ -105,6 +105,8 @@ export const routeTitles = {
 
     reports: { title: 'Reports' },
 
+    reportTemplates: { title: 'Report templates' },
+
     resources: { title: 'Resources' },
 
     template: {

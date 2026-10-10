@@ -97,10 +97,12 @@ func (c *Controller) ListTemplates(ctx context.Context, userID int64) ([]Templat
 		if err != nil {
 			continue
 		}
+		yamlText, _ := BundledYAML(key)
 		out = append(out, TemplateInfo{
 			Key:     tpl.Key,
 			Label:   tpl.Label,
 			Version: int32(tpl.Version),
+			Yaml:    yamlText,
 			Enabled: true,
 			Source:  TemplateSourceBundled,
 		})
