@@ -57,10 +57,11 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTi
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { Textarea } from '@/components/ui/textarea';
 import { readFileAsDataUrl, validateBrandingLogoFile } from '@/features/flows/reports/report-branding';
 import { useReportPermissions } from '@/features/flows/reports/use-report-permissions';
+import { reportTemplateLogoUrl } from '@/features/reports/report-template-logo';
 import { useReportTemplates } from '@/features/reports/use-report-templates';
+import { YamlEditor } from '@/features/reports/yaml-editor';
 import { ReportTemplateSource } from '@/graphql/types';
 import { usePageStorageKeys } from '@/hooks/use-page-storage-keys';
 import { useUser } from '@/providers/user-provider';
@@ -176,10 +177,13 @@ function BrandingDialogBody({ onOpenChange, onSubmit, template }: BrandingDialog
         }
     };
 
-    // There is no endpoint to re-fetch a template logo, so a just-chosen file is the only
-    // source of an <img> preview — a stored logo shows its name only.
+    // A just-chosen file wins; otherwise the stored logo is fetched from the API
+    // endpoint (cookie-authenticated). The URL is cache-busted by updatedAt so an
+    // upload shows up without a hard refresh.
     const hasStoredLogo = !!branding?.hasLogo && !removed;
-    const previewSrc = logoFile?.dataUrl ?? null;
+    const previewSrc =
+        logoFile?.dataUrl ??
+        (hasStoredLogo ? reportTemplateLogoUrl(template?.id ?? '', template?.updatedAt ?? undefined) : null);
 
     return (
         <>
@@ -239,10 +243,6 @@ function BrandingDialogBody({ onOpenChange, onSubmit, template }: BrandingDialog
                                     className="max-h-full max-w-full object-contain"
                                     src={previewSrc}
                                 />
-                            ) : hasStoredLogo ? (
-                                <span className="text-muted-foreground truncate text-xs">
-                                    {branding?.logoName || 'Logo stored'}
-                                </span>
                             ) : (
                                 <ImageOff className="text-muted-foreground size-5" />
                             )}
@@ -738,7 +738,7 @@ function TemplateEditorDialog({ isAdmin, onOpenChange, onSubmit, open, template 
             onOpenChange={onOpenChange}
             open={open}
         >
-            <DialogContent className="sm:max-w-2xl">
+            <DialogContent className="max-w-[95%] sm:max-w-[95%] xl:max-w-[80%]">
                 <TemplateEditorDialogBody
                     isAdmin={isAdmin}
                     key={template?.id ?? 'new'}
@@ -795,13 +795,10 @@ function TemplateEditorDialogBody({ isAdmin, onOpenChange, onSubmit, template }:
                     </Alert>
                 )}
 
-                <Textarea
+                <YamlEditor
                     aria-label="Report template YAML"
-                    autoSize={false}
-                    className="min-h-72 font-mono text-xs"
-                    onChange={(event) => setYaml(event.target.value)}
+                    onChange={setYaml}
                     readOnly={bundled}
-                    spellCheck={false}
                     value={yaml}
                 />
 

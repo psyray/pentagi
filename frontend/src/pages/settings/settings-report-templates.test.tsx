@@ -20,6 +20,26 @@ vi.mock('@/providers/user-provider', () => ({
     useUser: () => ({ authInfo: { privileges: auth.privileges } }),
 }));
 
+// The YAML widget is a third-party editor (CodeMirror) that does not respond to
+// synthetic typing in jsdom; the page test drives it through a plain textarea.
+vi.mock('@uiw/react-codemirror', () => ({
+    default: ({
+        'aria-label': ariaLabel,
+        onChange,
+        value,
+    }: {
+        'aria-label'?: string;
+        onChange?: (value: string) => void;
+        value?: string;
+    }) => (
+        <textarea
+            aria-label={ariaLabel}
+            onChange={(event) => onChange?.(event.target.value)}
+            value={value}
+        />
+    ),
+}));
+
 vi.mock('@/components/layouts/app/app-header', () => {
     const Pass = ({ children }: { children?: React.ReactNode }) => <div>{children}</div>;
     const Action = ({ label, onClick }: { label?: React.ReactNode; onClick?: () => void }) => (

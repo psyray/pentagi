@@ -106,6 +106,45 @@ func (s *ReportArchiveService) ReportBrandingLogo(c *gin.Context) {
 	c.Data(http.StatusOK, mediaType, data)
 }
 
+// ReportTemplateBrandingLogo streams a report template's branding logo so the
+// Settings editor can render what it stored, the way the report logo is shown.
+// @Summary Download a report template's branding logo
+// @Description Streams the png/jpeg logo attached to a report template's export branding.
+// @Tags Reports
+// @Produce image/png,image/jpeg,json
+// @Security BearerAuth
+// @Param templateID path int true "template id" minimum(0)
+// @Success 200 {file} file "report template branding logo"
+// @Failure 403 {object} response.errorResp "reading report templates not permitted"
+// @Failure 404 {object} response.errorResp "template or logo not found"
+// @Router /report-templates/{templateID}/branding/logo [get]
+func (s *ReportArchiveService) ReportTemplateBrandingLogo(c *gin.Context) {
+	templateID, err := strconv.ParseUint(c.Param("templateID"), 10, 64)
+	if err != nil {
+		logger.FromContext(c).WithError(err).Error("error parsing report template id")
+		response.Error(c, response.ErrReportTemplatesInvalidRequest, err)
+		return
+	}
+
+	privs := c.GetStringSlice("prm")
+	if !slices.Contains(privs, "reports.read") && !slices.Contains(privs, "reports.admin") {
+		response.Error(c, response.ErrNotPermitted, nil)
+		return
+	}
+
+	uid := c.GetUint64("uid")
+	ctx := c.Request.Context()
+
+	name, mediaType, data, err := s.reports.ReportTemplateLogo(ctx, int64(uid), int64(templateID))
+	if err != nil {
+		response.Error(c, response.ErrReportTemplatesNotFound, err)
+		return
+	}
+
+	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=%q", path.Base(name)))
+	c.Data(http.StatusOK, mediaType, data)
+}
+
 // ArchiveReport downloads the report document and its cited evidence as a ZIP.
 // @Summary Download a report document with its evidence
 // @Description Bundles the assembled document with the container files and screenshots its sections cited.
