@@ -784,7 +784,7 @@ function TemplateEditorDialogBody({ isAdmin, onOpenChange, onSubmit, template }:
                 </DialogDescription>
             </DialogHeader>
 
-            <div className="flex flex-col gap-3">
+            <div className="flex min-w-0 flex-col gap-3">
                 {bundled && (
                     <Alert>
                         <FileText />

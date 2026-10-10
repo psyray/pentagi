@@ -1,5 +1,5 @@
 import { yaml } from '@codemirror/lang-yaml';
-import CodeMirror from '@uiw/react-codemirror';
+import CodeMirror, { EditorView } from '@uiw/react-codemirror';
 import { useMemo } from 'react';
 
 import { useTheme } from '@/hooks/use-theme';
@@ -17,13 +17,14 @@ interface YamlEditorProps {
 // YamlEditor edits a report-template outline: CodeMirror 6 with YAML syntax
 // highlighting, line numbers, folding and bracket matching, following the app
 // theme. It is the source-of-truth document for a template (key/label/version
-// included), so the backend re-validates it on save.
+// included), so the backend re-validates it on save. Long instruction lines wrap
+// rather than widen the editor past its dialog.
 export function YamlEditor({ 'aria-label': ariaLabel, onChange, readOnly = false, value }: YamlEditorProps) {
     const { theme } = useTheme();
     const isDark = useMemo(() => isDarkTheme(theme), [theme]);
 
     return (
-        <div className="overflow-hidden rounded-md border">
+        <div className="min-w-0 overflow-hidden rounded-md border">
             <CodeMirror
                 aria-label={ariaLabel}
                 basicSetup={{
@@ -34,12 +35,13 @@ export function YamlEditor({ 'aria-label': ariaLabel, onChange, readOnly = false
                     lineNumbers: true,
                 }}
                 editable={!readOnly}
-                extensions={[yaml()]}
+                extensions={[yaml(), EditorView.lineWrapping]}
                 height="clamp(16rem, 55vh, 36rem)"
                 onChange={onChange}
                 readOnly={readOnly}
                 theme={isDark ? 'dark' : 'light'}
                 value={value}
+                width="100%"
             />
         </div>
     );
