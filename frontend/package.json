@@ -81,7 +81,7 @@
         "lucide-react": "^1.20.0",
         "marked": "18.0.5",
         "motion": "^12.40.0",
-        "pdfjs-dist": "^6.4.299",
+        "pdfjs-dist": "6.3.289",
         "react": "^19.2.7",
         "react-day-picker": "^10.0.1",
         "react-diff-viewer-continued": "^4.2.2",
