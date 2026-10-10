@@ -724,16 +724,7 @@ export const generatePDFFromMarkdownNew = async (
     options?: { branding?: PdfBranding; paginateSections?: boolean },
 ): Promise<void> => {
     try {
-        ensureFonts(content);
-
-        const doc = (
-            <PDFReportDocument
-                branding={options?.branding}
-                content={content}
-                paginateSections={options?.paginateSections}
-            />
-        );
-        const blob = await pdf(doc).toBlob();
+        const blob = await buildPDFBlob(content, options);
 
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -748,4 +739,21 @@ export const generatePDFFromMarkdownNew = async (
         Log.error('Failed to generate PDF:', error);
         throw error;
     }
+};
+
+// buildPDFBlob renders the document without downloading it, so the print preview
+// and the export walk the exact same layout (page count included).
+export const buildPDFBlob = async (
+    content: string,
+    options?: { branding?: PdfBranding; paginateSections?: boolean },
+): Promise<Blob> => {
+    ensureFonts(content);
+
+    return pdf(
+        <PDFReportDocument
+            branding={options?.branding}
+            content={content}
+            paginateSections={options?.paginateSections}
+        />,
+    ).toBlob();
 };
