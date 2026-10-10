@@ -90,13 +90,40 @@ func brandingLogoName(name, mediaType string) string {
 	return cleaned
 }
 
+// A TemplateBranding is the branding stored on a report template (backlog v2,
+// L3): the values every report using that template inherits when it has no
+// override of its own. Empty fields mean "not set".
+type TemplateBranding struct {
+	Title    string
+	Subtitle string
+	Header   string
+	Footer   string
+}
+
+// TemplateBrandingFromRow reads the branding stored on a template row.
+func TemplateBrandingFromRow(row database.ReportTemplate) TemplateBranding {
+	return TemplateBranding{
+		Title:    row.BrandingTitle.String,
+		Subtitle: row.BrandingSubtitle.String,
+		Header:   row.BrandingHeader.String,
+		Footer:   row.BrandingFooter.String,
+	}
+}
+
 // ResolveReportBranding applies a report's branding overrides over the localized
 // defaults, so every consumer (composed sections, GraphQL, exports) prints the
-// same values. `[[page]]`/`[[pages]]` are left for the page renderers.
-func ResolveReportBranding(report database.Report) EffectiveBranding {
+// same values. The template's own branding sits between the report override and
+// the report's title (backlog v2 L3): report override -> template branding ->
+// report.Title -> report.TemplateLabel -> i18n labels. A nil template (bundled
+// or unknown) leaves the historic chain untouched. `[[page]]`/`[[pages]]` are
+// left for the page renderers.
+func ResolveReportBranding(report database.Report, tpl *TemplateBranding) EffectiveBranding {
 	labels := resolveLabels(report)
 
 	title := strings.TrimSpace(report.BrandingTitle.String)
+	if title == "" && tpl != nil {
+		title = strings.TrimSpace(tpl.Title)
+	}
 	if title == "" {
 		title = strings.TrimSpace(report.Title)
 	}
@@ -107,19 +134,32 @@ func ResolveReportBranding(report database.Report) EffectiveBranding {
 	date := nullTimeOrNow(report.CreatedAt).UTC().Format("2006-01-02")
 	tokens := map[string]string{"title": title, "date": date}
 
-	header := substituteBrandingTokens(strings.TrimSpace(report.BrandingHeader.String), tokens)
+	header := strings.TrimSpace(report.BrandingHeader.String)
+	if header == "" && tpl != nil {
+		header = strings.TrimSpace(tpl.Header)
+	}
+	header = substituteBrandingTokens(header, tokens)
 	if header == "" {
 		header = renderLabel(labels, "header_footer.header_text", tokens)
 	}
 
-	footer := substituteBrandingTokens(strings.TrimSpace(report.BrandingFooter.String), tokens)
+	footer := strings.TrimSpace(report.BrandingFooter.String)
+	if footer == "" && tpl != nil {
+		footer = strings.TrimSpace(tpl.Footer)
+	}
+	footer = substituteBrandingTokens(footer, tokens)
 	if footer == "" {
 		footer = renderLabel(labels, "header_footer.footer_text", tokens)
 	}
 
+	subtitle := strings.TrimSpace(report.BrandingSubtitle.String)
+	if subtitle == "" && tpl != nil {
+		subtitle = strings.TrimSpace(tpl.Subtitle)
+	}
+
 	return EffectiveBranding{
 		Title:    title,
-		Subtitle: substituteBrandingTokens(strings.TrimSpace(report.BrandingSubtitle.String), tokens),
+		Subtitle: substituteBrandingTokens(subtitle, tokens),
 		Header:   header,
 		Footer:   footer,
 	}

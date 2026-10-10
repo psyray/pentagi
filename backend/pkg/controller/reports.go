@@ -27,7 +27,17 @@ type ReportController interface {
 	// ListUserReports returns every report owned by the user, across flows
 	// (global Reports page, L5).
 	ListUserReports(ctx context.Context, userID int64) ([]database.Report, error)
-	ListReportTemplates() ([]report.TemplateInfo, error)
+	ListReportTemplates(ctx context.Context, userID int64) ([]report.TemplateInfo, error)
+	// Template CRUD (backlog v2, L3). Global templates need the admin flag;
+	// personal ones belong to the caller.
+	GetReportTemplate(ctx context.Context, userID, templateID int64) (*database.ReportTemplate, error)
+	CreateReportTemplate(ctx context.Context, userID int64, isAdmin bool, params report.TemplateParams, global bool) (*database.ReportTemplate, error)
+	UpdateReportTemplate(ctx context.Context, userID, templateID int64, isAdmin bool, params report.TemplateParams) (*database.ReportTemplate, error)
+	SetReportTemplateEnabled(ctx context.Context, userID, templateID int64, isAdmin bool, enabled bool) (*database.ReportTemplate, error)
+	DeleteReportTemplate(ctx context.Context, userID, templateID int64, isAdmin bool) error
+	GetReportTemplateBranding(ctx context.Context, userID, templateID int64) (report.TemplateBrandingView, error)
+	SetReportTemplateBranding(ctx context.Context, userID, templateID int64, isAdmin bool, params report.TemplateBrandingParams) (report.TemplateBrandingView, error)
+	ReportTemplateLogo(ctx context.Context, userID, templateID int64) (string, string, []byte, error)
 	// CheckVision probes whether the provider a report would use can read images.
 	CheckVision(ctx context.Context, userID, flowID int64, providerName string) (bool, error)
 	GetReport(ctx context.Context, userID, reportID int64) (*database.Report, error)
@@ -179,8 +189,64 @@ func (a *reportControllerAdapter) ListUserReports(
 	return a.ctrl.ListUserReports(ctx, userID)
 }
 
-func (a *reportControllerAdapter) ListReportTemplates() ([]report.TemplateInfo, error) {
-	return a.ctrl.ListTemplates()
+func (a *reportControllerAdapter) ListReportTemplates(ctx context.Context, userID int64) ([]report.TemplateInfo, error) {
+	return a.ctrl.ListTemplates(ctx, userID)
+}
+
+func (a *reportControllerAdapter) GetReportTemplate(
+	ctx context.Context, userID, templateID int64,
+) (*database.ReportTemplate, error) {
+	return a.ctrl.GetReportTemplate(ctx, userID, templateID)
+}
+
+func (a *reportControllerAdapter) CreateReportTemplate(
+	ctx context.Context, userID int64, isAdmin bool, params report.TemplateParams, global bool,
+) (*database.ReportTemplate, error) {
+	return a.ctrl.CreateReportTemplate(ctx, userID, isAdmin, params, global)
+}
+
+func (a *reportControllerAdapter) UpdateReportTemplate(
+	ctx context.Context, userID, templateID int64, isAdmin bool, params report.TemplateParams,
+) (*database.ReportTemplate, error) {
+	return a.ctrl.UpdateReportTemplate(ctx, userID, templateID, isAdmin, params)
+}
+
+func (a *reportControllerAdapter) SetReportTemplateEnabled(
+	ctx context.Context, userID, templateID int64, isAdmin bool, enabled bool,
+) (*database.ReportTemplate, error) {
+	return a.ctrl.SetReportTemplateEnabled(ctx, userID, templateID, isAdmin, enabled)
+}
+
+func (a *reportControllerAdapter) DeleteReportTemplate(
+	ctx context.Context, userID, templateID int64, isAdmin bool,
+) error {
+	return a.ctrl.DeleteReportTemplate(ctx, userID, templateID, isAdmin)
+}
+
+func (a *reportControllerAdapter) GetReportTemplateBranding(
+	ctx context.Context, userID, templateID int64,
+) (report.TemplateBrandingView, error) {
+	row, err := a.ctrl.GetReportTemplate(ctx, userID, templateID)
+	if err != nil {
+		return report.TemplateBrandingView{}, err
+	}
+	return a.ctrl.TemplateBrandingView(ctx, *row), nil
+}
+
+func (a *reportControllerAdapter) SetReportTemplateBranding(
+	ctx context.Context, userID, templateID int64, isAdmin bool, params report.TemplateBrandingParams,
+) (report.TemplateBrandingView, error) {
+	row, err := a.ctrl.SetTemplateBranding(ctx, userID, templateID, isAdmin, params)
+	if err != nil {
+		return report.TemplateBrandingView{}, err
+	}
+	return a.ctrl.TemplateBrandingView(ctx, *row), nil
+}
+
+func (a *reportControllerAdapter) ReportTemplateLogo(
+	ctx context.Context, userID, templateID int64,
+) (string, string, []byte, error) {
+	return a.ctrl.TemplateBrandingLogo(ctx, userID, templateID)
 }
 
 func (a *reportControllerAdapter) GetReport(
@@ -289,8 +355,8 @@ func (a *reportControllerAdapter) BrandingLogo(
 }
 
 func (a *reportControllerAdapter) brandingView(ctx context.Context, row database.Report) BrandingView {
-	effective := report.ResolveReportBranding(row)
-	name, mediaType, err := a.ctrl.BrandingLogoInfo(ctx, row.ID)
+	effective := report.ResolveReportBranding(row, a.ctrl.TemplateBranding(ctx, row.UserID, row.TemplateKey))
+	name, mediaType, err := a.ctrl.BrandingLogoInfo(ctx, row)
 
 	return BrandingView{
 		Title:            row.BrandingTitle.String,

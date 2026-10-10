@@ -82,7 +82,7 @@ func TestComposeDocumentLocalizesComposedSections(t *testing.T) {
 		composedSection(3, "page-header-footer", "En-tête et pied de page", 3),
 	}
 
-	out := composeDocument(report, &Template{Key: report.TemplateKey}, sections)
+	out := composeDocument(report, &Template{Key: report.TemplateKey}, nil, sections)
 
 	assert.Contains(t, out, "Généré le 2026-10-08 12:00 UTC.")
 	assert.Contains(t, out, "| Durée |")

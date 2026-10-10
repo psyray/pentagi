@@ -1,10 +1,14 @@
 package report
 
 import (
+	"context"
+	"database/sql"
 	"embed"
 	"fmt"
 	"sort"
 	"strings"
+
+	"pentagi/pkg/database"
 
 	"gopkg.in/yaml.v3"
 )
@@ -159,16 +163,55 @@ func LoadTemplate(file string) (*Template, error) {
 		return nil, fmt.Errorf("template %s not found: %w", file, err)
 	}
 
+	return ParseTemplate(raw, file)
+}
+
+// ParseTemplate unmarshals and validates a template document. fallbackKey names
+// the template when the YAML leaves the key empty (a bundled file's base name).
+func ParseTemplate(raw []byte, fallbackKey string) (*Template, error) {
 	var tpl Template
 	if err := yaml.Unmarshal(raw, &tpl); err != nil {
-		return nil, fmt.Errorf("failed to parse template %s: %w", file, err)
+		return nil, fmt.Errorf("failed to parse template %s: %w", fallbackKey, err)
 	}
 	if tpl.Key == "" {
-		tpl.Key = file
+		tpl.Key = fallbackKey
 	}
 	if err := tpl.Validate(); err != nil {
 		return nil, err
 	}
 
 	return &tpl, nil
+}
+
+// TemplateFromRow parses a stored user-defined template row.
+func TemplateFromRow(row database.ReportTemplate) (*Template, error) {
+	return ParseTemplate([]byte(row.Yaml), row.Key)
+}
+
+// ResolveTemplate loads the template a report run must follow, DB-first
+// (backlog v2 L3): the caller's own template wins over a global one of the same
+// key, and a missing, disabled or unparsable DB template degrades to the
+// bundled template. A bad row must never stop a report (R1/R2).
+func ResolveTemplate(ctx context.Context, q database.Querier, userID int64, key string) (*Template, error) {
+	key = strings.TrimPrefix(key, "bundled/")
+	if q == nil || userID == 0 {
+		return GetTemplate(key)
+	}
+
+	row, err := q.GetReportTemplateByKey(ctx, database.GetReportTemplateByKeyParams{
+		Key:    key,
+		UserID: sql.NullInt64{Int64: userID, Valid: true},
+	})
+	if err != nil {
+		return GetTemplate(key)
+	}
+
+	tpl, err := TemplateFromRow(row)
+	if err != nil {
+		// A stored template that no longer parses must not break a report that
+		// already snapshotted its key: fall back to the bundled one.
+		return GetTemplate(key)
+	}
+
+	return tpl, nil
 }

@@ -13,6 +13,7 @@ type Querier interface {
 	AddFavoriteFlow(ctx context.Context, arg AddFavoriteFlowParams) (UserPreference, error)
 	AppendReportSectionWarning(ctx context.Context, arg AppendReportSectionWarningParams) (ReportSection, error)
 	ClearReportBrandingLogo(ctx context.Context, reportID int64) error
+	ClearReportTemplateBrandingLogo(ctx context.Context, templateID int64) error
 	// Pulls the siblings after a removed section back by one so positions stay
 	// contiguous across add/delete cycles (IS NOT DISTINCT FROM for the NULL parent).
 	CompactReportSectionPositions(ctx context.Context, arg CompactReportSectionPositionsParams) error
@@ -41,6 +42,7 @@ type Querier interface {
 	CreateReportLog(ctx context.Context, arg CreateReportLogParams) (ReportLog, error)
 	CreateReportSection(ctx context.Context, arg CreateReportSectionParams) (ReportSection, error)
 	CreateReportSectionAttachment(ctx context.Context, arg CreateReportSectionAttachmentParams) (ReportSectionAttachment, error)
+	CreateReportTemplate(ctx context.Context, arg CreateReportTemplateParams) (ReportTemplate, error)
 	CreateResultAssistantLog(ctx context.Context, arg CreateResultAssistantLogParams) (Assistantlog, error)
 	CreateResultMsgLog(ctx context.Context, arg CreateResultMsgLogParams) (Msglog, error)
 	CreateScreenshot(ctx context.Context, arg CreateScreenshotParams) (Screenshot, error)
@@ -75,6 +77,7 @@ type Querier interface {
 	DeleteReportSection(ctx context.Context, arg DeleteReportSectionParams) error
 	// The set mutation replaces a section's attachments wholesale.
 	DeleteReportSectionAttachments(ctx context.Context, arg DeleteReportSectionAttachmentsParams) error
+	DeleteReportTemplate(ctx context.Context, arg DeleteReportTemplateParams) error
 	DeleteSubtask(ctx context.Context, id int64) error
 	DeleteSubtasks(ctx context.Context, ids []int64) error
 	DeleteUser(ctx context.Context, id int64) error
@@ -152,6 +155,7 @@ type Querier interface {
 	GetFlowsForPeriod(ctx context.Context, arg GetFlowsForPeriodParams) ([]GetFlowsForPeriodRow, error)
 	// One dense row per calendar day in the caller's timezone, zeros included.
 	GetFlowsStatsByDay(ctx context.Context, arg GetFlowsStatsByDayParams) ([]GetFlowsStatsByDayRow, error)
+	GetGlobalReportTemplates(ctx context.Context) ([]ReportTemplate, error)
 	// Fetch a single knowledge document by its UUID (admin view — no user_id check).
 	GetKnowledgeDocument(ctx context.Context, uuid string) (GetKnowledgeDocumentRow, error)
 	GetMaxReportSectionPosition(ctx context.Context, reportID int64) (sql.NullInt32, error)
@@ -173,6 +177,14 @@ type Querier interface {
 	GetReportSectionAttachments(ctx context.Context, reportID int64) ([]ReportSectionAttachment, error)
 	GetReportSectionAttachmentsBySection(ctx context.Context, arg GetReportSectionAttachmentsBySectionParams) ([]ReportSectionAttachment, error)
 	GetReportSections(ctx context.Context, reportID int64) ([]ReportSection, error)
+	GetReportTemplate(ctx context.Context, id int64) (ReportTemplate, error)
+	GetReportTemplateBrandingLogo(ctx context.Context, templateID int64) (GetReportTemplateBrandingLogoRow, error)
+	GetReportTemplateBrandingLogoInfo(ctx context.Context, templateID int64) (GetReportTemplateBrandingLogoInfoRow, error)
+	// DB-first template resolution (L3): a user's own template wins over a global
+	// one (IS NOT DISTINCT FROM matches the NULL user_id of a global template), and
+	// the caller prefers enabled templates but falls back to a disabled one so an
+	// historical report still renders after its template was switched off.
+	GetReportTemplateByKey(ctx context.Context, arg GetReportTemplateByKeyParams) (ReportTemplate, error)
 	GetRole(ctx context.Context, id int64) (GetRoleRow, error)
 	GetRoleByName(ctx context.Context, name string) (GetRoleByNameRow, error)
 	GetRoles(ctx context.Context) ([]GetRolesRow, error)
@@ -266,6 +278,7 @@ type Querier interface {
 	GetUserProviderByName(ctx context.Context, arg GetUserProviderByNameParams) (Provider, error)
 	GetUserProviders(ctx context.Context, userID int64) ([]Provider, error)
 	GetUserProvidersByType(ctx context.Context, arg GetUserProvidersByTypeParams) ([]Provider, error)
+	GetUserReportTemplates(ctx context.Context, userID sql.NullInt64) ([]ReportTemplate, error)
 	GetUserReports(ctx context.Context, userID int64) ([]Report, error)
 	GetUserResourceByID(ctx context.Context, id int64) (UserResource, error)
 	GetUserResourcesAll(ctx context.Context, userID int64) ([]UserResource, error)
@@ -287,6 +300,9 @@ type Querier interface {
 	ListAllKnowledgeDocuments(ctx context.Context) ([]ListAllKnowledgeDocumentsRow, error)
 	// List non-memory knowledge documents belonging to a specific flow (admin scoped).
 	ListFlowKnowledgeDocuments(ctx context.Context, flowID sql.NullString) ([]ListFlowKnowledgeDocumentsRow, error)
+	// Every template the Settings page lists for the caller: the caller's own plus
+	// the global ones, newest first.
+	ListReportTemplates(ctx context.Context, userID sql.NullInt64) ([]ReportTemplate, error)
 	// List all non-memory knowledge documents owned by a specific user (user-scoped view).
 	ListUserKnowledgeDocuments(ctx context.Context, userID sql.NullString) ([]ListUserKnowledgeDocumentsRow, error)
 	// A resume restarts the run cleanly: the previous finished_at and error must
@@ -328,6 +344,9 @@ type Querier interface {
 	// Stamps the current run's start so the panel can show the run duration
 	// (finished_at - started_at) instead of the report's whole lifetime.
 	SetReportStartedAt(ctx context.Context, id int64) (Report, error)
+	SetReportTemplateBrandingLogo(ctx context.Context, arg SetReportTemplateBrandingLogoParams) error
+	SetReportTemplateBrandingText(ctx context.Context, arg SetReportTemplateBrandingTextParams) (ReportTemplate, error)
+	SetReportTemplateEnabled(ctx context.Context, arg SetReportTemplateEnabledParams) (ReportTemplate, error)
 	// IS NOT DISTINCT FROM so a NULL parent (top-level sections) matches the NULL
 	// argument: `parent_id = NULL` never matched and silently skipped the shift,
 	// leaving the new section on top of an existing position.
@@ -388,6 +407,7 @@ type Querier interface {
 	UpdateReportSectionContent(ctx context.Context, arg UpdateReportSectionContentParams) (ReportSection, error)
 	UpdateReportSectionFields(ctx context.Context, arg UpdateReportSectionFieldsParams) (ReportSection, error)
 	UpdateReportStatus(ctx context.Context, arg UpdateReportStatusParams) (Report, error)
+	UpdateReportTemplate(ctx context.Context, arg UpdateReportTemplateParams) (ReportTemplate, error)
 	UpdateSubtaskContext(ctx context.Context, arg UpdateSubtaskContextParams) (Subtask, error)
 	UpdateSubtaskFailedResult(ctx context.Context, arg UpdateSubtaskFailedResultParams) (Subtask, error)
 	UpdateSubtaskFinishedResult(ctx context.Context, arg UpdateSubtaskFinishedResultParams) (Subtask, error)

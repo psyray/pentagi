@@ -306,7 +306,7 @@ func newWorker(deps Deps, report database.Report) (*worker, error) {
 		return nil, fmt.Errorf("failed to resolve provider %q for report %d: %w", prvname, report.ID, err)
 	}
 
-	tpl, err := GetTemplate(report.TemplateKey)
+	tpl, err := ResolveTemplate(context.Background(), deps.DB, report.UserID, report.TemplateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load template %q: %w", report.TemplateKey, err)
 	}
