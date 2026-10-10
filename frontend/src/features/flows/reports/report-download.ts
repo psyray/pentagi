@@ -9,7 +9,7 @@ import {
 } from '@/graphql/types';
 import { api } from '@/lib/axios';
 import { Log } from '@/lib/log';
-import { arrayBufferToDataUrl, downloadTextFile, generatePDFFromMarkdown, scaleImage } from '@/lib/report';
+import { arrayBufferToDataUrl, downloadTextFile, scaleImage } from '@/lib/report';
 
 import type { DocxBranding } from './report-docx';
 
@@ -147,8 +147,21 @@ export const downloadReportPdf = async (
     content: string,
     branding?: ReportBranding,
 ): Promise<void> => {
-    // The AI report opens chapters and findings on fresh pages, like the DOCX.
-    await generatePDFFromMarkdown(content, reportFileName(report), {
+    triggerBlobDownload(await buildReportPdfBlob(report, content, branding), `${reportFileName(report)}.pdf`);
+};
+
+// buildReportPdfBlob renders the report to a PDF blob without downloading it. The
+// print preview and the PDF export share it, so the preview's page count is the
+// export's page count; chapters and findings open on fresh pages, like the DOCX
+// (backlog v2, L7).
+export const buildReportPdfBlob = async (
+    report: ReportFragmentFragment,
+    content: string,
+    branding?: ReportBranding,
+): Promise<Blob> => {
+    const { buildPDFBlob } = await import('@/lib/report/report-pdf');
+
+    return buildPDFBlob(content, {
         branding: await buildPdfBranding(report, branding ?? null),
         paginateSections: true,
     });
