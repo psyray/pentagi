@@ -38,6 +38,7 @@ vi.mock('@uiw/react-codemirror', () => ({
             value={value}
         />
     ),
+    EditorView: { lineWrapping: [] },
 }));
 
 vi.mock('@/components/layouts/app/app-header', () => {
