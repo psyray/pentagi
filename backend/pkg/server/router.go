@@ -595,6 +595,12 @@ func setReportArchiveGroup(parent *gin.RouterGroup, svc *services.ReportArchiveS
 		reportGroup.GET("/:reportID/archive", svc.ArchiveReport)
 		reportGroup.GET("/:reportID/branding/logo", svc.ReportBrandingLogo)
 	}
+	// Report templates are user-scoped, not flow-scoped: the Settings editor reads
+	// a template's stored logo here (backlog v2, L3).
+	templateGroup := parent.Group("/report-templates")
+	{
+		templateGroup.GET("/:templateID/branding/logo", svc.ReportTemplateBrandingLogo)
+	}
 }
 
 func setResourcesGroup(parent *gin.RouterGroup, svc *services.ResourceService) {

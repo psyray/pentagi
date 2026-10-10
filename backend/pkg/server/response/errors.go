@@ -134,6 +134,11 @@ var ErrFlowFilesContainerNotRunning = NewHttpError(400, "FlowFiles.ContainerNotR
 
 var ErrReportBrandingNotFound = NewHttpError(404, "ReportBranding.NotFound", "report branding logo not found")
 
+// report templates
+
+var ErrReportTemplatesInvalidRequest = NewHttpError(400, "ReportTemplates.InvalidRequest", "invalid report template request data")
+var ErrReportTemplatesNotFound = NewHttpError(404, "ReportTemplates.NotFound", "report template not found")
+
 // tasks
 
 var ErrTasksInvalidRequest = NewHttpError(400, "Tasks.InvalidRequest", "invalid task request data")
