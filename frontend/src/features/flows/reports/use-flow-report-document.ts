@@ -165,6 +165,7 @@ export function useFlowReportDocument() {
     );
 
     return {
+        branding,
         download,
         downloading,
         flowId,

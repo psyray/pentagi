@@ -1,5 +1,5 @@
-import { RotateCcw, Trash2 } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { Eye, RotateCcw } from 'lucide-react';
+import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -18,8 +18,8 @@ import { Spinner } from '@/components/ui/spinner';
 import { ReportSectionStatusType } from '@/graphql/types';
 import { routes } from '@/lib/routes';
 
+import FlowReportActions from './flow-report-actions';
 import FlowReportBranding from './flow-report-branding';
-import FlowReportDownload from './flow-report-download';
 import FlowReportRun from './flow-report-run';
 import FlowReportSection from './flow-report-section';
 import FlowReportToc from './flow-report-toc';
@@ -29,13 +29,18 @@ import { useFlowReportDocument } from './use-flow-report-document';
 import { useFlowReportEditor } from './use-flow-report-editor';
 import { useReportPermissions } from './use-report-permissions';
 
+// The print preview pulls in PDF.js and its worker; it is fetched only when the
+// operator asks for it, not on every report page.
+const FlowReportPreview = lazy(() => import('./flow-report-preview'));
+
 function FlowReportPage() {
     const { flowId: flowIdParam } = useParams<{ flowId: string }>();
     const navigate = useNavigate();
-    const { download, downloading, flowId, loading, remove, report, reportId, resume, sections } =
+    const { branding, download, downloading, flowId, loading, remove, report, reportId, resume, sections } =
         useFlowReportDocument();
     const editor = useFlowReportEditor(reportId || null);
     const [deleteOpen, setDeleteOpen] = useState(false);
+    const [preview, setPreview] = useState(false);
     const permissions = useReportPermissions();
 
     const handleSelectSection = useCallback((sectionId: string) => {
@@ -114,24 +119,27 @@ function FlowReportPage() {
                             Resume
                         </Button>
                     )}
-                    <FlowReportDownload
-                        canDownload={!!report && !active}
-                        downloading={downloading}
-                        onDownload={download}
-                    />
-                    {permissions.canDelete && (
+                    {!active && (
                         <Button
-                            aria-label="Delete report"
+                            aria-label="Toggle print preview"
+                            aria-pressed={preview}
                             disabled={!report}
-                            onClick={() => setDeleteOpen(true)}
+                            onClick={() => setPreview((current) => !current)}
                             size="sm"
-                            title="Delete report"
-                            variant="outline"
+                            title="Print preview"
+                            variant={preview ? 'default' : 'outline'}
                         >
-                            <Trash2 className="size-4" />
-                            Delete
+                            <Eye className="size-4" />
+                            Preview
                         </Button>
                     )}
+                    <FlowReportActions
+                        canDelete={permissions.canDelete}
+                        canDownload={!!report && !active}
+                        downloading={downloading}
+                        onDelete={() => setDeleteOpen(true)}
+                        onDownload={download}
+                    />
                 </AppHeaderActions>
             </AppHeader>
 
@@ -189,23 +197,41 @@ function FlowReportPage() {
                         />
                     </aside>
 
-                    <div className="min-w-0 flex-1 overflow-auto">
-                        <div className="mx-auto w-[95%] max-w-[1500px] p-8 xl:w-[80%]">
-                            <h1 className="mb-6 text-2xl font-bold">{report.title || 'Untitled report'}</h1>
-                            {outline.map((node) => (
-                                <FlowReportSection
-                                    active={active}
-                                    canEdit={canEdit}
-                                    depth={0}
-                                    editor={editor}
-                                    flowId={flowId || null}
-                                    key={node.section.id}
-                                    node={node}
-                                    sections={sections}
+                    {preview ? (
+                        <div className="min-w-0 flex-1">
+                            <Suspense
+                                fallback={
+                                    <div className="flex flex-1 items-center justify-center">
+                                        <Spinner className="text-muted-foreground size-6" />
+                                    </div>
+                                }
+                            >
+                                <FlowReportPreview
+                                    branding={branding}
+                                    report={report}
+                                    reportId={reportId}
                                 />
-                            ))}
+                            </Suspense>
                         </div>
-                    </div>
+                    ) : (
+                        <div className="min-w-0 flex-1 overflow-auto">
+                            <div className="mx-auto w-[95%] max-w-[1500px] p-8 xl:w-[80%]">
+                                <h1 className="mb-6 text-2xl font-bold">{report.title || 'Untitled report'}</h1>
+                                {outline.map((node) => (
+                                    <FlowReportSection
+                                        active={active}
+                                        canEdit={canEdit}
+                                        depth={0}
+                                        editor={editor}
+                                        flowId={flowId || null}
+                                        key={node.section.id}
+                                        node={node}
+                                        sections={sections}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
