@@ -615,7 +615,7 @@ func TestComposeDocument_Rendering(t *testing.T) {
 	reported.SectionsTotal = 4
 	q.reports[report.ID] = reported
 
-	doc := composeDocument(report, tpl, sections)
+	doc := composeDocument(report, tpl, nil, sections)
 
 	assert.Contains(t, doc, "# The title")
 	// The cover is unnumbered, the body section carries number 1.
@@ -656,7 +656,7 @@ func TestComposeDocument_NumbersChildrenUnderTheirParent(t *testing.T) {
 			Title: "Child B", Status: SectionDone, Position: 2, Content: "b"},
 	}
 
-	doc := composeDocument(report, tpl, sections)
+	doc := composeDocument(report, tpl, nil, sections)
 
 	assert.Contains(t, doc, "## 1. Findings")
 	// Children carry the parent's number as a dotted prefix ("1.1."), not a

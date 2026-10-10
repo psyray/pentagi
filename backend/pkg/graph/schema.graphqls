@@ -1092,6 +1092,9 @@ type Query {
   reportVision(flowId: ID!, providerName: String): ReportVision!
   # The per-report export branding (plan § 6.6 / P6).
   reportBranding(reportId: ID!): ReportBranding!
+  # Every report template the caller may use: the bundled ones plus their own
+  # and the global ones (Settings > Report templates, backlog v2 L3).
+  reportTemplates: [ReportTemplate!]!
 
 }
 
@@ -1166,6 +1169,14 @@ type Mutation {
   deleteReportSection(reportId: ID!, sectionId: ID!): ResultType!
   # setReportSectionAttachments replaces a section's operator attachments wholesale.
   setReportSectionAttachments(reportId: ID!, sectionId: ID!, attachments: [ReportAttachmentInput!]!): [ReportAttachment!]!
+
+  # Report templates (backlog v2, L3). A personal template needs reports.edit;
+  # a global one (input.global on create) needs reports.admin.
+  createReportTemplate(input: ReportTemplateInput!): ReportTemplate!
+  updateReportTemplate(templateId: ID!, input: ReportTemplateInput!): ReportTemplate!
+  setReportTemplateEnabled(templateId: ID!, enabled: Boolean!): ReportTemplate!
+  deleteReportTemplate(templateId: ID!): ResultType!
+  setReportTemplateBranding(templateId: ID!, input: ReportTemplateBrandingInput!): ReportTemplateBranding!
 }
 
 type Subscription {
@@ -1272,6 +1283,64 @@ enum ReportLogKind {
 enum SectionDirection {
   up
   down
+}
+
+# Where a listed report template comes from (backlog v2, L3).
+enum ReportTemplateSource {
+  # A bundled template compiled into the binary; read-only.
+  bundled
+  # The caller's own template.
+  user
+  # A global template, managed by an admin and visible to everyone.
+  global
+}
+
+# One report template: the YAML outline a report run follows. The YAML is the
+# source of truth for key/label/version; a bundled template carries id 0 and
+# cannot be edited.
+type ReportTemplate {
+  id: ID!
+  key: String!
+  label: String!
+  version: Int!
+  yaml: String!
+  enabled: Boolean!
+  source: ReportTemplateSource!
+  # The owner of a personal template; null for a global or bundled one.
+  userId: ID
+  branding: ReportTemplateBranding!
+  createdAt: Time
+  updatedAt: Time
+}
+
+# The branding a report template hands down to the reports that use it.
+type ReportTemplateBranding {
+  title: String
+  subtitle: String
+  header: String
+  footer: String
+  hasLogo: Boolean!
+  logoName: String
+  logoMediaType: String
+}
+
+input ReportTemplateInput {
+  # The template document (YAML). Its key/label/version are read back from it.
+  yaml: String!
+  # Omitted means true on create, kept on update.
+  enabled: Boolean
+  # Create only: true stores a global template (requires reports.admin).
+  global: Boolean
+}
+
+input ReportTemplateBrandingInput {
+  title: String
+  subtitle: String
+  header: String
+  footer: String
+  # A data URL or raw base64 png/jpeg. An empty string clears the logo; null keeps it.
+  logo: String
+  logoName: String
 }
 
 type Report {
