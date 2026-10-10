@@ -156,6 +156,17 @@ func GetTemplate(key string) (*Template, error) {
 	return LoadTemplate(key)
 }
 
+// BundledYAML returns the raw YAML of a bundled template by key (the file base
+// name), so the Settings editor can show a built-in template read-only.
+func BundledYAML(key string) (string, error) {
+	key = strings.TrimPrefix(key, "bundled/")
+	raw, err := templateFS.ReadFile("templates/" + key + ".yaml")
+	if err != nil {
+		return "", fmt.Errorf("template %s not found: %w", key, err)
+	}
+	return string(raw), nil
+}
+
 // LoadTemplate loads and validates one bundled template by file base name.
 func LoadTemplate(file string) (*Template, error) {
 	raw, err := templateFS.ReadFile("templates/" + file + ".yaml")

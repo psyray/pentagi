@@ -1,6 +1,7 @@
+import { useQuery } from '@apollo/client/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { FilePlus2, TriangleAlert } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -19,6 +20,7 @@ import { FormSubmitButton } from '@/components/ui/form-submit-button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { ReportTemplatesDocument } from '@/graphql/types';
 import { Log } from '@/lib/log';
 import { useProviders } from '@/providers/providers-provider';
 
@@ -62,6 +64,14 @@ function FlowReportCreateDialog({
     const { providers } = useProviders();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [visionWarning, setVisionWarning] = useState<null | { error?: null | string }>(null);
+
+    // The template picker lists every enabled template the caller may use: the
+    // bundled default plus their own and the global ones (backlog v2, L3).
+    const { data: templatesData } = useQuery(ReportTemplatesDocument);
+    const templates = useMemo(
+        () => (templatesData?.reportTemplates ?? []).filter((template) => template.enabled),
+        [templatesData],
+    );
 
     const form = useForm<CreateFormValues>({
         defaultValues: {
@@ -164,11 +174,19 @@ function FlowReportCreateDialog({
                                             <SelectValue placeholder="Select a template" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value={DEFAULT_TEMPLATE_KEY}>
-                                                {DEFAULT_TEMPLATE_LABEL}
-                                            </SelectItem>
-                                            {/* User-defined report templates land with the
-                                                settings interface (plan § 6.9). */}
+                                            {templates.length === 0 && (
+                                                <SelectItem value={DEFAULT_TEMPLATE_KEY}>
+                                                    {DEFAULT_TEMPLATE_LABEL}
+                                                </SelectItem>
+                                            )}
+                                            {templates.map((template) => (
+                                                <SelectItem
+                                                    key={template.key}
+                                                    value={template.key}
+                                                >
+                                                    {template.label}
+                                                </SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
                                 </FormItem>
