@@ -247,6 +247,9 @@ func (s *ReportArchiveService) buildArchive(
 
 	containerName := primaryContainerName(s.tenantPrefix, uint64(row.FlowID))
 	missing := make([]string, 0)
+	// A cited base name (nmap -oA) expands to several files; the set keeps a sibling
+	// another ref also cites from being bundled twice.
+	bundled := make(map[string]struct{})
 
 	for _, ref := range refs {
 		if parentRef(ref, refs) {
@@ -269,14 +272,7 @@ func (s *ReportArchiveService) buildArchive(
 			continue
 		}
 
-		reader, _, err := s.dockerClient.CopyFromContainer(ctx, containerName, ref.Path)
-		if err != nil {
-			missing = append(missing, fmt.Sprintf("file %q: %v", ref.Path, err))
-			continue
-		}
-		count, err := addTarToZip(zw, reader, ref.Path, "annexes/files")
-		reader.Close()
-		if err != nil || count == 0 {
+		if _, err := s.addCitedFile(ctx, zw, containerName, ref.Path, bundled); err != nil {
 			missing = append(missing, fmt.Sprintf("file %q: %v", ref.Path, err))
 		}
 	}
@@ -305,6 +301,93 @@ func (s *ReportArchiveService) buildArchive(
 	}
 
 	return zw.Close()
+}
+
+// addCitedFile bundles one cited container file. A tool like nmap writes a base
+// name plus extensions (-oA writes <base>.nmap/.gnmap/.xml), so a citation that
+// names no file of its own is a prefix: when the exact copy finds nothing, the
+// files sharing its base name are bundled instead of declared missing (plan
+// § 6.10 refinement: every cited evidence piece must reach the archive).
+func (s *ReportArchiveService) addCitedFile(
+	ctx context.Context,
+	zw *zip.Writer,
+	containerName string,
+	citedPath string,
+	bundled map[string]struct{},
+) (int, error) {
+	if _, ok := bundled[citedPath]; ok {
+		return 0, nil
+	}
+
+	reader, _, copyErr := s.dockerClient.CopyFromContainer(ctx, containerName, citedPath)
+	if copyErr == nil {
+		count, addErr := addTarToZip(zw, reader, citedPath, "annexes/files")
+		reader.Close()
+		if addErr == nil && count > 0 {
+			bundled[citedPath] = struct{}{}
+			return count, nil
+		}
+		if addErr == nil {
+			addErr = fmt.Errorf("no file at %q", citedPath)
+		}
+		return 0, addErr
+	}
+
+	// The exact path names no file: fall back to its <base>.* siblings. A fallback
+	// that finds nothing keeps the original copy error, so MISSING stays specific.
+	if count, err := s.addSiblingFiles(ctx, zw, containerName, citedPath, bundled); err == nil {
+		bundled[citedPath] = struct{}{}
+		return count, nil
+	}
+
+	return 0, copyErr
+}
+
+// addSiblingFiles bundles the container files that sit next to a cited path and
+// share its base name followed by an extension.
+func (s *ReportArchiveService) addSiblingFiles(
+	ctx context.Context,
+	zw *zip.Writer,
+	containerName string,
+	citedPath string,
+	bundled map[string]struct{},
+) (int, error) {
+	dir := path.Dir(citedPath)
+	prefix := path.Base(citedPath) + "."
+
+	listing, err := s.dockerClient.ListContainerDir(ctx, containerName, dir)
+	if err != nil {
+		return 0, err
+	}
+
+	count := 0
+	for _, entry := range listing.Files {
+		if entry.Mode.IsDir() || !strings.HasPrefix(entry.Name, prefix) {
+			continue
+		}
+		child := path.Join(dir, entry.Name)
+		if _, ok := bundled[child]; ok {
+			continue
+		}
+
+		reader, _, err := s.dockerClient.CopyFromContainer(ctx, containerName, child)
+		if err != nil {
+			continue
+		}
+		written, addErr := addTarToZip(zw, reader, child, "annexes/files")
+		reader.Close()
+		if addErr != nil || written == 0 {
+			continue
+		}
+		bundled[child] = struct{}{}
+		count++
+	}
+
+	if count == 0 {
+		return 0, fmt.Errorf("no file named %q or %q*", citedPath, prefix)
+	}
+
+	return count, nil
 }
 
 // addAttachmentToZip bundles one operator attachment. A cache-relative path
