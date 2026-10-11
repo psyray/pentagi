@@ -1,0 +1,33 @@
+id: clickjacking-framing-allowed
+name: Sensitive page frameable from another origin
+description: >
+  A page that can be embedded in a frame and holds a sensitive control can be used for
+  clickjacking, tricking a logged-in user into an unintended action. Verification only
+  reads the framing headers on an authenticated page you can load yourself.
+cves: []
+product: Web application
+affected: Authenticated pages missing X-Frame-Options or a frame-ancestors policy
+cvss: 6.1
+severity: medium
+tags: [web, clickjacking, headers, cwe-1021]
+references:
+  - https://cwe.mitre.org/data/definitions/1021.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/Clickjacking_Defense_Cheat_Sheet.html
+fingerprint:
+  paths: ["/account", "/settings", "/transfer", "/admin"]
+  signals:
+    - A sensitive page whose response lacks X-Frame-Options and frame-ancestors
+  notes: Read the headers only; do not build a live lure against a real user.
+links:
+  - name: Sensitive page rendered inside a frame
+    cve: ""
+    enables: a decoy overlay that captures a click on a real control
+    verify: >
+      Request a sensitive authenticated page and inspect X-Frame-Options and the
+      Content-Security-Policy frame-ancestors directive. If both are absent, load the
+      page inside an iframe on a local test page you control and confirm it renders. Do
+      not construct a lure for anyone else.
+remediation: >
+  Send X-Frame-Options DENY or SAMEORIGIN and a Content-Security-Policy frame-ancestors
+  directive on all sensitive pages, and keep state-changing actions behind a token or
+  re-authentication.

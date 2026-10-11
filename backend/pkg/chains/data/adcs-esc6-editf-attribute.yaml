@@ -1,0 +1,40 @@
+id: adcs-esc6-editf-attribute
+name: CA accepts a requester-supplied subject alternative name
+description: >
+  A CA configured with the EDITF_ATTRIBUTESUBJECTALTNAME2 flag lets a requester embed
+  an arbitrary subject alternative name in the certificate request, so any enrollable
+  template becomes a way to authenticate as another user. Verification reads the CA
+  configuration flag only.
+cves: []
+product: Microsoft Active Directory Certificate Services
+affected: CAs whose policy module sets EDITF_ATTRIBUTESUBJECTALTNAME2
+cvss: 8.1
+severity: high
+tags: [ad, adcs, pki, privesc, cwe-269]
+references:
+  - https://cwe.mitre.org/data/definitions/269.html
+  - https://www.thehacker.recipes/
+  - https://github.com/ly4k/Certipy
+fingerprint:
+  paths: []
+  signals:
+    - A CA whose edit flags include the attributes-subject-alt-name bit
+  notes: Reading the CA policy flags is read-only; no certificate is requested.
+links:
+  - name: CA accepts an attacker-supplied subject alternative name
+    cve: ""
+    enables: obtaining a certificate naming a privileged user from any enrollable template
+    verify: >
+      Read the CA edit flags with a tool such as certipy or certutil and check whether
+      the attributes-subject-alt-name bit is set. The flag is the proof; do NOT request
+      a certificate with a forged name.
+  - name: At least one template enrollable by your account
+    cve: ""
+    enables: the flag to be exploited through that template
+    verify: >
+      Confirm read-only that some published template is enrollable by a group you belong
+      to. This completes the path assessment; make no request.
+remediation: >
+  Clear the EDITF_ATTRIBUTESUBJECTALTNAME2 flag, allow a subject alternative name only
+  through a manager-approved flow where strictly needed, restrict template enrollment,
+  and monitor issued certificates for unexpected subject alternative names.

@@ -1,0 +1,39 @@
+id: adcs-esc3-enrollment-agent
+name: ADCS template granting enrollment agent rights
+description: >
+  A template with the Certificate Request Agent EKU lets its holder sign a request on
+  behalf of another user. If enrollment permissions are broad, a low-privileged user
+  can obtain such a certificate and then enroll as someone else. Verification reads the
+  template and its enrollment rights only.
+cves: []
+product: Microsoft Active Directory Certificate Services
+affected: Templates with the Certificate Request Agent EKU and open enrollment
+cvss: 7.5
+severity: high
+tags: [ad, adcs, pki, privesc, cwe-269]
+references:
+  - https://cwe.mitre.org/data/definitions/269.html
+  - https://www.thehacker.recipes/
+  - https://github.com/ly4k/Certipy
+fingerprint:
+  paths: []
+  signals:
+    - A template with the Certificate Request Agent EKU and broad enrollment rights
+  notes: Reading the template and its access rights is read-only; no request is signed.
+links:
+  - name: Enrollment agent template reachable by your account
+    cve: ""
+    enables: signing a request on behalf of another user and obtaining their certificate
+    verify: >
+      Enumerate templates read-only, flag one carrying the Certificate Request Agent
+      EKU, and check that its enrollment rights include a group you belong to. The
+      template metadata is the proof; do NOT request an agent certificate.
+  - name: A second template trusts that agent
+    cve: ""
+    enables: the on-behalf-of enrollment to succeed against a sensitive template
+    verify: >
+      Look read-only for templates whose issuance policy accepts an enrollment agent.
+      Presence confirms the path; still perform no enrollment.
+remediation: >
+  Restrict the Certificate Request Agent EKU to narrowly scoped accounts, require
+  manager approval, and monitor on-behalf-of enrollments for unexpected subjects.
