@@ -687,7 +687,7 @@ func toolsAgentExecutorCases() ([]toolsAgentExecutorCase, func(ExecutorHandler) 
 				"hack_result": "HackResult", "advice": "Adviser", "coder": "Coder", "maintenance": "Installer",
 				"memorist": "Memorist", "search": "Searcher",
 				"terminal": "", "file": "", "browser": "", "store_guide": "", "search_guide": "",
-				"graphiti_search": "", "web_search": "",
+				"graphiti_search": "", "web_search": "", "search_exploit_chain": "",
 			},
 			optional: []string{"browser", "store_guide", "search_guide", "graphiti_search", "web_search"},
 			barriers: []string{"hack_result"},
