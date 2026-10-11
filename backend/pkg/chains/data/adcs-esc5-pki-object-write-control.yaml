@@ -1,0 +1,42 @@
+id: adcs-esc5-pki-object-write-control
+name: Write access over a PKI-related AD object
+description: >
+  Beyond templates, several AD objects govern the PKI, such as the CA computer
+  account, the PKI container or the NTAuthCertificates object. An unprivileged
+  principal holding write access over one of them can alter trust or issuance
+  behaviour for the whole forest. Verification reads the access control entries only
+  and never modifies an object.
+cves: []
+product: Microsoft Active Directory Certificate Services
+affected: CAs where a broad or unprivileged principal can write a PKI-related AD object
+cvss: 8.1
+severity: high
+tags: [ad, adcs, pki, privesc, cwe-269]
+references:
+  - https://cwe.mitre.org/data/definitions/269.html
+  - https://www.thehacker.recipes/
+  - https://github.com/ly4k/Certipy
+fingerprint:
+  paths: []
+  signals:
+    - A PKI-related AD object whose access control grants write to an unprivileged principal
+  notes: Reading object access control is read-only; never modify a PKI object.
+links:
+  - name: Writable CA computer or PKI container object
+    cve: ""
+    enables: tampering with CA configuration leading to forest-wide trust abuse
+    verify: >
+      Enumerate read-only the access control of the CA computer object and of the PKI
+      container, and check whether your principal holds write rights. The access control
+      entry is the proof; do NOT modify any object.
+  - name: Writable NTAuthCertificates or configuration object
+    cve: ""
+    enables: adding an attacker-controlled CA to the forest trust
+    verify: >
+      Read the access control of the NTAuthCertificates object and the relevant
+      configuration entries read-only. A write right for an unprivileged principal
+      confirms the path; make no change.
+remediation: >
+  Restrict write access to CA and PKI objects to PKI administrators, monitor changes to
+  NTAuthCertificates and the PKI container, and treat any unexpected write as a critical
+  incident.
