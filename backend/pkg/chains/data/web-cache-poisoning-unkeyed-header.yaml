@@ -1,0 +1,43 @@
+id: web-cache-poisoning-unkeyed-header
+name: Unkeyed input reflected into a cached response
+description: >
+  A cache that keys responses without some request input, typically a header such as
+  X-Forwarded-Host or X-Forwarded-Scheme, can be poisoned so that later visitors receive
+  attacker-controlled content. Verification uses a unique cache-buster key so only your
+  own entry can be affected, and never touches a shared or root key.
+cves: []
+product: Web cache or CDN in front of the application
+affected: Caches that forward an unkeyed header reflected into the response
+cvss: 7.5
+severity: high
+tags: [web, cache-poisoning, cdn, headers, cwe-444]
+references:
+  - https://cwe.mitre.org/data/definitions/444.html
+  - https://portswigger.net/web-security/web-cache-poisoning
+  - https://github.com/swisskyrepo/PayloadsAllTheThings
+fingerprint:
+  paths: ["/", "/?cb=swarm"]
+  signals:
+    - An unkeyed request header that appears verbatim in a cacheable response
+    - A cache HIT on a response whose body reflects that header
+  notes: Use a unique cache-buster on every request; never a shared or root key.
+links:
+  - name: Header reflected into a cacheable response
+    cve: ""
+    enables: serving malicious content to every later visitor of the poisoned key
+    verify: >
+      Add a unique cache-buster query parameter of your own and send the header
+      X-Forwarded-Host set to a host you control. Check whether the value is reflected in
+      the body and whether a second request to the same unique key returns it from cache.
+      Only your unique key can be poisoned; never use the root path or a shared key.
+  - name: Cache HIT persists the unkeyed value
+    cve: ""
+    enables: the poison to outlive your session for other users
+    verify: >
+      Confirm the second response is a cache HIT for your unique key, then purge or let
+      your unique entry expire. If purging is unavailable, stop and report the finding
+      without further requests, and never reuse a shared key.
+remediation: >
+  Include every input that affects the response in the cache key, strip hop-by-hop and
+  forwarding headers at the edge, set a short cache lifetime for dynamic content, and
+  never cache responses that reflect request headers.
