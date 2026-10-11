@@ -1,0 +1,42 @@
+id: oauth-redirect-uri-open
+name: OAuth authorization server with an unvalidated redirect_uri
+description: >
+  When the authorization endpoint does not strictly match redirect_uri against a
+  registered value, an attacker can have the authorization code or token delivered
+  to a host they control. Verification points redirect_uri at a harmless domain you
+  own and checks whether the server accepts it, without ever capturing a live code.
+cves: []
+product: OAuth 2.0 or OpenID Connect authorization server
+affected: Authorization endpoints that accept a client-chosen redirect_uri
+cvss: 7.4
+severity: high
+tags: [web, oauth, openid, redirect, cwe-601]
+references:
+  - https://cwe.mitre.org/data/definitions/601.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/OAuth2_Cheat_Sheet.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/OAuth%20Misconfiguration
+fingerprint:
+  paths: ["/oauth/authorize", "/authorize", "/connect/authorize", "/.well-known/openid-configuration"]
+  signals:
+    - An authorization endpoint whose redirect_uri parameter is echoed or loosely matched
+  notes: Reject the request after reading the Location header so no code is consumed.
+links:
+  - name: redirect_uri accepted on a domain you own
+    cve: ""
+    enables: theft of authorization codes or tokens and then account takeover
+    verify: >
+      Call the authorization endpoint with a redirect_uri pointing at an unused host
+      you control and a scope you already hold. If the server accepts it and the
+      Location header targets your host, the validation is loose. Do not follow the
+      redirect if a live code is present.
+  - name: redirect_uri matched only by prefix or path suffix
+    cve: ""
+    enables: the same theft by prefixing the registered host or appending a path
+    verify: >
+      Repeat with redirect_uri set to the registered host plus your suffix, or a host
+      that merely starts with the registered one. A same-shaped acceptance confirms
+      the loose match. Never consume a returned code.
+remediation: >
+  Match redirect_uri exactly against pre-registered values, require PKCE for public
+  clients, bind the state parameter to the session, and reject any mismatch instead of
+  falling back to a default.

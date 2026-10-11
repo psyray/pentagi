@@ -1,0 +1,41 @@
+id: constrained-delegation-allowed-to-delegate
+name: Account with constrained delegation to a sensitive service
+description: >
+  An account trusted for constrained delegation can obtain service tickets to the
+  services listed in msDS-AllowedToDelegateTo on behalf of another identity. If one
+  of those services is sensitive, compromising the account grants access as a
+  privileged user. Verification only reads the delegation attributes over LDAP.
+cves: []
+product: Microsoft Active Directory
+affected: Accounts whose msDS-AllowedToDelegateTo targets a sensitive service
+cvss: 8.1
+severity: high
+tags: [ad, kerberos, delegation, privesc, cwe-269]
+references:
+  - https://cwe.mitre.org/data/definitions/269.html
+  - https://www.thehacker.recipes/
+  - https://github.com/fortra/impacket
+fingerprint:
+  paths: []
+  signals:
+    - An account whose msDS-AllowedToDelegateTo lists a host or service principal name
+  notes: Reading delegation attributes is a plain LDAP query; no ticket is requested.
+links:
+  - name: Constrained delegation configured toward a sensitive service
+    cve: ""
+    enables: impersonation of a privileged user against that service once the account is owned
+    verify: >
+      Query the directory read-only for msDS-AllowedToDelegateTo and list the target
+      services. A non-empty list aimed at a privileged service is the proof; do NOT
+      request an impersonated service ticket.
+  - name: Protocol transition also enabled
+    cve: ""
+    enables: delegation without first holding the target's credentials
+    verify: >
+      Check the userAccountControl flag TRUSTED_TO_AUTH_FOR_DELEGATION on the same
+      account read-only. The flag combined with the target list confirms the path; no
+      ticket is requested.
+remediation: >
+  Remove unnecessary delegation, restrict msDS-AllowedToDelegateTo to non-sensitive
+  services, add accounts to the Protected Users group and mark them sensitive, and
+  monitor for abnormal service-ticket requests.
