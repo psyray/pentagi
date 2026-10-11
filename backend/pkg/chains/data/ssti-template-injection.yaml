@@ -13,6 +13,8 @@ severity: high
 tags: [web, ssti, template, rce, cwe-1336]
 references:
   - https://cwe.mitre.org/data/definitions/1336.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Server%20Side%20Template%20Injection
+  - https://hacktricks.wiki/
 fingerprint:
   paths: ["/", "/search", "/profile", "/preview"]
   signals:

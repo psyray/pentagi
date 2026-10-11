@@ -12,6 +12,7 @@ severity: critical
 tags: [web, nosql, mongodb, auth, cwe-943]
 references:
   - https://cwe.mitre.org/data/definitions/943.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/NoSQL%20Injection
 fingerprint:
   paths: ["/login", "/api/auth", "/api/*"]
   signals:

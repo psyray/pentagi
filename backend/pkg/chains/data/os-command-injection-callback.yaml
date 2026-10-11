@@ -12,6 +12,8 @@ severity: critical
 tags: [web, rce, command-injection, cwe-78]
 references:
   - https://cwe.mitre.org/data/definitions/78.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/OS_Command_Injection_Defense_Cheat_Sheet.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Command%20Injection
 fingerprint:
   paths: ["/ping", "/lookup", "/convert", "/tools"]
   signals:

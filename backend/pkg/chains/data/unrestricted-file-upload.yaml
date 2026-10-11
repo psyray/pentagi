@@ -12,6 +12,8 @@ severity: high
 tags: [web, upload, rce, cwe-434]
 references:
   - https://cwe.mitre.org/data/definitions/434.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Upload%20Insecure%20Files
 fingerprint:
   paths: ["/upload", "/avatar", "/import", "/api/files"]
   signals:

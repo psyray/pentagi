@@ -63,6 +63,17 @@ func (c Chain) Render() string {
 	}
 	b.WriteString("\n")
 
+	if len(c.References) > 0 {
+		b.WriteString("## References (external sources, read them; do not copy)")
+		b.WriteString("\n")
+		for _, ref := range c.References {
+			if strings.TrimSpace(ref) != "" {
+				fmt.Fprintf(&b, "- %s\n", strings.TrimSpace(ref))
+			}
+		}
+		b.WriteString("\n")
+	}
+
 	if strings.TrimSpace(c.Remediation) != "" {
 		b.WriteString("## Remediation\n")
 		b.WriteString(strings.TrimSpace(c.Remediation))

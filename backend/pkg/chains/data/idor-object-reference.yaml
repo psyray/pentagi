@@ -12,6 +12,8 @@ severity: medium
 tags: [web, idor, bola, authorization, api, cwe-639]
 references:
   - https://cwe.mitre.org/data/definitions/639.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Insecure%20Direct%20Object%20References
 fingerprint:
   paths: ["/api/users", "/api/orders", "/api/invoices"]
   signals:

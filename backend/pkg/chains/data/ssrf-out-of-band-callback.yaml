@@ -13,6 +13,8 @@ severity: critical
 tags: [web, ssrf, cwe-918]
 references:
   - https://cwe.mitre.org/data/definitions/918.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Server%20Side%20Request%20Forgery
 fingerprint:
   paths: ["/webhook", "/fetch", "/avatar", "/import", "/preview"]
   signals:

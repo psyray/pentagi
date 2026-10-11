@@ -13,6 +13,8 @@ severity: high
 tags: [web, traversal, file-disclosure, cwe-22]
 references:
   - https://cwe.mitre.org/data/definitions/22.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Directory%20Traversal
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/File%20Inclusion
 fingerprint:
   paths: ["/download", "/file", "/static", "/render", "/get", "/asset"]
   signals:
