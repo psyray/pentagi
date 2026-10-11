@@ -12,6 +12,8 @@ severity: medium
 tags: [web, redirect, cwe-601, phishing, oauth]
 references:
   - https://cwe.mitre.org/data/definitions/601.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Open%20Redirect
 fingerprint:
   paths: ["/login", "/logout", "/oauth/callback", "/redirect"]
   signals:

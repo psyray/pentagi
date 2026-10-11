@@ -1,0 +1,33 @@
+id: mass-assignment-hidden-field
+name: Mass assignment accepting an undeclared field
+description: >
+  An endpoint that binds the whole request body to a model lets a caller set
+  fields the interface never exposes, such as a role or an approval flag.
+  Verification only ever changes a harmless field on your own account.
+cves: []
+product: Web application binding request bodies to models
+affected: Registration, profile and update endpoints
+cvss: 8.1
+severity: high
+tags: [web, mass-assignment, authorization, api, cwe-915]
+references:
+  - https://cwe.mitre.org/data/definitions/915.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Mass%20Assignment
+fingerprint:
+  paths: ["/api/users", "/register", "/profile", "/settings"]
+  signals:
+    - A JSON body mirrored into a user or object model
+  notes: Probe with a harmless field you own; never grant yourself a real privilege.
+links:
+  - name: Undeclared field is accepted
+    cve: ""
+    enables: setting a role, owner or approval flag the interface never offers
+    verify: >
+      Add an undeclared-but-plausible field to a request you own (for example
+      {"display_name":"x","role":"user"} where role is not part of the form) and
+      check whether the response or a follow-up read reflects it. Seeing the field
+      accepted proves the endpoint binds more than the form. Do NOT assign
+      yourself an admin or approver role on a live target.
+remediation: >
+  Bind an explicit allow-list of fields (a DTO), never the raw request body, and
+  authorise every privileged field server-side.

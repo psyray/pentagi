@@ -13,7 +13,10 @@ cvss: 10.0
 severity: critical
 tags: [java, log4j, jndi, rce, unauth]
 references:
+  - https://nvd.nist.gov/vuln/detail/CVE-2021-44228
   - https://logging.apache.org/log4j/2.x/security.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/Injection_Prevention_Cheat_Sheet.html
+  - https://cwe.mitre.org/data/definitions/502.html
 fingerprint:
   paths: ["/"]
   signals:

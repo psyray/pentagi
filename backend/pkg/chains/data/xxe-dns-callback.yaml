@@ -12,6 +12,8 @@ severity: high
 tags: [web, xxe, xml, cwe-611]
 references:
   - https://cwe.mitre.org/data/definitions/611.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/XXE%20Injection
 fingerprint:
   paths: ["/api", "/soap", "/saml", "/import"]
   signals:

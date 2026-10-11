@@ -13,6 +13,8 @@ severity: critical
 tags: [jwt, auth, crypto, cwe-347]
 references:
   - https://cwe.mitre.org/data/definitions/347.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_for_Java_Cheat_Sheet.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/JSON%20Web%20Token
 fingerprint:
   paths: ["/api", "/login", "/me", "/user"]
   signals:

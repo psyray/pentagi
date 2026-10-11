@@ -12,6 +12,8 @@ severity: critical
 tags: [web, sqli, injection, cwe-89]
 references:
   - https://cwe.mitre.org/data/definitions/89.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/SQL%20Injection
 fingerprint:
   paths: ["/", "/product", "/search", "/login", "/api"]
   signals:

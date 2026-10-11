@@ -11,6 +11,7 @@ func TestChain_Render_StatesTheSafeVerificationContract(t *testing.T) {
 	c := Chain{
 		ID: "demo", Name: "Demo", Description: "A demo chain.", CVSS: 7.5, Severity: SeverityHigh,
 		CVEs: []string{"cve-2020-0001"}, Product: "DemoProduct", Tags: []string{"web"},
+		References:  []string{"https://cwe.mitre.org/data/definitions/89.html"},
 		Fingerprint: Fingerprint{Paths: []string{"/x"}, Signals: []string{"a signal"}, Notes: "a note"},
 		Links:       []Link{{Name: "step one", CVE: "CVE-2020-0001", Enables: "something", Verify: "read a header"}},
 		Remediation: "Patch it.",
@@ -25,6 +26,8 @@ func TestChain_Render_StatesTheSafeVerificationContract(t *testing.T) {
 		"## Fingerprint (non-intrusive)",
 		"## Safe verification steps (detection only, no destructive payload)",
 		"Verify (SAFE): read a header",
+		"## References (external sources, read them; do not copy)",
+		"https://cwe.mitre.org/data/definitions/89.html",
 		"## Remediation",
 		"Patch it.",
 	} {
