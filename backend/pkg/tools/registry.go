@@ -176,7 +176,7 @@ var allowedStoringInMemoryTools = []string{
 var registryDefinitions = map[string]llms.FunctionDefinition{
 	TerminalToolName: {
 		Name: TerminalToolName,
-		Description: "Calls a terminal command in blocking mode. " +
+		Description: "Calls a terminal command. Blocking by default: it waits up to `timeout` seconds and returns the output; set detach=true to start an interactive or long-running command in the background instead (no output captured). Batch commands run without a TTY, interactive/detached ones with a TTY. " +
 			"Use timeout=0 or a negative value to apply the configured server default timeout. " +
 			"Explicit positive values are accepted up to 10800 seconds (3 hours); values outside this range are replaced by the server default. " +
 			"Only one command can be executed at a time",
