@@ -1,6 +1,8 @@
 package chains
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"testing/fstest"
 )
@@ -161,6 +163,89 @@ links:
 
 		if _, err := LoadFS(fstest.MapFS{}, "data"); err == nil {
 			t.Fatal("expected LoadFS to fail when no chain is found")
+		}
+	})
+}
+
+func TestLoadDir_MissingDirectoryIsEmpty(t *testing.T) {
+	t.Parallel()
+
+	lib, err := LoadDir(filepath.Join(t.TempDir(), "does-not-exist"))
+	if err != nil {
+		t.Fatalf("LoadDir: %v", err)
+	}
+	if got := len(lib.All()); got != 0 {
+		t.Fatalf("a missing overlay should be an empty library, got %d chains", got)
+	}
+}
+
+func TestLoadWithOverlay_MergesAndRefusesDuplicates(t *testing.T) {
+	t.Parallel()
+
+	write := func(t *testing.T, dir, name, body string) {
+		t.Helper()
+
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+
+	const overlay = `id: overlay-demo
+name: Overlay demo
+description: A chain added through the overlay.
+cvss: 5
+severity: medium
+links:
+  - name: step
+    verify: read a header
+`
+
+	t.Run("an overlay chain joins the embedded core", func(t *testing.T) {
+		t.Parallel()
+
+		dir := t.TempDir()
+		write(t, dir, "overlay-demo.yaml", overlay)
+
+		lib, err := LoadWithOverlay(dir)
+		if err != nil {
+			t.Fatalf("LoadWithOverlay: %v", err)
+		}
+		if _, ok := lib.ByID("overlay-demo"); !ok {
+			t.Fatal("the overlay chain should be present")
+		}
+		if _, ok := lib.ByID("log4shell-jndi-callback"); !ok {
+			t.Fatal("the embedded core should still be present")
+		}
+	})
+
+	t.Run("an id already in the core is refused", func(t *testing.T) {
+		t.Parallel()
+
+		dir := t.TempDir()
+		write(t, dir, "dup.yaml", `id: log4shell-jndi-callback
+name: dup
+description: dup
+cvss: 5
+severity: medium
+links:
+  - name: step
+    verify: read a header
+`)
+
+		if _, err := LoadWithOverlay(dir); err == nil {
+			t.Fatal("a duplicate id between the core and the overlay must fail")
+		}
+	})
+
+	t.Run("an absent overlay dir keeps the core", func(t *testing.T) {
+		t.Parallel()
+
+		lib, err := LoadWithOverlay(filepath.Join(t.TempDir(), "nope"))
+		if err != nil {
+			t.Fatalf("LoadWithOverlay: %v", err)
+		}
+		if _, ok := lib.ByID("log4shell-jndi-callback"); !ok {
+			t.Fatal("the embedded core should survive an absent overlay")
 		}
 	})
 }

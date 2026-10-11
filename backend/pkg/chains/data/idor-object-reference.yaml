@@ -1,0 +1,31 @@
+id: idor-object-reference
+name: Insecure direct object reference on an object endpoint
+description: >
+  An endpoint that returns an object by an identifier without checking ownership
+  lets one user read another user's data. Verification exchanges your own
+  object's identifier for a second one you control; it never touches a stranger's.
+cves: []
+product: Web application exposing objects by identifier
+affected: REST or GraphQL endpoints returning records by id, guid or slug
+cvss: 6.5
+severity: medium
+tags: [web, idor, bola, authorization, api, cwe-639]
+references:
+  - https://cwe.mitre.org/data/definitions/639.html
+fingerprint:
+  paths: ["/api/users", "/api/orders", "/api/invoices"]
+  signals:
+    - Numeric, uuid or slug identifiers in object URLs
+  notes: Create two of YOUR OWN accounts and swap their identifiers; the difference is the proof.
+links:
+  - name: Object returned without an ownership check
+    cve: ""
+    enables: reading or modifying another user's objects
+    verify: >
+      With two accounts you own, request account B's object using account A's
+      session (or vice versa) and check whether the other account's data comes
+      back. A 200 carrying B's data under A's credentials proves the missing
+      check. Never use a third party's identifier.
+remediation: >
+  Authorise every object access against the authenticated principal server-side,
+  use unguessable identifiers, and never trust a client-supplied owner field.

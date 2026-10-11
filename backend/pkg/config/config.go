@@ -319,6 +319,12 @@ type Config struct {
 	// === Agent Planning Phase Configuration ===
 	AgentPlanningStepEnabled bool `env:"AGENT_PLANNING_STEP_ENABLED" envDefault:"false"`
 
+	// === Exploit-chain Library Configuration (fork extended-version, plan § 8) ===
+	// FlowChainsDir is an optional directory on disk whose *.yaml chains are merged
+	// with the embedded library at load time. Empty (the default) uses the embedded
+	// core only, so an operator can add chains without versioning them.
+	FlowChainsDir string `env:"FLOW_CHAINS_DIR" envDefault:""`
+
 	// === Database Configuration ===
 	DatabaseURL string `env:"DATABASE_URL" envDefault:"postgres://pentagiuser:pentagipass@pgvector:5432/pentagidb?sslmode=disable"`
 

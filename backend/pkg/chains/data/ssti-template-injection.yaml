@@ -1,0 +1,32 @@
+id: ssti-template-injection
+name: Server-side template injection in a user-controlled field
+description: >
+  A field whose value is rendered by a server-side template engine without
+  escaping lets an attacker inject template syntax, which can escalate to remote
+  code execution. Verification submits a benign arithmetic expression and checks
+  whether the engine evaluates it.
+cves: []
+product: Web application using a server-side template engine
+affected: Jinja2, Twig, Freemarker, Velocity, ERB and similar engines
+cvss: 8.8
+severity: high
+tags: [web, ssti, template, rce, cwe-1336]
+references:
+  - https://cwe.mitre.org/data/definitions/1336.html
+fingerprint:
+  paths: ["/", "/search", "/profile", "/preview"]
+  signals:
+    - A field reflected into a rendered page, email or template preview
+  notes: Prefer a field you own; the arithmetic probe alone proves evaluation.
+links:
+  - name: Template directive evaluated server-side
+    cve: ""
+    enables: server-side evaluation of attacker-supplied template syntax, the precursor to code execution
+    verify: >
+      Submit a benign arithmetic expression in the engine's own syntax (for
+      example {{7*7}} for Jinja2/Twig, ${7*7} for Freemarker/Velocity) and check
+      whether the response renders 49 instead of the literal text. Seeing 49 is
+      the proof. Do NOT inject a command-execution payload.
+remediation: >
+  Never render user input through a template engine: pass data as variables into
+  a fixed template, sandbox the engine where it is available, and escape fields.

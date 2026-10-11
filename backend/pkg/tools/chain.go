@@ -14,30 +14,45 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// The exploit-chain library is embedded and static, so it is parsed once and
-// shared by every flow. A load failure is a build-time mistake (a baked chain
-// failed validation), surfaced here rather than silently.
+// The exploit-chain library is embedded and static, so it is parsed once per
+// overlay directory and shared by every flow using that directory. Only
+// successful loads are cached, so a transient overlay problem can be fixed and
+// retried without a restart.
 var (
-	exploitChainsOnce sync.Once
-	exploitChainsLib  *chains.Library
-	exploitChainsErr  error
+	exploitChainsMu    sync.Mutex
+	exploitChainsCache = map[string]*chains.Library{}
 )
 
-func loadExploitChains() (*chains.Library, error) {
-	exploitChainsOnce.Do(func() {
-		exploitChainsLib, exploitChainsErr = chains.Load()
-	})
-	return exploitChainsLib, exploitChainsErr
+func loadExploitChains(overlayDir string) (*chains.Library, error) {
+	overlayDir = strings.TrimSpace(overlayDir)
+
+	exploitChainsMu.Lock()
+	defer exploitChainsMu.Unlock()
+
+	if lib, ok := exploitChainsCache[overlayDir]; ok {
+		return lib, nil
+	}
+
+	lib, err := chains.LoadWithOverlay(overlayDir)
+	if err != nil {
+		return nil, err
+	}
+	exploitChainsCache[overlayDir] = lib
+	return lib, nil
 }
 
 // exploitChain is the search_exploit_chain tool: a deterministic lookup over a
-// curated, safe-verification exploit-chain library. It has no external
-// dependency, so it is always available.
-type exploitChain struct{}
+// curated, safe-verification exploit-chain library (embedded, plus an optional
+// on-disk overlay). It is always available unless the library fails to load.
+type exploitChain struct {
+	overlayDir string
+}
 
-// NewExploitChainTool builds the exploit-chain lookup tool.
-func NewExploitChainTool() Tool {
-	return &exploitChain{}
+// NewExploitChainTool builds the exploit-chain lookup tool. overlayDir is an
+// optional directory whose *.yaml chains are merged with the embedded library;
+// pass "" for the embedded core only.
+func NewExploitChainTool(overlayDir string) Tool {
+	return &exploitChain{overlayDir: overlayDir}
 }
 
 func (t *exploitChain) Handle(ctx context.Context, name string, args json.RawMessage) (string, error) {
@@ -59,7 +74,7 @@ func (t *exploitChain) Handle(ctx context.Context, name string, args json.RawMes
 			return "", fmt.Errorf("failed to unmarshal %s arguments: %w", name, err)
 		}
 
-		lib, err := loadExploitChains()
+		lib, err := loadExploitChains(t.overlayDir)
 		if err != nil {
 			logger.WithError(err).Error("failed to load exploit chains")
 			return "", fmt.Errorf("failed to load exploit chains: %w", err)
@@ -92,7 +107,7 @@ func (t *exploitChain) Handle(ctx context.Context, name string, args json.RawMes
 }
 
 func (t *exploitChain) IsAvailable() bool {
-	_, err := loadExploitChains()
+	_, err := loadExploitChains(t.overlayDir)
 	return err == nil
 }
 
