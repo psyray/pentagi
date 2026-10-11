@@ -19,6 +19,7 @@ import (
 	obs "pentagi/pkg/observability"
 	"pentagi/pkg/observability/langfuse"
 
+	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/client"
 	"github.com/sirupsen/logrus"
 )
@@ -230,7 +231,12 @@ func (t *terminal) ExecCommand(
 		AttachStdout: true,
 		AttachStderr: true,
 		WorkingDir:   cwd,
-		TTY:          true,
+		// Batch commands run without a TTY on purpose: with one, tools that open an
+		// interactive console when stdout is a terminal (ffuf and friends) stop
+		// honouring SIGTERM, so the shell `timeout` wrapper never fires and the run
+		// is stopped only by the tool deadline, losing the output and any -o file.
+		// Detached/interactive commands keep the TTY they were built for.
+		TTY: detach,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to create exec process: %w", err)
@@ -242,7 +248,7 @@ func (t *terminal) ExecCommand(
 		detachedCtx := context.WithoutCancel(ctx)
 
 		go func() {
-			output, err := t.getExecResult(detachedCtx, createResp.ID, timeout)
+			output, err := t.getExecResult(detachedCtx, createResp.ID, timeout, true)
 			resultChan <- execResult{output: output, err: err}
 		}()
 
@@ -257,10 +263,10 @@ func (t *terminal) ExecCommand(
 		}
 	}
 
-	return t.getExecResult(ctx, createResp.ID, timeout)
+	return t.getExecResult(ctx, createResp.ID, timeout, false)
 }
 
-func (t *terminal) getExecResult(ctx context.Context, id string, timeout time.Duration) (string, error) {
+func (t *terminal) getExecResult(ctx context.Context, id string, timeout time.Duration, tty bool) (string, error) {
 	if timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, timeout)
@@ -268,7 +274,7 @@ func (t *terminal) getExecResult(ctx context.Context, id string, timeout time.Du
 	}
 
 	resp, err := t.dockerClient.ContainerExecAttach(ctx, id, client.ExecAttachOptions{
-		TTY: true,
+		TTY: tty,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to attach to exec process: %w", err)
@@ -279,7 +285,15 @@ func (t *terminal) getExecResult(ctx context.Context, id string, timeout time.Du
 	errChan := make(chan error, 1)
 
 	go func() {
-		_, copyErr := io.Copy(&dst, resp.Reader)
+		var copyErr error
+		if tty {
+			// A TTY stream is the raw container output, without stream framing.
+			_, copyErr = io.Copy(&dst, resp.Reader)
+		} else {
+			// Without a TTY, stdout and stderr arrive as framed chunks that must be
+			// demultiplexed; merge both into one buffer the way the UI displays them.
+			_, copyErr = stdcopy.StdCopy(&dst, &dst, resp.Reader)
+		}
 		errChan <- copyErr
 	}()
 
