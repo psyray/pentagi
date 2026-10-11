@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -31,6 +32,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/client"
 	"github.com/sirupsen/logrus"
@@ -226,8 +228,14 @@ func (d *fakeDockerClient) ContainerExecAttach(
 
 	pr, pw := net.Pipe()
 	output, hold := d.attachOutput, d.attachHold
+	// A TTY exec streams raw bytes; without a TTY docker frames stdout/stderr, so the
+	// double must frame its output the same way to exercise the non-TTY code path.
+	payload := []byte(output)
+	if !d.execCreated.TTY {
+		payload = frameExecStream(stdcopy.Stdout, payload)
+	}
 	go func() {
-		_, _ = pw.Write(output)
+		_, _ = pw.Write(payload)
 		if hold > 0 {
 			time.Sleep(hold)
 		}
@@ -235,6 +243,16 @@ func (d *fakeDockerClient) ContainerExecAttach(
 	}()
 
 	return client.HijackedResponse{Conn: pr, Reader: bufio.NewReader(pr)}, nil
+}
+
+// frameExecStream wraps payload as the daemon multiplexes a non-TTY exec stream:
+// one stream byte, three zero bytes, then the big-endian payload length.
+func frameExecStream(stream stdcopy.StdType, payload []byte) []byte {
+	frame := make([]byte, 8+len(payload))
+	frame[0] = byte(stream)
+	binary.BigEndian.PutUint32(frame[4:], uint32(len(payload)))
+	copy(frame[8:], payload)
+	return frame
 }
 
 func (d *fakeDockerClient) ContainerExecInspect(context.Context, string) (client.ExecInspectResult, error) {
