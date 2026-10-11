@@ -1,0 +1,41 @@
+id: csrf-missing-token
+name: State-changing request without a CSRF token
+description: >
+  A form or API endpoint that performs a state change but validates neither an
+  anti-CSRF token nor the Origin or Sec-Fetch-Site header can be triggered from another
+  site using the victim's session. Verification uses a state change on your own account
+  and a benign value, never a destructive action.
+cves: []
+product: Web application with session cookies
+affected: POST, PUT or DELETE handlers that rely only on the session cookie
+cvss: 8.0
+severity: high
+tags: [web, csrf, session, cwe-352]
+references:
+  - https://cwe.mitre.org/data/definitions/352.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/CSRF%20Injection
+fingerprint:
+  paths: ["/profile", "/account", "/settings", "/api/user"]
+  signals:
+    - A state-changing request with no token parameter and no Origin check
+  notes: Change only a harmless field on your own account and restore it afterwards.
+links:
+  - name: State change accepted without an anti-CSRF token
+    cve: ""
+    enables: an attacker page acting as the victim, up to account takeover through an email change
+    verify: >
+      From your own session, replay the request with no token and with an Origin header
+      pointing at another host. If the change succeeds, the protection is missing.
+      Change only a benign field you can restore.
+  - name: Origin and Sec-Fetch-Site checks relaxed
+    cve: ""
+    enables: the same cross-site trigger from a browser
+    verify: >
+      Send the request with a cross-site Origin and observe whether the server accepts
+      it. Acceptance together with a missing token confirms the flaw; do not perform a
+      sensitive change.
+remediation: >
+  Require a per-session anti-CSRF token on every state-changing request, check Origin
+  and Sec-Fetch-Site, set session cookies SameSite Lax or Strict, and re-authenticate
+  before sensitive operations.

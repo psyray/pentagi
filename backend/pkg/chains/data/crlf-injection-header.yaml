@@ -1,0 +1,33 @@
+id: crlf-injection-header
+name: CRLF injection into a response header
+description: >
+  A value echoed into a response header without stripping CR and LF lets an
+  attacker inject extra headers or split the response, which enables cache
+  poisoning and, chained further, cross-site scripting. Verification injects a
+  harmless header and reads it back.
+cves: []
+product: Web application or proxy echoing user input into headers
+affected: Redirects, cookies and custom headers built from request values
+cvss: 6.1
+severity: medium
+tags: [web, crlf, header-injection, cwe-93]
+references:
+  - https://cwe.mitre.org/data/definitions/93.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/CRLF%20Injection
+fingerprint:
+  paths: ["/", "/redirect", "/login"]
+  signals:
+    - A parameter reflected into a Location, Set-Cookie or custom header
+  notes: Inject one benign header; never split a response on a shared cache.
+links:
+  - name: Injected header appears in the response
+    cve: ""
+    enables: response splitting, header injection and cache poisoning
+    verify: >
+      Submit a value containing an encoded CRLF followed by a benign header (for
+      example %0d%0aX-Probe:%20yes) in the reflected parameter and check whether
+      X-Probe appears as its own header in the response. Seeing it proves the
+      injection. Do NOT poison a shared cache and do not inject content.
+remediation: >
+  Strip or reject CR and LF in any value placed in a header, and prefer APIs that
+  set headers as structured data rather than by concatenation.

@@ -1,0 +1,34 @@
+id: unrestricted-file-upload
+name: Unrestricted file upload reaching the web root
+description: >
+  An upload endpoint that neither restricts the extension nor stores files
+  outside the web root lets an attacker place an executable file. Verification
+  uploads an inert file and retrieves it; it never uploads code.
+cves: []
+product: Web application with a file upload feature
+affected: Avatar, attachment or import endpoints
+cvss: 8.8
+severity: high
+tags: [web, upload, rce, cwe-434]
+references:
+  - https://cwe.mitre.org/data/definitions/434.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Upload%20Insecure%20Files
+fingerprint:
+  paths: ["/upload", "/avatar", "/import", "/api/files"]
+  signals:
+    - A multipart form or file field the application accepts
+  notes: Prove reachability with an inert file first; never upload a web shell.
+links:
+  - name: Uploaded file is stored and served back
+    cve: ""
+    enables: execution of attacker-controlled content when the stored file is reachable and interpretable
+    verify: >
+      Upload an inert text file with a distinctive marker and no executable
+      extension, then request the returned location. A 200 that returns the
+      marker verbatim proves the file is stored and served from a predictable
+      path. If the server enforces a content-type allow-list, that alone is not
+      a finding. Do NOT upload a script or a web shell.
+remediation: >
+  Enforce an allow-list of content types and extensions, store uploads outside
+  the web root, serve them through an identifier, and never execute them.

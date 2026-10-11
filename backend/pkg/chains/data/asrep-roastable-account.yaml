@@ -1,0 +1,34 @@
+id: asrep-roastable-account
+name: Account without Kerberos pre-authentication
+description: >
+  An account with "Do not require Kerberos preauthentication" lets anyone request
+  an AS-REP encrypted with the account's password-derived key, crackable offline.
+  Verification only requests the AS-REP for an authorised account.
+cves: []
+product: Microsoft Active Directory
+affected: Accounts with the DONT_REQ_PREAUTH userAccountControl flag
+cvss: 7.5
+severity: high
+tags: [ad, kerberos, asreproast, credentials, cwe-522]
+references:
+  - https://cwe.mitre.org/data/definitions/522.html
+  - https://www.thehacker.recipes/
+  - https://github.com/fortra/impacket
+  - https://github.com/GhostPack/Rubeus
+fingerprint:
+  paths: []
+  signals:
+    - An account that answers an AS-REQ with an AS-REP when no preauthentication is sent
+  notes: The request is read-only; cracking offline is out of scope here.
+links:
+  - name: AS-REP returned without preauthentication
+    cve: ""
+    enables: offline cracking of the account password, then privilege escalation
+    verify: >
+      Request a ticket for the target user without a password (GetNPUsers or Rubeus
+      asreproast) and check that an AS-REP is returned instead of a
+      preauthentication-required error. Obtaining the AS-REP is the proof; do NOT
+      crack it.
+remediation: >
+  Require Kerberos preauthentication on every account, and enforce long random
+  passwords for the rare accounts that genuinely need it disabled.

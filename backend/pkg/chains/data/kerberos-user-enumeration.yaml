@@ -1,0 +1,40 @@
+id: kerberos-user-enumeration
+name: Kerberos user enumeration without authentication
+description: >
+  The KDC answers an authentication request for a valid user with a pre-authentication
+  challenge and for an unknown user with a specific error, which reveals valid account
+  names. Verification sends a single AS-REQ per candidate name and compares the error
+  codes; it sends no password and risks no lockout.
+cves: []
+product: Microsoft Active Directory Kerberos KDC
+affected: Domain controllers answering AS-REQ for unknown principals distinctly
+cvss: 5.3
+severity: medium
+tags: [ad, kerberos, enumeration, recon, cwe-203]
+references:
+  - https://cwe.mitre.org/data/definitions/203.html
+  - https://www.thehacker.recipes/
+  - https://github.com/ropnop/kerbrute
+fingerprint:
+  paths: []
+  signals:
+    - A KDC whose AS-REP error differs for existing and non-existing users
+  notes: One request per name; no password is sent, so no lockout counter moves.
+links:
+  - name: Valid usernames distinguishable from invalid ones
+    cve: ""
+    enables: an accurate target list for password spraying or kerberoasting
+    verify: >
+      Send a single unauthenticated AS-REQ for a name you expect to exist and one you
+      expect not to, and compare the returned error codes. A differing response
+      confirms enumeration. Send no password and no more than one request per name.
+  - name: Pre-authentication disabled on some accounts
+    cve: ""
+    enables: offline cracking of a returned AS-REP without any credential
+    verify: >
+      If a candidate answers without a pre-authentication challenge, note the account
+      as AS-REP roastable. Note only; do not crack the returned material here.
+remediation: >
+  Rate-limit and monitor unauthenticated AS-REQ per source, treat distinct error codes
+  as a hardening item, require pre-authentication for all accounts, and use managed
+  service accounts with strong keys.

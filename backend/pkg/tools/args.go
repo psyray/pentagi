@@ -240,6 +240,15 @@ type WebSearchAction struct {
 	Message     string `json:"message" jsonschema:"required,title=Search query message" jsonschema_description:"Engagement-log entry — a 1-2 short sentence running commentary explaining the expected result and how it advances the goal. Written in the engagement language declared by your system prompt."`
 }
 
+type SearchExploitChainAction struct {
+	ID      string `json:"id,omitempty" jsonschema_description:"Exact chain id (e.g. 'log4shell-jndi-callback'). Use it when you already know the chain; it ignores the other selectors."`
+	CVE     string `json:"cve,omitempty" jsonschema_description:"Technical-channel payload — CVE id to look up (e.g. 'CVE-2021-44228'). Case-insensitive. ALWAYS written in English."`
+	Product string `json:"product,omitempty" jsonschema_description:"Technical-channel payload — product, technology or affected-version substring (e.g. 'log4j', 'jwt', 'apache'). Case-insensitive. ALWAYS written in English."`
+	Tag     string `json:"tag,omitempty" jsonschema_description:"Technical-channel payload — a single vulnerability-class tag (e.g. 'jwt', 'traversal', 'redirect', 'rce'). Case-insensitive. ALWAYS written in English."`
+	Query   string `json:"query,omitempty" jsonschema_description:"Technical-channel payload — free-text lookup; every whitespace-separated token must match the chain's name, product, tags, CVEs or description (AND semantics). Short and keyword-focused. ALWAYS written in English."`
+	Message string `json:"message" jsonschema:"required,title=Exploit chain lookup message" jsonschema_description:"Engagement-log entry — a 1-2 short sentence running commentary explaining which CVE, product or vulnerability class you are looking up and why. Written in the engagement language declared by your system prompt."`
+}
+
 type GraphitiSearchAction struct {
 	SearchType     String   `json:"search_type" jsonschema:"required,type=string,enum=temporal_window,enum=entity_relationships,enum=diverse_results,enum=episode_context,enum=successful_tools,enum=recent_context,enum=entity_by_label" jsonschema_description:"Type of search to perform: temporal_window (time-bounded search), entity_relationships (graph traversal from an entity), diverse_results (anti-redundancy search), episode_context (full agent reasoning and tool outputs), successful_tools (proven techniques), recent_context (latest findings), entity_by_label (type-specific entity search, REQUIRES node_labels)"`
 	Query          string   `json:"query" jsonschema:"required" jsonschema_description:"Technical-channel payload — natural language query against the team's temporal knowledge graph. REQUIRED for EVERY search_type, including entity_relationships/entity_by_label: it re-ranks/filters the graph traversal, it is never optional just because center_node_uuid or node_labels is set. ALWAYS written in English regardless of the engagement language: the graph is indexed in English and shared across all engagements; non-English queries will fail to retrieve stored episodic memory."`

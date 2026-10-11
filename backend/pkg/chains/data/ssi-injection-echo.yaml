@@ -1,0 +1,32 @@
+id: ssi-injection-echo
+name: Server-side include injection in a rendered field
+description: >
+  A field rendered into a page processed by the server's SSI engine lets an
+  attacker run SSI directives. Verification injects a directive that only echoes a
+  server variable, which proves execution without running any command.
+cves: []
+product: Web server with Server Side Includes enabled
+affected: Responses with the .shtml extension or SSI enabled on the handler
+cvss: 7.5
+severity: high
+tags: [web, ssi, injection, cwe-97]
+references:
+  - https://cwe.mitre.org/data/definitions/97.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Server%20Side%20Include%20Injection
+fingerprint:
+  paths: ["/", "/page", "/preview"]
+  signals:
+    - A field reflected into a response served with SSI processing
+  notes: An echo directive is enough; never use the exec directive.
+links:
+  - name: SSI directive is evaluated
+    cve: ""
+    enables: server-side command execution through the exec directive
+    verify: >
+      Submit a harmless echo directive (for example an echo of the DATE_LOCAL
+      variable) in a field you own and check whether the response shows the server
+      time instead of the literal text. Seeing the value proves SSI ran. Do NOT use
+      the exec directive.
+remediation: >
+  Disable SSI unless a page genuinely needs it, and never render user input through
+  an SSI-processed response.

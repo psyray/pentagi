@@ -1,0 +1,32 @@
+id: xpath-injection-auth-bypass
+name: XPath injection bypassing a lookup or login
+description: >
+  An XML XPath query built by string concatenation lets an injected predicate
+  change the query, which can bypass a check or expose data. Verification uses a
+  benign predicate against your own account.
+cves: []
+product: Web application querying XML with XPath
+affected: Login and search features over XML data stores
+cvss: 9.1
+severity: critical
+tags: [web, xpath, injection, auth, cwe-643]
+references:
+  - https://cwe.mitre.org/data/definitions/643.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/XPATH%20Injection
+fingerprint:
+  paths: ["/login", "/search", "/api"]
+  signals:
+    - A field that reaches an XPath expression such as //user[login='...']
+  notes: Only probe the account you own.
+links:
+  - name: Predicate changes the XPath result
+    cve: ""
+    enables: authentication bypass or disclosure of XML-stored data
+    verify: >
+      Submit a benign predicate fragment (for example ' or '1'='1, or a lone
+      quote) in a field you own and check whether the outcome differs from a
+      normal request or an XPath error appears. A reproducible difference proves
+      the injection. Never target another user's record.
+remediation: >
+  Use parameterised XPath bindings (never concatenation), and validate or
+  canonicalise input before it reaches the query.

@@ -1,0 +1,32 @@
+id: ldap-anonymous-bind
+name: LDAP directory accepting anonymous binds
+description: >
+  A directory service that answers anonymous queries lets an unauthenticated
+  attacker read parts of the tree, which aids reconnaissance. Verification is a
+  single read-only query.
+cves: []
+product: LDAP directory (Active Directory, OpenLDAP)
+affected: Servers that do not refuse anonymous simple binds
+cvss: 5.3
+severity: medium
+tags: [ad, ldap, recon, cwe-287]
+references:
+  - https://cwe.mitre.org/data/definitions/287.html
+  - https://www.thehacker.recipes/
+fingerprint:
+  paths: []
+  signals:
+    - An LDAP endpoint on 389 or 636 that answers a bind with empty credentials
+  notes: Only issue read-only queries; never modify the directory.
+links:
+  - name: Anonymous bind returns directory data
+    cve: ""
+    enables: unauthenticated reconnaissance of users, groups and structure
+    verify: >
+      Bind anonymously and read the rootDSE or a base search (for example
+      ldapsearch with simple bind and no credentials) and check whether entries
+      are returned. Seeing the naming contexts or directory data is the proof.
+      Read-only queries only.
+remediation: >
+  Require authenticated binds, and restrict which attributes and subtrees an
+  authenticated low-privileged user may read.

@@ -1,0 +1,43 @@
+id: prototype-pollution-js
+name: Prototype pollution reachable from a request body
+description: >
+  Recursive merge of client-controlled JSON into an object lets an attacker set
+  properties on Object.prototype. Depending on the sinks, this reaches denial of
+  service, authentication bypass or, on a Node.js target, code execution.
+  Verification only sets a harmless marker property and checks whether it appears in
+  a later response.
+cves: []
+product: Node.js or JavaScript application merging request data
+affected: Handlers that deep-merge query or JSON input into shared objects
+cvss: 7.5
+severity: high
+tags: [web, javascript, prototype-pollution, node, cwe-1321]
+references:
+  - https://cwe.mitre.org/data/definitions/1321.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/Prototype_Pollution_Prevention_Cheat_Sheet.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Prototype%20Pollution
+fingerprint:
+  paths: ["/api/settings", "/api/profile", "/api/merge"]
+  signals:
+    - A JSON body deep-merged server side, or a query string parsed with a recursive parser
+  notes: Use a clearly benign marker key; never aim for a dangerous sink.
+links:
+  - name: Object prototype altered by a nested key
+    cve: ""
+    enables: logic or authorization bypass, and on an unsafe sink remote code execution
+    verify: >
+      Send a JSON body carrying a nested __proto__ key that sets a harmless marker,
+      for example a swarmProbe property with value 1, then request a normal endpoint.
+      If the marker surfaces in a later response, or an own property becomes visible,
+      pollution is confirmed. Do not set keys such as status or admin.
+  - name: Library sink turns pollution into code execution
+    cve: ""
+    enables: remote code execution through a gadget in child_process or a similar module
+    verify: >
+      Confirm the reachable sink only by reasoning about the dependency version and
+      the merge entry point; do not send a command payload. Pollution of the prototype
+      is the safe proof, and the command sink stays out of scope here.
+remediation: >
+  Reject the __proto__, constructor and prototype keys before merging, prefer a
+  null-proto object or a Map for request-derived data, freeze prototypes, and update
+  merge libraries to fixed versions.

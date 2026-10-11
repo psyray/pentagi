@@ -1,0 +1,33 @@
+id: xxe-dns-callback
+name: XML external entity expansion in an XML parser
+description: >
+  An XML parser that resolves external entities lets an attacker read local files
+  or reach internal services. Verification uses an out-of-band callback only,
+  proving the entity resolved without reading anything.
+cves: []
+product: Web application or API accepting XML
+affected: SOAP, SAML, RSS importers and any XML body parser
+cvss: 8.2
+severity: high
+tags: [web, xxe, xml, cwe-611]
+references:
+  - https://cwe.mitre.org/data/definitions/611.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/XXE%20Injection
+fingerprint:
+  paths: ["/api", "/soap", "/saml", "/import"]
+  signals:
+    - An endpoint that accepts XML (Content-Type application/xml or text/xml)
+  notes: The callback alone is the proof; never read a local file or an internal URL.
+links:
+  - name: External entity is resolved
+    cve: ""
+    enables: reading local files or reaching internal services through the parser
+    verify: >
+      Submit an XML body whose DOCTYPE defines an external entity pointing at a
+      host you control and references it in the document. A DNS or HTTP callback
+      to your host proves the entity was resolved. Do NOT target internal hosts
+      and do not read local files.
+remediation: >
+  Disable external entity and DOCTYPE resolution in the XML parser, and prefer a
+  parser that does not expand entities by default.
