@@ -1,0 +1,34 @@
+id: jwt-alg-none-accepted
+name: JWT endpoint that accepts the "none" algorithm
+description: >
+  A service that trusts the alg field inside the token header may accept an
+  unsigned token (alg "none") and treat attacker-chosen claims as valid. The
+  check is a single read-only request and it never forges a payload beyond the
+  caller's own token.
+cves: []
+product: JSON Web Token (JWT) authentication
+affected: Implementations that honour the algorithm named in the token header
+cvss: 9.1
+severity: critical
+tags: [jwt, auth, crypto, cwe-347]
+references:
+  - https://cwe.mitre.org/data/definitions/347.html
+fingerprint:
+  paths: ["/api", "/login", "/me", "/user"]
+  signals:
+    - A bearer token whose header decodes to {"alg":"HS256"} or {"alg":"RS256"}
+  notes: >
+    Only ever test tokens you are authorised to use, and only against your own
+    account or an account you were explicitly given.
+links:
+  - name: Unsigned token accepted as valid
+    cve: ""
+    enables: authentication as the token's subject without a valid signature
+    verify: >
+      Take your own valid token, set the header alg to "none", drop the
+      signature, and replay it against a read-only endpoint. A 200 that returns
+      your own identity proves the server honoured the unsigned token. Never
+      target another user's identity with this technique.
+remediation: >
+  Pin the accepted algorithms server-side, reject "none" explicitly, and verify
+  the signature before reading any claim from the token.

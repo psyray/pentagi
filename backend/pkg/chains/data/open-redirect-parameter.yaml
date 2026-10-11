@@ -1,0 +1,32 @@
+id: open-redirect-parameter
+name: Open redirect through a redirect parameter
+description: >
+  A parameter that controls a redirect destination without an allow-list lets an
+  attacker send a victim to an arbitrary host. It is a phishing primitive and a
+  common pivot for leaking OAuth codes or session tokens to a third party.
+cves: []
+product: Web application redirect endpoint
+affected: Login, logout and OAuth callback endpoints that take a redirect target
+cvss: 6.1
+severity: medium
+tags: [web, redirect, cwe-601, phishing, oauth]
+references:
+  - https://cwe.mitre.org/data/definitions/601.html
+fingerprint:
+  paths: ["/login", "/logout", "/oauth/callback", "/redirect"]
+  signals:
+    - Parameters named url, next, redirect, return, continue, dest or target
+  notes: Prefer a benign destination you control. Never build a convincing lure.
+links:
+  - name: Arbitrary redirect destination
+    cve: ""
+    enables: redirection of the victim to an attacker-chosen origin
+    verify: >
+      Set the redirect parameter to a benign URL you control (for example
+      https://example.org) and confirm that the response sends the client there,
+      whether through a 3xx Location header or a client-side redirect. Observing
+      the destination is the proof; do not craft a lure that a real user would
+      click.
+remediation: >
+  Redirect only to a server-side allow-list of destinations, or require a signed
+  redirect token, and never reflect the raw parameter into the Location header.

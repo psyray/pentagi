@@ -1,0 +1,37 @@
+id: log4shell-jndi-callback
+name: Apache Log4j 2 - JNDI lookup via a logged input
+description: >
+  A value that Log4j 2 logs is interpolated, so an attacker-controlled string
+  containing a JNDI lookup makes the application resolve an attacker-chosen
+  host. It is reachable through almost any field the application logs (request
+  headers, form values), which is what makes it both severe and easy to check.
+  Detection and out-of-band callback verification only.
+cves: [CVE-2021-44228]
+product: Apache Log4j 2
+affected: Log4j 2.0-beta9 through 2.14.1
+cvss: 10.0
+severity: critical
+tags: [java, log4j, jndi, rce, unauth]
+references:
+  - https://logging.apache.org/log4j/2.x/security.html
+fingerprint:
+  paths: ["/"]
+  signals:
+    - Java or servlet behaviour, or any application that logs request headers or user input
+  notes: >
+    There is no single fingerprint. Prefer an out-of-band callback probe aimed at
+    a host you control over any attempt to fingerprint the logging library.
+links:
+  - name: JNDI lookup interpolated from a logged input
+    cve: CVE-2021-44228
+    enables: resolution of an attacker-chosen host, which is the precursor to a remote class load
+    verify: >
+      Inject a benign lookup such as ${jndi:dns://YOUR-HOST/probe} (or an ldap://
+      form pointing at your own collaborator) into fields that are likely logged
+      (User-Agent, X-Forwarded-For, form values). A DNS or LDAP callback to your
+      host confirms that the interpolation fired. Do NOT host or serve a remote
+      class: the callback alone is the proof.
+remediation: >
+  Upgrade Log4j to a fixed release. When upgrading is not possible, remove the
+  JndiLookup class from the classpath, and block outbound LDAP, RMI and DNS from
+  the application where it does not need them.
