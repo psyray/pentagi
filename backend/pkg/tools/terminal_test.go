@@ -442,7 +442,7 @@ func TestTerminal_ExecCommand_DetachedSurvivesParentCancel(t *testing.T) {
 	term := terminalFor(mock, &recordingTermLog{})
 	parentCtx, cancel := context.WithCancel(t.Context())
 
-	output, err := term.ExecCommand(parentCtx, "/work", "long-running-scan", true, 5*time.Minute)
+	output, err := term.ExecCommand(parentCtx, "/work", "long-running-scan", true, "", 5*time.Minute)
 	require.NoError(t, err)
 	assert.Contains(t, output, "Command started in background")
 
@@ -467,7 +467,7 @@ func TestTerminal_ExecCommand_NonDetachedStopsOnParentCancel(t *testing.T) {
 	parentCtx, cancel := context.WithCancel(t.Context())
 	time.AfterFunc(200*time.Millisecond, cancel)
 
-	_, err := term.ExecCommand(parentCtx, "/work", "long-command", false, 5*time.Minute)
+	_, err := term.ExecCommand(parentCtx, "/work", "long-command", false, "", 5*time.Minute)
 
 	require.ErrorIs(t, err, context.Canceled, "the call must end because its caller cancelled it")
 	assert.True(t, mock.ctxWasCanceled, "the foreground command ignored its caller's cancellation")
@@ -494,12 +494,44 @@ func TestTerminal_ExecCommand_LaunchesOnlyAFlowTaskCommandForStopToEnd(t *testin
 			term := terminalFor(mock, &recordingTermLog{})
 			term.taskID = tc.taskID
 
-			_, err := term.ExecCommand(t.Context(), "/work", "nmap -sV target", false, time.Minute)
+			_, err := term.ExecCommand(t.Context(), "/work", "nmap -sV target", false, "", time.Minute)
 			require.NoError(t, err)
 
 			assert.Equal(t, tc.wantCmd, mock.execCreated.Cmd)
 		})
 	}
+}
+
+func TestTerminal_ExecCommand_TeesOutputToTheFileItWasGiven(t *testing.T) {
+	mock := &fakeDockerClient{
+		isRunning:      true,
+		execCreateResp: client.ExecCreateResult{ID: "exec-tee"},
+		inspectResp:    client.ExecInspectResult{ExitCode: 0},
+	}
+	term := terminalFor(mock, &recordingTermLog{})
+
+	_, err := term.ExecCommand(t.Context(), "/work", "ffuf -u http://t/FUZZ -w wl", false, "/work/results/scan.log", time.Minute)
+	require.NoError(t, err)
+
+	payload := mock.execCreated.Cmd[len(mock.execCreated.Cmd)-1]
+	assert.Contains(t, payload, "tee", "the output is streamed to the file")
+	assert.Contains(t, payload, "/work/results/scan.log", "the file the caller asked for")
+	assert.Contains(t, payload, "ffuf -u http://t/FUZZ -w wl", "the command still runs")
+}
+
+func TestTerminal_ExecCommand_QuotesWhatItTees(t *testing.T) {
+	mock := &fakeDockerClient{
+		isRunning:      true,
+		execCreateResp: client.ExecCreateResult{ID: "exec-tee-quote"},
+		inspectResp:    client.ExecInspectResult{ExitCode: 0},
+	}
+	term := terminalFor(mock, &recordingTermLog{})
+
+	_, err := term.ExecCommand(t.Context(), "/work", "echo 'a b' > f", false, "/work/o.log", time.Minute)
+	require.NoError(t, err)
+
+	payload := mock.execCreated.Cmd[len(mock.execCreated.Cmd)-1]
+	assert.Contains(t, payload, `'echo '\''a b'\'' > f'`, "a single quote in the command must not break out of the quoting")
 }
 
 func TestTerminal_ExecCommand_ReportsTheExitCodeItEndedWith(t *testing.T) {
@@ -563,7 +595,7 @@ func TestTerminal_ExecCommand_ADetachedCommandThatEndsAtOnceReportsHowItEnded(t 
 				attachErr:      tt.attachErr,
 			}, &recordingTermLog{})
 
-			result, err := term.ExecCommand(t.Context(), "/work", "nc -lvnp 4444", true, time.Minute)
+			result, err := term.ExecCommand(t.Context(), "/work", "nc -lvnp 4444", true, "", time.Minute)
 
 			if tt.wantErr != "" {
 				require.Error(t, err)
@@ -619,7 +651,7 @@ func TestTerminal_ExecCommand_BlamesTheSandboxOnlyWhenItStopped(t *testing.T) {
 			}
 			tlp := &recordingTermLog{}
 
-			result, err := terminalFor(dc, tlp).ExecCommand(t.Context(), "/work", "sleep 90 && echo done", false, time.Minute)
+			result, err := terminalFor(dc, tlp).ExecCommand(t.Context(), "/work", "sleep 90 && echo done", false, "", time.Minute)
 
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, result)
@@ -680,7 +712,7 @@ func TestTerminal_ExecCommand_TimeoutKeepsWhatTheCommandPrinted(t *testing.T) {
 				time.AfterFunc(tt.cancelAfter, cancel)
 			}
 
-			_, err := terminalFor(mock, tlp).ExecCommand(ctx, "/work", "nmap -sV target", false, tt.timeout)
+			_, err := terminalFor(mock, tlp).ExecCommand(ctx, "/work", "nmap -sV target", false, "", tt.timeout)
 
 			require.Error(t, err, "a command that outlives its budget must report the timeout")
 			assert.Contains(t, err.Error(), "command execution timeout ("+tt.wantCause+")")
@@ -699,7 +731,7 @@ func TestTerminal_ExecCommand_TimeoutKeepsWhatTheCommandPrinted(t *testing.T) {
 func TestTerminal_RequireRunningContainer_ReportsASandboxFoundNotRunning(t *testing.T) {
 	calls := map[string]func(context.Context, *terminal) error{
 		"a command": func(ctx context.Context, term *terminal) error {
-			_, err := term.ExecCommand(ctx, "/work", "id", false, time.Minute)
+			_, err := term.ExecCommand(ctx, "/work", "id", false, "", time.Minute)
 			return err
 		},
 		"a file read": func(ctx context.Context, term *terminal) error {
@@ -754,7 +786,7 @@ func TestTerminal_RequireRunningContainer_FailsWhenDockerCannotBeAsked(t *testin
 	tlp := &recordingTermLog{}
 	term := terminalFor(mock, tlp)
 
-	_, err := term.ExecCommand(t.Context(), "/work", "id", false, time.Minute)
+	_, err := term.ExecCommand(t.Context(), "/work", "id", false, "", time.Minute)
 
 	require.ErrorIs(t, err, daemonDown)
 	assert.Contains(t, err.Error(), "runtime verification failed")
@@ -797,7 +829,7 @@ func TestTerminal_RequireRunningContainer_WarnsOfAStateItCannotRecord(t *testing
 				inspectResp:    client.ExecInspectResult{ExitCode: 0},
 			}, &recordingTermLog{stateErr: recordErr})
 
-			_, err := term.ExecCommand(t.Context(), "/work", "id", false, time.Minute)
+			_, err := term.ExecCommand(t.Context(), "/work", "id", false, "", time.Minute)
 
 			if tt.wantErr == nil {
 				require.NoError(t, err)
@@ -830,7 +862,7 @@ func TestTerminal_AnActionThatRanIsNotReportedFailedWhenItsLogIsNot(t *testing.T
 			name:   "a command whose output is not logged",
 			failOn: database.TermlogTypeStdout,
 			call: func(ctx context.Context, term *terminal) (string, error) {
-				return term.ExecCommand(ctx, "/work", "id", false, time.Minute)
+				return term.ExecCommand(ctx, "/work", "id", false, "", time.Minute)
 			},
 			want: "uid=0(root)",
 		},
@@ -882,7 +914,7 @@ func TestTerminal_DoesNotActOnACommandItCouldNotLog(t *testing.T) {
 		{
 			name: "a command",
 			call: func(ctx context.Context, term *terminal) error {
-				_, err := term.ExecCommand(ctx, "/work", "rm -rf /work/loot", false, time.Minute)
+				_, err := term.ExecCommand(ctx, "/work", "rm -rf /work/loot", false, "", time.Minute)
 				return err
 			},
 			want: "failed to put terminal log (stdin): connection reset by peer",
