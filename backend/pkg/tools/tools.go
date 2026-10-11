@@ -1424,7 +1424,7 @@ func (fte *flowToolsExecutor) GetPentesterExecutor(cfg PentesterExecutorConfig) 
 		ce.handlers[WebSearchToolName] = webSearch.Handle
 	}
 
-	exploitChainTool := NewExploitChainTool()
+	exploitChainTool := NewExploitChainTool(fte.cfg.FlowChainsDir)
 	if exploitChainTool.IsAvailable() {
 		ce.definitions = append(ce.definitions, registryDefinitions[SearchExploitChainToolName])
 		ce.handlers[SearchExploitChainToolName] = exploitChainTool.Handle

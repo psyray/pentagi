@@ -1,0 +1,32 @@
+id: ssrf-out-of-band-callback
+name: Server-side request forgery through a URL parameter
+description: >
+  An endpoint that fetches a user-supplied URL can be pointed at internal
+  services or cloud metadata. Verification uses an out-of-band callback to a host
+  you control, which proves the server issued the request without touching
+  anything internal.
+cves: []
+product: Web application fetching remote content
+affected: Webhooks, image or avatar fetchers, import-from-URL and preview features
+cvss: 9.1
+severity: critical
+tags: [web, ssrf, cwe-918]
+references:
+  - https://cwe.mitre.org/data/definitions/918.html
+fingerprint:
+  paths: ["/webhook", "/fetch", "/avatar", "/import", "/preview"]
+  signals:
+    - A parameter carrying a URL that the server retrieves
+  notes: A callback to your own host is the safe proof; reach only metadata you own.
+links:
+  - name: Server fetches an attacker-chosen host
+    cve: ""
+    enables: access to internal services or cloud instance metadata
+    verify: >
+      Point the parameter at a URL you control (for example
+      http://YOUR-HOST/ssrf-probe) and watch for the request on your host. A hit
+      proves the server issued it. Do NOT scan internal ranges and do not read
+      cloud credentials; the callback is enough.
+remediation: >
+  Resolve and validate the destination against an allow-list, block internal and
+  link-local ranges and cloud metadata addresses, and disable redirects.

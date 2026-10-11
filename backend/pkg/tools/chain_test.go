@@ -13,7 +13,7 @@ import (
 
 func newExploitChainRig() Tool {
 	obs.InitObserver(context.Background(), nil, nil, []logrus.Level{})
-	return NewExploitChainTool()
+	return NewExploitChainTool("")
 }
 
 func TestExploitChain_IsAvailable(t *testing.T) {
@@ -84,7 +84,7 @@ func TestExploitChain_Handle_UnknownTool(t *testing.T) {
 }
 
 func TestSelectExploitChains_IntersectsSelectors(t *testing.T) {
-	lib, err := loadExploitChains()
+	lib, err := loadExploitChains("")
 	if err != nil {
 		t.Fatalf("load library: %v", err)
 	}
