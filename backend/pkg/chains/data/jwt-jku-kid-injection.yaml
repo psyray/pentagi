@@ -1,0 +1,33 @@
+id: jwt-jku-kid-injection
+name: JWT trusting an attacker-controlled key source
+description: >
+  A verifier that fetches the signing key from a header the token carries (jku,
+  jwk or x5u), or resolves kid as a file path, lets an attacker supply their own
+  key and forge tokens. Verification points the header at a key source you host
+  and watches for the out-of-band fetch.
+cves: []
+product: JSON Web Token (JWT) authentication
+affected: Verifiers that honour a header-supplied key source
+cvss: 9.1
+severity: critical
+tags: [jwt, auth, crypto, cwe-347]
+references:
+  - https://cwe.mitre.org/data/definitions/347.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_for_Java_Cheat_Sheet.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/JSON%20Web%20Token
+fingerprint:
+  paths: ["/api", "/login", "/me"]
+  signals:
+    - A token whose header carries jku, jwk or x5u, or a kid that looks like a path
+  notes: Point the key source at a host you control; the fetch is the proof.
+links:
+  - name: Verifier fetches the key from the token header
+    cve: ""
+    enables: forging tokens for any user once the verifier trusts your key
+    verify: >
+      Craft your own token whose header points at a JWKS you host (jku or x5u) and
+      send it; a request for that key on your host proves the verifier trusted the
+      header. Keep the claim to your own identity and do not target another user.
+remediation: >
+  Pin the signing keys server-side and ignore any key material named by the token;
+  allow a single fixed algorithm and never resolve kid as a filesystem path.
