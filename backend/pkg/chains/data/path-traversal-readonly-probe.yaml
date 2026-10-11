@@ -1,0 +1,33 @@
+id: path-traversal-readonly-probe
+name: Path traversal exposing files outside the web root
+description: >
+  A file-serving parameter that joins user input to a base path without
+  normalisation may read files outside the intended directory. Verification is a
+  single read of a world-readable system file: no enumeration, no writes, and no
+  attempt to reach anything sensitive.
+cves: []
+product: Generic file-serving endpoint
+affected: Endpoints that select a file or path from the request
+cvss: 7.5
+severity: high
+tags: [web, traversal, file-disclosure, cwe-22]
+references:
+  - https://cwe.mitre.org/data/definitions/22.html
+fingerprint:
+  paths: ["/download", "/file", "/static", "/render", "/get", "/asset"]
+  signals:
+    - A path, file or name parameter that selects which file the server returns
+  notes: Read at most one ubiquitous proof file per attempt, and stop on success.
+links:
+  - name: Directory traversal on a file parameter
+    cve: ""
+    enables: disclosure of files readable by the application user
+    verify: >
+      Request a single, ubiquitous world-readable file through the parameter (for
+      example ../../../../etc/passwd on Linux, or C:\Windows\win.ini on Windows)
+      and check whether its contents are returned. One read is the proof. Do not
+      enumerate the filesystem and do not go after anything sensitive.
+remediation: >
+  Canonicalise the resolved path and reject anything outside the intended base
+  directory. Prefer serving files by an opaque identifier rather than by a
+  client-supplied path.
