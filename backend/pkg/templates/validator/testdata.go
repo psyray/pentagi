@@ -41,6 +41,7 @@ func CreateDummyTemplateData() map[string]any {
 		"SploitusToolName":           tools.SploitusToolName,
 		"SearchInMemoryToolName":     tools.SearchInMemoryToolName,
 		"SearchGuideToolName":        tools.SearchGuideToolName,
+		"SearchExploitChainToolName": tools.SearchExploitChainToolName,
 		"SearchAnswerToolName":       tools.SearchAnswerToolName,
 		"SearchCodeToolName":         tools.SearchCodeToolName,
 		"StoreGuideToolName":         tools.StoreGuideToolName,
