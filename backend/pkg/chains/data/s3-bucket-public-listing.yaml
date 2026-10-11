@@ -1,0 +1,40 @@
+id: s3-bucket-public-listing
+name: Cloud object storage bucket allowing public listing
+description: >
+  A bucket whose list permission is granted to everyone exposes its object names to
+  anyone on the internet, often revealing backups, logs or credentials. Verification
+  performs a single unauthenticated list on the bucket you are authorised to test and
+  reads only the keys, not the objects.
+cves: []
+product: Object storage service, S3-compatible
+affected: Buckets with a public list policy or a public-read ACL
+cvss: 7.5
+severity: high
+tags: [cloud, storage, s3, exposure, cwe-732]
+references:
+  - https://cwe.mitre.org/data/definitions/732.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/Cloud_Storage_Security_Cheat_Sheet.html
+  - https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html
+fingerprint:
+  paths: ["/", "/?list-type=2", "/?acl"]
+  signals:
+    - A bucket list response returned without any authentication
+  notes: List only; do not download object contents and stay within the agreed scope.
+links:
+  - name: Bucket lists its objects without credentials
+    cve: ""
+    enables: discovery of sensitive objects such as backups, dumps or keys
+    verify: >
+      Send an unauthenticated list request to the bucket and check whether object keys
+      are returned. A populated listing is the proof; do NOT fetch the objects and
+      treat any exposed material as sensitive.
+  - name: Bucket ACL readable or writable
+    cve: ""
+    enables: reading object metadata, or in the worst case modifying access
+    verify: >
+      Request the ACL view read-only and inspect the grants. Never attempt a write;
+      reading the grants is sufficient to demonstrate the exposure.
+remediation: >
+  Enable the public-access-block settings at the account and bucket level, remove
+  public list and read grants, use least-privilege bucket policies, and alert on any
+  unauthenticated list against a production bucket.

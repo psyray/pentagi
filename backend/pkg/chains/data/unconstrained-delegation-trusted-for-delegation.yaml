@@ -1,0 +1,41 @@
+id: unconstrained-delegation-trusted-for-delegation
+name: Host trusted for unconstrained Kerberos delegation
+description: >
+  A host with the TRUSTED_FOR_DELEGATION flag keeps the ticket-granting ticket of
+  every user who authenticates to it, so compromising the host allows impersonating
+  any of those users. Verification only reads the flag and the account type over
+  LDAP; it never collects a ticket.
+cves: []
+product: Microsoft Active Directory
+affected: Computer or service accounts whose userAccountControl sets TRUSTED_FOR_DELEGATION
+cvss: 8.1
+severity: high
+tags: [ad, kerberos, delegation, privesc, cwe-269]
+references:
+  - https://cwe.mitre.org/data/definitions/269.html
+  - https://www.thehacker.recipes/
+  - https://github.com/GhostPack/Rubeus
+fingerprint:
+  paths: []
+  signals:
+    - A computer account marked trusted for delegation
+  notes: The userAccountControl flag is read over LDAP; no ticket is captured.
+links:
+  - name: Host holds unconstrained delegation
+    cve: ""
+    enables: harvesting of cached ticket-granting tickets and impersonation of any recent user
+    verify: >
+      Query the directory read-only for the TRUSTED_FOR_DELEGATION bit and report the
+      host. The flag is the proof; do NOT capture tickets, and treat any cached
+      material as out of scope.
+  - name: Privileged accounts likely to authenticate there
+    cve: ""
+    enables: obtaining a domain-admin or service ticket-granting ticket from the cache
+    verify: >
+      Reason about which privileged identities authenticate to the host using
+      directory metadata read-only. This is an assessment input, not an action; never
+      extract a ticket.
+remediation: >
+  Remove unconstrained delegation, mark sensitive accounts as not delegatable, add
+  hosts with legacy delegation to the Protected Users group where applicable, and
+  migrate to resource-based constrained delegation.

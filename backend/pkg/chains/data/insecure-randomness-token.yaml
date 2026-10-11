@@ -1,0 +1,43 @@
+id: insecure-randomness-token
+name: Predictable security token from weak randomness
+description: >
+  Session identifiers, password-reset links or API tokens generated with a
+  non-cryptographic PRNG or a guessable seed (timestamp, counter, small space) can
+  be predicted. Verification collects several tokens you obtained yourself and
+  checks for structure or correlation, without ever using a guessed token against
+  another account.
+cves: []
+product: Web application issuing security tokens
+affected: Reset links, session ids or API keys that look sequential or time-based
+cvss: 7.5
+severity: high
+tags: [web, random, tokens, session, cwe-330]
+references:
+  - https://cwe.mitre.org/data/definitions/330.html
+  - https://cwe.mitre.org/data/definitions/338.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html
+fingerprint:
+  paths: ["/password/reset", "/api/token", "/login"]
+  signals:
+    - Tokens issued close in time that differ in a small, low-entropy part
+  notes: Only analyse tokens you requested for your own accounts.
+links:
+  - name: Token has a predictable structure
+    cve: ""
+    enables: guessing another user's reset link or session identifier
+    verify: >
+      Request several reset links or tokens for your own account in quick succession.
+      Decode any embedded timestamp or counter and check whether the remaining part
+      is short or sequential. Structural predictability is the proof; do not attempt
+      to guess another account's token.
+  - name: Token derived from a time or counter seed
+    cve: ""
+    enables: reproducing a token by re-running the same generator at the same moment
+    verify: >
+      Compare two tokens you own that were issued a fixed interval apart and test
+      whether the difference matches the elapsed time or request offset. A consistent
+      relationship confirms the weak seed.
+remediation: >
+  Use a cryptographically secure RNG for every token and identifier, give at least
+  128 bits of entropy, bind tokens to a short expiry and a single use, and never seed a
+  PRNG with time or a counter.

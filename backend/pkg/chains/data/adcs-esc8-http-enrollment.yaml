@@ -1,0 +1,41 @@
+id: adcs-esc8-http-enrollment
+name: ADCS web enrollment reachable over HTTP
+description: >
+  When a certificate authority exposes its web enrollment endpoint over HTTP and
+  accepts NTLM authentication there, an attacker can relay a coerced machine
+  authentication to obtain a certificate for that machine. Verification only performs
+  an unauthenticated GET to confirm the endpoint is published over HTTP.
+cves: []
+product: Microsoft Active Directory Certificate Services
+affected: CAs with the web enrollment role bound to HTTP rather than HTTPS only
+cvss: 8.1
+severity: high
+tags: [ad, adcs, pki, ntlm, relay, cwe-294]
+references:
+  - https://cwe.mitre.org/data/definitions/294.html
+  - https://www.thehacker.recipes/
+  - https://github.com/ly4k/Certipy
+fingerprint:
+  paths: ["/certsrv/", "/certsrv/certfnsh.asp"]
+  signals:
+    - A CA web enrollment page served over HTTP rather than HTTPS
+  notes: A single unauthenticated GET is enough; no certificate is requested.
+links:
+  - name: Web enrollment exposed over HTTP
+    cve: ""
+    enables: NTLM relay of a machine account to obtain its certificate, then domain escalation
+    verify: >
+      Request the enrollment page over HTTP and confirm the service answers and
+      permits NTLM. The reachable page is the proof; do NOT request a certificate and
+      do NOT relay any authentication.
+  - name: CA template permits machine enrollment
+    cve: ""
+    enables: the relay to yield a client-authentication certificate
+    verify: >
+      Enumerate the published templates read-only and look for one that allows domain
+      computers to enroll with client authentication. Template inspection only; no
+      enrollment is performed.
+remediation: >
+  Serve enrollment over HTTPS only, require LDAP and SMB signing and channel binding
+  to defeat relaying, disable NTLM on the CA, and restrict which templates permit
+  machine enrollment.

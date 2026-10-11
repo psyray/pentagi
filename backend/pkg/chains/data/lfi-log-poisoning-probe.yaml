@@ -1,0 +1,43 @@
+id: lfi-log-poisoning-probe
+name: Local file inclusion reaching code execution through log poisoning
+description: >
+  A parameter that concatenates attacker input into a filesystem path can include
+  local files. If the application runs PHP and the included file is interpreted,
+  poisoning a file the attacker can already write (typically the access log via the
+  User-Agent header) turns read-only inclusion into code execution. Verification only
+  proves inclusion by reading a benign file, never by writing a payload.
+cves: []
+product: PHP application with a file-including parameter
+affected: Parameters such as page, file, template or lang that include a local path
+cvss: 8.8
+severity: high
+tags: [web, lfi, path-traversal, rce, php, cwe-98]
+references:
+  - https://cwe.mitre.org/data/definitions/98.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/File%20Inclusion
+fingerprint:
+  paths: ["/index.php?page=", "/?file=", "/?lang="]
+  signals:
+    - A parameter whose value looks like a path and whose output changes with known files
+  notes: Inclusion is confirmed read-only with a system file; no payload is written.
+links:
+  - name: Inclusion of a local file you name
+    cve: ""
+    enables: traversal across the filesystem and, on a vulnerable PHP handler, code execution
+    verify: >
+      Request the parameter with a benign absolute path such as /etc/hostname and
+      compare the response with the same request against a non-existent path. A
+      differing body proves inclusion. Keep to system files; do not attempt to
+      include or write anything executable.
+  - name: Own input reflected into a log the application can include
+    cve: ""
+    enables: code execution if a poisoned log is later included and interpreted
+    verify: >
+      Send a request whose User-Agent carries a unique plain marker, then include the
+      access log read-only and look for that marker in the response. This reads a file
+      only; do NOT place any interpreter syntax in the header.
+remediation: >
+  Never build include paths from user input: map an allow-list of identifiers to
+  files. Keep logs out of the web root, disable allow_url_include, and drop the
+  execute permission on data directories.
