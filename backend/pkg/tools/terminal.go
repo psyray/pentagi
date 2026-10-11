@@ -144,7 +144,7 @@ func (t *terminal) Handle(ctx context.Context, name string, args json.RawMessage
 		if timeout > 0 {
 			timeout += defaultExtraExecTimeout
 		}
-		result, err := t.ExecCommand(ctx, action.Cwd, action.Input, action.Detach.Bool(), timeout)
+		result, err := t.ExecCommand(ctx, action.Cwd, action.Input, action.Detach.Bool(), action.OutputFile, timeout)
 		return t.wrapCommandResult(ctx, args, name, result, err)
 	case FileToolName:
 		var action FileAction
@@ -198,13 +198,21 @@ func (t *terminal) ExecCommand(
 	ctx context.Context,
 	cwd, command string,
 	detach bool,
+	outputFile string,
 	timeout time.Duration,
 ) (string, error) {
 	containerName := PrimaryTerminalName(t.tenantPrefix, t.flowID)
 
-	cmd := docker.SandboxCommand(command)
+	payload := command
+	if outputFile != "" {
+		// Stream the command's stdout and stderr into a file the agent can poll, while
+		// still showing them here. The wrapped command then writes to a pipe rather than
+		// a TTY, which also keeps TTY-interactive tools (ffuf) well behaved.
+		payload = withTee(command, outputFile)
+	}
+	cmd := docker.SandboxCommand(payload)
 	if t.taskID != nil {
-		cmd = docker.FlowCommand(command)
+		cmd = docker.FlowCommand(payload)
 	}
 
 	err := t.requireRunningContainer(ctx)
@@ -264,6 +272,21 @@ func (t *terminal) ExecCommand(
 	}
 
 	return t.getExecResult(ctx, createResp.ID, timeout, false)
+}
+
+// withTee runs command with its stdout and stderr streamed to logPath in addition to
+// this process, preserving the command's exit code through bash's pipefail (so a
+// failure is still reported as a failure, not as tee's status). The command runs under
+// bash for that reason; the log path is a separate positional argument so neither it
+// nor the command needs escaping beyond one level of quoting.
+func withTee(command, logPath string) string {
+	return "exec bash -c 'set -o pipefail; eval \"$1\" 2>&1 | tee \"$2\"' bash " +
+		shellSingleQuote(command) + " " + shellSingleQuote(logPath)
+}
+
+// shellSingleQuote wraps s in single quotes so it survives one level of shell parsing.
+func shellSingleQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 func (t *terminal) getExecResult(ctx context.Context, id string, timeout time.Duration, tty bool) (string, error) {
