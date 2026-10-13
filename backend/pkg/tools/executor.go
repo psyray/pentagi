@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"pentagi/pkg/cast"
+	"pentagi/pkg/chains"
 	"pentagi/pkg/database"
 	obs "pentagi/pkg/observability"
 	"pentagi/pkg/observability/langfuse"
@@ -155,6 +156,9 @@ type customExecutor struct {
 	handlers    map[string]ExecutorHandler
 	barriers    map[string]struct{}
 	summarizer  SummarizeHandler
+	// detectedChains memoises the chains already surfaced to this executor, so a
+	// repeated command does not re-inject the same deterministic block.
+	detectedChains map[string]bool
 }
 
 func (ce *customExecutor) Tools() []llms.Tool {
@@ -352,6 +356,10 @@ func (ce *customExecutor) Execute(
 
 		result = database.SanitizeUTF8(result)
 		allowSummarize := slices.Contains(allowedSummarizingToolsResult, name)
+		// Detection must see the RAW output (a summary or truncation could drop the
+		// signature); the block is appended to the FINAL result so it always reaches
+		// the agent verbatim.
+		rawResult := result
 		switch {
 		case ce.summarizer != nil && allowSummarize && len(result) > DefaultResultSizeLimit:
 			summary, err := ce.summarizeResult(ctx, name, args, result)
@@ -370,6 +378,8 @@ func (ce *customExecutor) Execute(
 		case allowSummarize:
 			result = truncateResult(result)
 		}
+
+		result = ce.surfaceDetectedChains(name, rawResult, result)
 
 		durationDelta := time.Since(startTime).Seconds()
 		if err := ce.tclp.UpdateLogSuccess(persistCtx, tcID, result, durationDelta); err != nil {
@@ -420,6 +430,37 @@ func (ce *customExecutor) summarizeResult(ctx context.Context, name string, args
 	}
 
 	return ce.summarizer(ctx, summarizePrompt)
+}
+
+// surfaceDetectedChains appends a deterministic <detected_techniques> block to a
+// tool result when its RAW output matches a curated chain fingerprint. Detection
+// runs on the raw output (so a summary or truncation cannot hide the signature)
+// and the block is appended to the FINAL result so it always reaches the agent
+// verbatim, even when the output was summarized. Chains already surfaced to this
+// executor are not repeated.
+func (ce *customExecutor) surfaceDetectedChains(name, raw, final string) string {
+	if name != TerminalToolName {
+		return final
+	}
+	dets := chains.Detect(raw)
+	if len(dets) == 0 {
+		return final
+	}
+	if ce.detectedChains == nil {
+		ce.detectedChains = map[string]bool{}
+	}
+	fresh := make([]chains.Detection, 0, len(dets))
+	for _, d := range dets {
+		if ce.detectedChains[d.ChainID] {
+			continue
+		}
+		ce.detectedChains[d.ChainID] = true
+		fresh = append(fresh, d)
+	}
+	if block := chains.RenderDetections(fresh); block != "" {
+		return final + block
+	}
+	return final
 }
 
 func truncateResult(result string) string {
