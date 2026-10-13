@@ -1293,3 +1293,32 @@ func TestExecutor_Execute_WritesTheMessageResultEvenAfterTheFlowStops(t *testing
 		t.Errorf("the message log holds %q, want the same result the tool call log has", mlp.result)
 	}
 }
+
+func TestSurfaceDetectedChainsRunsOnRawAppendsToFinal(t *testing.T) {
+	// Detection sees the RAW output (the signature), and the block lands on the
+	// FINAL result even when that final result no longer carries the signature
+	// (the summarizer replaced it). Dedup per executor, terminal only.
+	ce := &customExecutor{}
+	raw := "| smb2-security-mode:\n|_    Message signing enabled but not required\n"
+	final := "SUMMARY: SMB hardening posture reviewed, no verbatim flags kept.\n"
+
+	out := ce.surfaceDetectedChains(TerminalToolName, raw, final)
+	if !strings.HasPrefix(out, final) || !strings.Contains(out, "<detected_techniques") ||
+		!strings.Contains(out, "smb-signing-disabled") {
+		t.Fatalf("block must be appended to the final result, got %q", out)
+	}
+
+	if again := ce.surfaceDetectedChains(TerminalToolName, raw, final); strings.Contains(again, "<detected_techniques") {
+		t.Fatalf("second call must not repeat the block, got %q", again)
+	}
+
+	other := &customExecutor{}
+	if got := other.surfaceDetectedChains("file", raw, final); got != final {
+		t.Fatalf("non-terminal tool must be untouched, got %q", got)
+	}
+
+	clean := &customExecutor{}
+	if got := clean.surfaceDetectedChains(TerminalToolName, "uid=0(root)\n", final); got != final {
+		t.Fatalf("no signature must leave the result untouched, got %q", got)
+	}
+}
