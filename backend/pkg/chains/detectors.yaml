@@ -1,0 +1,51 @@
+# Deterministic, high-precision detectors for the exploit-chain library.
+#
+# A rule maps an unambiguous signature found in a TOOL OUTPUT (command stdout/
+# stderr, nmap/NSE text, ldapsearch, netexec, smbclient...) to a curated chain.
+# This drives the automatic surfacing of the safe-verification procedure: the
+# match is mechanical and model-independent, so a technique class covered by the
+# library is surfaced even when the agent would not have looked it up itself.
+#
+# Matching is case-insensitive substring matching on the lowercased output:
+#   all_of : every listed token must be present (context guard)
+#   any_of : at least one listed token must be present (the signal)
+# A rule needs at least one of all_of/any_of. Keep signatures UNAMBIGUOUS: a
+# token that also appears in benign output must not be used as the only signal.
+# Rules that reference an unknown chain id are ignored at load time.
+#
+# Grow this list incrementally; each entry should be justified by a real output
+# format observed in a run (see to-implement/CHAINS_LIBRARY.md).
+
+- chain: smb-signing-disabled
+  any_of:
+    - "message signing enabled but not required"
+    - "message signing disabled"
+    - "signing enabled but not required"
+    - "signing:false"
+    - "signing not required"
+    - "signing required: false"
+  reason: "an SMB service reports signing as not required (relay surface)"
+
+- chain: adcs-esc8-http-enrollment
+  any_of:
+    - "certenroll"
+    - "/certsrv"
+    - "certsvc"
+    - "certificate services"
+    - "adcs"
+  reason: "Active Directory Certificate Services / web enrollment surface observed"
+
+- chain: smb-share-null-session
+  all_of:
+    - "sharename"
+  any_of:
+    - "anonymous"
+    - "null session"
+    - "nt_status_access_denied"
+  reason: "SMB share enumeration performed without authentication"
+
+- chain: kerberoastable-service-account
+  any_of:
+    - "serviceprincipalname:"
+    - "serviceprincipalname :"
+  reason: "an account exposes a Service Principal Name (kerberoast surface)"
