@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"pentagi/pkg/chains"
 	"pentagi/pkg/database"
 	"pentagi/pkg/docker"
 	obs "pentagi/pkg/observability"
@@ -57,9 +56,6 @@ type terminal struct {
 	dockerClient       docker.DockerClient
 	tlp                TermLogProvider
 	defaultExecTimeout time.Duration
-	// detectedChainIDs memoises the chains already surfaced to this executor, so a
-	// repeated command (agents re-run the same scan) does not spam the context.
-	detectedChainIDs map[string]bool
 }
 
 func NewTerminalTool(
@@ -81,7 +77,6 @@ func NewTerminalTool(
 		dockerClient:       dockerClient,
 		tlp:                tlp,
 		defaultExecTimeout: defaultExecTimeout,
-		detectedChainIDs:   map[string]bool{},
 	}
 }
 
@@ -125,36 +120,7 @@ func (t *terminal) wrapCommandResult(ctx context.Context, args json.RawMessage, 
 			})).Error("terminal tool failed")
 		return fmt.Sprintf("terminal tool '%s' handled with error: %v", name, err), nil
 	}
-	if name == TerminalToolName {
-		result = t.surfaceDetectedChains(result)
-	}
 	return result, nil
-}
-
-// surfaceDetectedChains appends a deterministic <detected_techniques> block to a
-// command result when its output matches a curated chain fingerprint, so the
-// safe-verification procedure is surfaced even when the agent would not have
-// looked it up. Chains already surfaced to this executor are not repeated.
-func (t *terminal) surfaceDetectedChains(result string) string {
-	dets := chains.Detect(result)
-	if len(dets) == 0 {
-		return result
-	}
-	if t.detectedChainIDs == nil {
-		t.detectedChainIDs = map[string]bool{}
-	}
-	fresh := make([]chains.Detection, 0, len(dets))
-	for _, d := range dets {
-		if t.detectedChainIDs[d.ChainID] {
-			continue
-		}
-		t.detectedChainIDs[d.ChainID] = true
-		fresh = append(fresh, d)
-	}
-	if block := chains.RenderDetections(fresh); block != "" {
-		return result + block
-	}
-	return result
 }
 
 func (t *terminal) Handle(ctx context.Context, name string, args json.RawMessage) (string, error) {
