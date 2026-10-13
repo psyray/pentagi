@@ -452,6 +452,26 @@ func (sp SubtaskPatch) Validate() error {
 	return nil
 }
 
+// Normalize repairs the common case where the model omits the operation type:
+// an operation carrying a title/description and no existing id is an "add", an
+// operation that targets an existing id is a "modify". It runs BEFORE Validate so
+// a missing "op" is inferred instead of rejecting the whole patch (seen on flow
+// 179: `invalid subtask patch: operation 0: unknown operation type ""`, which
+// dropped a legitimate plan refinement).
+func (sp *SubtaskPatch) Normalize() {
+	for i := range sp.Operations {
+		op := &sp.Operations[i]
+		if strings.TrimSpace(string(op.Op)) != "" {
+			continue
+		}
+		if op.ID == nil || *op.ID == 0 {
+			op.Op = SubtaskOpAdd
+		} else {
+			op.Op = SubtaskOpModify
+		}
+	}
+}
+
 // DoubleEncodedListError is a list argument the model sent as a JSON STRING
 // containing JSON, whose contents then failed to parse.
 //
