@@ -1294,31 +1294,41 @@ func TestExecutor_Execute_WritesTheMessageResultEvenAfterTheFlowStops(t *testing
 	}
 }
 
-func TestSurfaceDetectedChainsRunsOnRawAppendsToFinal(t *testing.T) {
+func TestSurfaceDetectedChainsAppendsBlockAndDedupsPerFlow(t *testing.T) {
 	// Detection sees the RAW output (the signature), and the block lands on the
 	// FINAL result even when that final result no longer carries the signature
-	// (the summarizer replaced it). Dedup per executor, terminal only.
-	ce := &customExecutor{}
+	// (the summarizer replaced it). Dedup is PER FLOW, not per executor: PentAGI
+	// builds a fresh executor per subtask, so an executor-local set would repeat
+	// the same chain on every subtask (seen on flow 178: 8 duplicates).
+	const flow = int64(900001)
 	raw := "| smb2-security-mode:\n|_    Message signing enabled but not required\n"
 	final := "SUMMARY: SMB hardening posture reviewed, no verbatim flags kept.\n"
 
-	out := ce.surfaceDetectedChains(TerminalToolName, raw, final)
+	a := &customExecutor{flowID: flow}
+	out := a.surfaceDetectedChains(TerminalToolName, raw, final)
 	if !strings.HasPrefix(out, final) || !strings.Contains(out, "<detected_techniques") ||
 		!strings.Contains(out, "smb-signing-disabled") {
 		t.Fatalf("block must be appended to the final result, got %q", out)
 	}
 
-	if again := ce.surfaceDetectedChains(TerminalToolName, raw, final); strings.Contains(again, "<detected_techniques") {
-		t.Fatalf("second call must not repeat the block, got %q", again)
+	// a DIFFERENT executor on the SAME flow (next subtask) must not repeat it
+	b := &customExecutor{flowID: flow}
+	if again := b.surfaceDetectedChains(TerminalToolName, raw, final); strings.Contains(again, "<detected_techniques") {
+		t.Fatalf("same flow must not repeat the block, got %q", again)
 	}
 
-	other := &customExecutor{}
-	if got := other.surfaceDetectedChains("file", raw, final); got != final {
+	// a different flow surfaces it again
+	c := &customExecutor{flowID: flow + 1}
+	if got := c.surfaceDetectedChains(TerminalToolName, raw, final); !strings.Contains(got, "<detected_techniques") {
+		t.Fatalf("a new flow must surface the block, got %q", got)
+	}
+
+	// non-terminal tool and signature-free output are untouched
+	d := &customExecutor{flowID: flow + 2}
+	if got := d.surfaceDetectedChains("file", raw, final); got != final {
 		t.Fatalf("non-terminal tool must be untouched, got %q", got)
 	}
-
-	clean := &customExecutor{}
-	if got := clean.surfaceDetectedChains(TerminalToolName, "uid=0(root)\n", final); got != final {
+	if got := d.surfaceDetectedChains(TerminalToolName, "uid=0(root)\n", final); got != final {
 		t.Fatalf("no signature must leave the result untouched, got %q", got)
 	}
 }
