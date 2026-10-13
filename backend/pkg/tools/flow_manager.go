@@ -916,6 +916,7 @@ func (t *patchFlowSubtasksTool) Handle(ctx context.Context, name string, args js
 		Message:    action.Message,
 	}
 
+	patch.Normalize() // infère un "op" manquant (add/modify) avant validation
 	if err := patch.Validate(); err != nil {
 		return "", fmt.Errorf("invalid subtask patch: %w", err)
 	}
