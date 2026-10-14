@@ -49,3 +49,9 @@
     - "serviceprincipalname:"
     - "serviceprincipalname :"
   reason: "an account exposes a Service Principal Name (kerberoast surface)"
+
+- chain: smb-anonymous-user-enumeration
+  any_of:
+    - "null auth:true"
+    - "null auth: true"
+  reason: "an SMB host accepts a null session (anonymous SAMR user enumeration surface)"

@@ -72,6 +72,24 @@ func TestDetectKerberoastableSPN(t *testing.T) {
 	}
 }
 
+func TestDetectAnonymousUserEnumerationNullAuth(t *testing.T) {
+	// netexec prints "(Null Auth:True)" in its SMB info line.
+	out := "SMB  192.168.56.11  445  WINTERFELL  [*] Windows Server ... (domain:north.lab) (signing:True) (SMBv1:None) (Null Auth:True)\n"
+	dets := Detect(out)
+	if len(dets) == 0 || dets[0].ChainID != "smb-anonymous-user-enumeration" {
+		t.Fatalf("expected smb-anonymous-user-enumeration, got %+v", dets)
+	}
+}
+
+func TestDetectNullAuthFalseIsNotMatched(t *testing.T) {
+	out := "SMB  192.168.56.11  445  WINTERFELL  [*] Windows Server ... (Null Auth:False)\n"
+	for _, d := range Detect(out) {
+		if d.ChainID == "smb-anonymous-user-enumeration" {
+			t.Fatalf("Null Auth:False must not match smb-anonymous-user-enumeration: %+v", d)
+		}
+	}
+}
+
 func TestDetectBenignOutputHasNoMatch(t *testing.T) {
 	out := "total 0\n-rw-r--r-- 1 root root 0 Oct 13 10:00 file.txt\n"
 	if dets := Detect(out); len(dets) != 0 {
