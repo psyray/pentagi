@@ -166,7 +166,16 @@ type flowProvider struct {
 
 	maxGACallsLimit int
 	maxLACallsLimit int
-	buildMonitor    executionMonitorBuilder
+
+	// Closure enforcement: when enabled, the adviser close verdict and the
+	// subtask tool-call budget are binding at the harness level. A subtask-bound
+	// chain is capped at subtaskMaxToolCalls, and a chain that draws
+	// adviserCloseLimit consecutive close verdicts is forced into the graceful
+	// shutdown phase.
+	closureEnabled      bool
+	subtaskMaxToolCalls int
+	adviserCloseLimit   int
+	buildMonitor        executionMonitorBuilder
 
 	provider.Provider
 }

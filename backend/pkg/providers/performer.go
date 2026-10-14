@@ -113,6 +113,17 @@ func (fp *flowProvider) performAgentChain(
 		}
 	}
 
+	// Closure enforcement: a subtask-bound chain honours the subtask tool-call
+	// budget, and every chain honours the adviser close verdicts. Both force the
+	// graceful shutdown phase instead of relying on the model to obey advisory text.
+	closureDet := &closureDetector{
+		enabled:        fp.closureEnabled,
+		closeThreshold: fp.adviserCloseLimit,
+	}
+	if fp.closureEnabled && subtaskID != nil && fp.subtaskMaxToolCalls > 0 {
+		closureDet.callBudget = fp.subtaskMaxToolCalls
+	}
+
 	for iteration := 0; ; iteration++ {
 		if iteration >= maxCallsLimit {
 			msg := fmt.Sprintf("agent chain exceeded maximum iterations (%d)", maxCallsLimit)
@@ -120,12 +131,22 @@ func (fp *flowProvider) performAgentChain(
 			return fmt.Errorf("%w: %s", ErrAgentModelCall, msg)
 		}
 
+		closureForced := closureDet.evaluate() == closureForce
 		var result *callResult
-		if iteration >= maxCallsLimit-maxAgentShutdownIterations {
-			logger.WithFields(logrus.Fields{
-				"iteration": iteration,
-				"limit":     maxCallsLimit,
-			}).Warn("max tool calls limit will be reached soon, invoking reflector for graceful termination")
+		if closureForced || iteration >= maxCallsLimit-maxAgentShutdownIterations {
+			if closureForced {
+				logger.WithFields(logrus.Fields{
+					"iteration":      iteration,
+					"close_verdicts": closureDet.closeVerdicts,
+					"calls":          closureDet.calls,
+					"call_budget":    closureDet.callBudget,
+				}).Warn("closure enforcement reached, invoking reflector for graceful termination")
+			} else {
+				logger.WithFields(logrus.Fields{
+					"iteration": iteration,
+					"limit":     maxCallsLimit,
+				}).Warn("max tool calls limit will be reached soon, invoking reflector for graceful termination")
+			}
 
 			// Format reflector message for graceful termination
 			result = &callResult{
@@ -210,9 +231,10 @@ func (fp *flowProvider) performAgentChain(
 				continue
 			}
 
+			closureDet.observeCall()
 			funcName := toolCall.FunctionCall.Name
 			response, err := fp.execToolCall(
-				ctx, optAgentType, chainID, idx, result, monitor, detector, executor, taskID, subtaskID, chain,
+				ctx, optAgentType, chainID, idx, result, monitor, detector, closureDet, executor, taskID, subtaskID, chain,
 			)
 
 			if toolTypeMapping[funcName] != tools.AgentToolType {
@@ -287,6 +309,7 @@ func (fp *flowProvider) execToolCall(
 	result *callResult,
 	monitor *executionMonitor,
 	detector *repeatingDetector,
+	closureDet *closureDetector,
 	executor tools.ContextToolsExecutor,
 	taskID, subtaskID *int64,
 	chain []llms.MessageContent,
@@ -407,6 +430,7 @@ func (fp *flowProvider) execToolCall(
 			logger.WithError(err).Warn("failed to invoke execution mentor, continuing with normal execution")
 		} else {
 			monitor.reset()
+			closureDet.observeVerdict(mentorResponse)
 			response = formatEnhancedToolResponse(response, mentorResponse)
 		}
 	}

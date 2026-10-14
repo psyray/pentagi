@@ -316,6 +316,17 @@ type Config struct {
 	MaxGeneralAgentToolCalls int `env:"MAX_GENERAL_AGENT_TOOL_CALLS" envDefault:"100"`
 	MaxLimitedAgentToolCalls int `env:"MAX_LIMITED_AGENT_TOOL_CALLS" envDefault:"20"`
 
+	// === Agent Closure Enforcement ===
+	// Make the adviser's close verdict and the subtask budget binding at the
+	// harness level, instead of relying on the model to obey an advisory it can
+	// ignore. When enabled, a subtask whose tool-call budget is exhausted, or
+	// that keeps running after the adviser asked to close, is forced into the
+	// graceful shutdown phase so the reflector closes it, instead of burning the
+	// run's budget in verification loops.
+	ClosureEnforcementEnabled      bool `env:"CLOSURE_ENFORCEMENT_ENABLED" envDefault:"true"`
+	SubtaskMaxToolCalls            int  `env:"SUBTASK_MAX_TOOL_CALLS" envDefault:"50"`
+	AdviserCloseVerdictsBeforeStop int  `env:"ADVISER_CLOSE_VERDICTS_BEFORE_STOP" envDefault:"2"`
+
 	// === Agent Planning Phase Configuration ===
 	AgentPlanningStepEnabled bool `env:"AGENT_PLANNING_STEP_ENABLED" envDefault:"false"`
 

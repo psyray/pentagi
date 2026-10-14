@@ -596,3 +596,68 @@ func TestHelpers_ToolCallIDTemplateOrDefault_NeverYieldsAnEmptyTemplate(t *testi
 		})
 	}
 }
+
+func TestParseAdviserVerdict(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		answer string
+		want   adviserVerdict
+	}{
+		{name: "markdown header close", answer: "## Verdict: CLOSE — objective met", want: adviserVerdictClose},
+		{name: "bold plan", answer: "**Verdict: PLAN** — keep going", want: adviserVerdictPlan},
+		{name: "exec state", answer: "Verdict: EXEC - the scan is running", want: adviserVerdictExec},
+		{name: "lowercase", answer: "verdict: close", want: adviserVerdictClose},
+		{name: "completion lag counts as close", answer: "This is a completion lag, not a rabbit hole.", want: adviserVerdictClose},
+		{name: "the last verdict wins", answer: "Verdict: PLAN first\n\n## Verdict: CLOSE now", want: adviserVerdictClose},
+		{name: "prose close without a verdict line does not flip", answer: "## Technical Analysis\nYou are close, but not done.", want: adviserVerdictUnknown},
+		{name: "empty answer", answer: "", want: adviserVerdictUnknown},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tt.want, parseAdviserVerdict(tt.answer))
+		})
+	}
+}
+
+func TestClosureDetector_CloseVerdicts(t *testing.T) {
+	t.Parallel()
+
+	cd := &closureDetector{enabled: true, closeThreshold: 2}
+	cd.observeVerdict("## Verdict: PLAN — keep going")
+	assert.Equal(t, closureNone, cd.evaluate())
+
+	cd.observeVerdict("## Verdict: CLOSE — done")
+	assert.Equal(t, closureNone, cd.evaluate(), "one close verdict is not enough")
+
+	cd.observeVerdict("**Verdict: CLOSE**")
+	assert.Equal(t, closureForce, cd.evaluate(), "two consecutive close verdicts must force the stop")
+
+	cd.observeVerdict("## Verdict: PLAN")
+	assert.Equal(t, closureNone, cd.evaluate(), "an explicit plan resets the close counter")
+}
+
+func TestClosureDetector_CallBudget(t *testing.T) {
+	t.Parallel()
+
+	cd := &closureDetector{enabled: true, closeThreshold: 5, callBudget: 3}
+	for i := 0; i < 3; i++ {
+		assert.Equal(t, closureNone, cd.evaluate())
+		cd.observeCall()
+	}
+	assert.Equal(t, closureForce, cd.evaluate(), "the subtask call budget must force the stop")
+}
+
+func TestClosureDetector_DisabledNeverForces(t *testing.T) {
+	t.Parallel()
+
+	cd := &closureDetector{enabled: false, closeThreshold: 1, callBudget: 1}
+	cd.observeVerdict("Verdict: CLOSE")
+	cd.observeCall()
+	cd.observeCall()
+	assert.Equal(t, closureNone, cd.evaluate(), "disabled enforcement must never force")
+}

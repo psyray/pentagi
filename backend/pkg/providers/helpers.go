@@ -196,6 +196,108 @@ func (emd *executionMonitor) reset() {
 	emd.lastToolName = ""
 }
 
+// adviserVerdict is the state the adviser (mentor) emitted for a consultation.
+type adviserVerdict int
+
+const (
+	adviserVerdictUnknown adviserVerdict = iota
+	adviserVerdictPlan
+	adviserVerdictExec
+	adviserVerdictClose
+)
+
+// parseAdviserVerdict extracts the state the adviser emitted. The adviser is
+// instructed (verdict_state_machine prompt block) to emit one state per
+// consultation, in practice as "## Verdict: CLOSE" or "**Verdict: PLAN**". It
+// takes the LAST "Verdict: ..." occurrence (the final decision), and treats an
+// explicit completion-lag verdict as a close request. Returns unknown when no
+// state is present, so the caller never forces a close on a bare analysis.
+func parseAdviserVerdict(answer string) adviserVerdict {
+	lower := strings.ToLower(answer)
+	if lower == "" {
+		return adviserVerdictUnknown
+	}
+
+	last := adviserVerdictUnknown
+	parts := strings.Split(lower, "verdict")
+	for i := 1; i < len(parts); i++ {
+		head := strings.TrimLeft(parts[i], " :-*\t\r\n")
+		switch {
+		case strings.HasPrefix(head, "close"):
+			last = adviserVerdictClose
+		case strings.HasPrefix(head, "exec"):
+			last = adviserVerdictExec
+		case strings.HasPrefix(head, "plan"):
+			last = adviserVerdictPlan
+		}
+	}
+	if last != adviserVerdictUnknown {
+		return last
+	}
+	if strings.Contains(lower, "completion lag") || strings.Contains(lower, "completion_lag") {
+		return adviserVerdictClose
+	}
+
+	return adviserVerdictUnknown
+}
+
+// closureAction is the outcome of a closure-detector evaluation.
+type closureAction int
+
+const (
+	closureNone  closureAction = iota // keep running normally
+	closureForce                      // enter the graceful shutdown phase now
+)
+
+// closureDetector turns the adviser verdict and the subtask tool-call budget
+// from advisory text into a binding constraint at the harness level. The adviser
+// answer is only injected as a tool response (performMentor ->
+// formatEnhancedToolResponse) and the model can ignore it; this detector is what
+// makes the closure actually happen: once the subtask call budget is spent, or
+// after closeThreshold consecutive close verdicts, it forces the chain into the
+// graceful shutdown phase (the reflector closes the subtask) instead of letting
+// the run burn its budget in verification loops.
+type closureDetector struct {
+	enabled        bool
+	closeThreshold int
+	callBudget     int
+	closeVerdicts  int
+	calls          int
+}
+
+// observeCall records one tool call executed by the chain.
+func (cd *closureDetector) observeCall() {
+	cd.calls++
+}
+
+// observeVerdict records an adviser (mentor) answer. A close verdict (CLOSE or
+// completion lag) increments the consecutive counter; an explicit PLAN or EXEC
+// resets it, so only a persisting close request forces the stop. An answer with
+// no state (bare analysis) leaves the counter untouched.
+func (cd *closureDetector) observeVerdict(adviserAnswer string) {
+	switch parseAdviserVerdict(adviserAnswer) {
+	case adviserVerdictClose:
+		cd.closeVerdicts++
+	case adviserVerdictPlan, adviserVerdictExec:
+		cd.closeVerdicts = 0
+	}
+}
+
+// evaluate reports what the harness must do before the next model call.
+func (cd *closureDetector) evaluate() closureAction {
+	if !cd.enabled {
+		return closureNone
+	}
+	if cd.closeThreshold > 0 && cd.closeVerdicts >= cd.closeThreshold {
+		return closureForce
+	}
+	if cd.callBudget > 0 && cd.calls >= cd.callBudget {
+		return closureForce
+	}
+
+	return closureNone
+}
+
 func (fp *flowProvider) getTasksInfo(ctx context.Context, taskID int64) (*tasksInfo, error) {
 	var (
 		err  error
