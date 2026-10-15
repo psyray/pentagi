@@ -624,40 +624,78 @@ func TestParseAdviserVerdict(t *testing.T) {
 	}
 }
 
-func TestClosureDetector_CloseVerdicts(t *testing.T) {
+func TestClosureDetector_CloseSignalRequiresIdleEvidence(t *testing.T) {
 	t.Parallel()
 
-	cd := &closureDetector{enabled: true, closeThreshold: 2}
-	cd.observeVerdict("## Verdict: PLAN — keep going")
-	assert.Equal(t, closureNone, cd.evaluate())
+	// Critic disabled: the deterministic gate decides alone.
+	cd := &closureDetector{enabled: true, closeThreshold: 2, minIdleCalls: 2}
 
-	cd.observeVerdict("## Verdict: CLOSE — done")
-	assert.Equal(t, closureNone, cd.evaluate(), "one close verdict is not enough")
+	cd.observeVerdict("## Verdict: CLOSE")
+	cd.observeVerdict("## Verdict: CLOSE")
+	assert.Equal(t, closureContinue, cd.evaluate(), "two close verdicts are not enough while the subtask is progressing")
 
-	cd.observeVerdict("**Verdict: CLOSE**")
-	assert.Equal(t, closureForce, cd.evaluate(), "two consecutive close verdicts must force the stop")
+	// The subtask keeps producing new output: the close signal is not honoured.
+	cd.observeResult("first new evidence")
+	cd.observeResult("second new evidence")
+	assert.Equal(t, closureContinue, cd.evaluate(), "fresh evidence must keep the subtask running")
 
+	// Now the subtask goes idle on identical output: the first repeat resets the
+	// idle count, the following ones count towards the threshold.
+	cd.observeResult("steady")
+	cd.observeResult("steady")
+	cd.observeResult("steady")
+	assert.Equal(t, closureForce, cd.evaluate(), "idle on evidence plus close verdicts must force")
+
+	// A PLAN resets the close counter.
 	cd.observeVerdict("## Verdict: PLAN")
-	assert.Equal(t, closureNone, cd.evaluate(), "an explicit plan resets the close counter")
+	assert.Equal(t, closureContinue, cd.evaluate())
 }
 
-func TestClosureDetector_CallBudget(t *testing.T) {
+func TestClosureDetector_CriticGate(t *testing.T) {
 	t.Parallel()
 
-	cd := &closureDetector{enabled: true, closeThreshold: 5, callBudget: 3}
-	for i := 0; i < 3; i++ {
-		assert.Equal(t, closureNone, cd.evaluate())
-		cd.observeCall()
-	}
-	assert.Equal(t, closureForce, cd.evaluate(), "the subtask call budget must force the stop")
+	cd := &closureDetector{enabled: true, closeThreshold: 1, minIdleCalls: 0, criticEnabled: true}
+	cd.observeVerdict("Verdict: CLOSE")
+	assert.Equal(t, closureVerify, cd.evaluate(), "with the critic on, a close signal must be verified first")
+
+	cd.reject()
+	assert.Equal(t, closureContinue, cd.evaluate(), "a rejected close keeps the subtask working")
+
+	cd.observeVerdict("Verdict: CLOSE")
+	assert.Equal(t, closureVerify, cd.evaluate())
+	cd.confirm()
+	assert.Equal(t, closureForce, cd.evaluate(), "a confirmed close forces the stop")
 }
 
 func TestClosureDetector_DisabledNeverForces(t *testing.T) {
 	t.Parallel()
 
-	cd := &closureDetector{enabled: false, closeThreshold: 1, callBudget: 1}
+	cd := &closureDetector{enabled: false, closeThreshold: 1, minIdleCalls: 0}
 	cd.observeVerdict("Verdict: CLOSE")
-	cd.observeCall()
-	cd.observeCall()
-	assert.Equal(t, closureNone, cd.evaluate(), "disabled enforcement must never force")
+	cd.observeResult("x")
+	assert.Equal(t, closureContinue, cd.evaluate(), "disabled enforcement must never force")
+}
+
+func TestParseCompletionVerdict(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		answer string
+		want   completionVerdict
+	}{
+		{name: "complete", answer: "Looks done.\nCompletion: COMPLETE", want: completionComplete},
+		{name: "incomplete wins over the embedded complete", answer: "Gaps remain.\nCompletion: INCOMPLETE", want: completionIncomplete},
+		{name: "bold incomplete", answer: "**Completion: INCOMPLETE**", want: completionIncomplete},
+		{name: "a missing line is unknown", answer: "I think it is probably fine.", want: completionUnknown},
+		{name: "empty", answer: "", want: completionUnknown},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tt.want, parseCompletionVerdict(tt.answer))
+		})
+	}
 }

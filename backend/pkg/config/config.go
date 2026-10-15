@@ -317,15 +317,23 @@ type Config struct {
 	MaxLimitedAgentToolCalls int `env:"MAX_LIMITED_AGENT_TOOL_CALLS" envDefault:"20"`
 
 	// === Agent Closure Enforcement ===
-	// Make the adviser's close verdict and the subtask budget binding at the
-	// harness level, instead of relying on the model to obey an advisory it can
-	// ignore. When enabled, a subtask whose tool-call budget is exhausted, or
-	// that keeps running after the adviser asked to close, is forced into the
-	// graceful shutdown phase so the reflector closes it, instead of burning the
-	// run's budget in verification loops.
+	// The harness must not obey a closure signal blindly: an adviser close verdict
+	// can be premature, and cutting a subtask that is still making progress (a long
+	// exploitation, a slow web chain, a code audit) hurts more than it helps. So a
+	// close verdict is only a SIGNAL, verified in two stages before the harness
+	// forces the graceful shutdown:
+	//   1. deterministic: is the subtask idle on new evidence (no new tool-output
+	//      fingerprint for CloseVerifyMinIdleCalls calls)? A subtask that keeps
+	//      producing new output is still progressing, so the close is rejected and
+	//      the chain continues.
+	//   2. adversarial: an independent completion critic (the adviser agent with a
+	//      challenge prompt) confirms the objective is genuinely met.
+	// Disabled by CLOSURE_ENFORCEMENT_ENABLED=false. There is NO tool-call cap: a
+	// long subtask is not a blocked subtask.
 	ClosureEnforcementEnabled      bool `env:"CLOSURE_ENFORCEMENT_ENABLED" envDefault:"true"`
-	SubtaskMaxToolCalls            int  `env:"SUBTASK_MAX_TOOL_CALLS" envDefault:"50"`
 	AdviserCloseVerdictsBeforeStop int  `env:"ADVISER_CLOSE_VERDICTS_BEFORE_STOP" envDefault:"2"`
+	CloseVerifyMinIdleCalls        int  `env:"CLOSE_VERIFY_MIN_IDLE_CALLS" envDefault:"3"`
+	CloseVerifyCritic              bool `env:"CLOSE_VERIFY_CRITIC" envDefault:"true"`
 
 	// === Agent Planning Phase Configuration ===
 	AgentPlanningStepEnabled bool `env:"AGENT_PLANNING_STEP_ENABLED" envDefault:"false"`

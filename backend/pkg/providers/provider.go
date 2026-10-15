@@ -167,15 +167,15 @@ type flowProvider struct {
 	maxGACallsLimit int
 	maxLACallsLimit int
 
-	// Closure enforcement: when enabled, the adviser close verdict and the
-	// subtask tool-call budget are binding at the harness level. A subtask-bound
-	// chain is capped at subtaskMaxToolCalls, and a chain that draws
-	// adviserCloseLimit consecutive close verdicts is forced into the graceful
-	// shutdown phase.
-	closureEnabled      bool
-	subtaskMaxToolCalls int
-	adviserCloseLimit   int
-	buildMonitor        executionMonitorBuilder
+	// Closure enforcement: a close verdict is only a signal, verified in two
+	// stages (a deterministic idle-on-evidence check, then an adversarial
+	// completion critic) before the harness forces the graceful shutdown. There
+	// is no tool-call cap: a long subtask is not a blocked subtask.
+	closureEnabled     bool
+	adviserCloseLimit  int
+	closeVerifyMinIdle int
+	closeVerifyCritic  bool
+	buildMonitor       executionMonitorBuilder
 
 	provider.Provider
 }

@@ -967,6 +967,86 @@ func (fp *flowProvider) performMentor(
 	return result, nil
 }
 
+// completionCriticQuestion is the adversarial stage-2 check: it challenges a
+// close request instead of confirming it, and mandates a machine-readable line.
+const completionCriticQuestion = `You are an adversarial completion verifier for an offensive-security subtask.
+A progress monitor has asked to CLOSE the subtask below. Your job is to CHALLENGE
+that request, not to agree with it: look for anything that is still missing before
+the objective can be considered genuinely met (a deliverable not produced, an
+access not proven, an evidence not captured, an unexploited lead the objective
+names). Prefer INCOMPLETE whenever the evidence is thin.
+
+Subtask objective:
+%s
+
+Recent execution (tool calls and results):
+%s
+
+End your answer with exactly one final line, on its own line:
+Completion: COMPLETE
+if the objective is genuinely met and every deliverable exists and is verified;
+otherwise:
+Completion: INCOMPLETE
+`
+
+// performCompletionCritic asks the adviser agent to challenge a close request. It
+// returns true only when the critic answers Completion: COMPLETE. On any doubt,
+// error or missing critic it returns false, so the chain keeps working (the
+// harness never forces a closure it could not verify).
+func (fp *flowProvider) performCompletionCritic(
+	ctx context.Context,
+	opt pconfig.ProviderOptionsType,
+	chainID int64,
+	taskID, subtaskID *int64,
+	chain []llms.MessageContent,
+	executor tools.ContextToolsExecutor,
+) (bool, string) {
+	ctx, span := obs.Observer.NewSpan(ctx, obs.SpanKindInternal, "providers.flowProvider.performCompletionCritic")
+	defer span.End()
+
+	if !executor.IsFunctionExists(tools.AdviceToolName) {
+		return false, ""
+	}
+
+	subtaskDesc := ""
+	if subtaskID != nil {
+		if subtask, err := fp.db.GetSubtask(ctx, *subtaskID); err == nil {
+			subtaskDesc = subtask.Description
+		}
+	}
+
+	recentJSON, _ := json.Marshal(getRecentMessages(chain))
+	callsJSON, _ := json.Marshal(extractToolCallsFromChain(chain))
+	evidence := string(recentJSON) + "\n" + string(callsJSON)
+	question := fmt.Sprintf(completionCriticQuestion, subtaskDesc, cutString(evidence, 12000))
+
+	toolCallID := templates.GenerateFromPattern(fp.tcIDTemplate, tools.AdviceToolName)
+	askAdviceJSON, err := json.Marshal(tools.AskAdvice{Question: question})
+	if err != nil {
+		return false, ""
+	}
+
+	logger := logrus.WithContext(ctx).WithFields(logrus.Fields{
+		"chain_id":   chainID,
+		"task_id":    taskID,
+		"subtask_id": subtaskID,
+		"agent_type": string(opt),
+	})
+
+	result, err := executor.Execute(ctx, 0, toolCallID, tools.AdviceToolName, "completion_critic", "", askAdviceJSON)
+	if err != nil {
+		logger.WithError(err).Warn("failed to invoke the completion critic, keeping the subtask open")
+
+		return false, ""
+	}
+
+	if parseCompletionVerdict(result) == completionComplete {
+		return true, ""
+	}
+
+	return false, cutString(result, 400)
+}
+
 func (fp *flowProvider) performSimpleChain(
 	ctx context.Context,
 	taskID, subtaskID *int64,

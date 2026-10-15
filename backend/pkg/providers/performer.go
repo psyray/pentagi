@@ -119,9 +119,8 @@ func (fp *flowProvider) performAgentChain(
 	closureDet := &closureDetector{
 		enabled:        fp.closureEnabled,
 		closeThreshold: fp.adviserCloseLimit,
-	}
-	if fp.closureEnabled && subtaskID != nil && fp.subtaskMaxToolCalls > 0 {
-		closureDet.callBudget = fp.subtaskMaxToolCalls
+		minIdleCalls:   fp.closeVerifyMinIdle,
+		criticEnabled:  fp.closeVerifyCritic,
 	}
 
 	for iteration := 0; ; iteration++ {
@@ -131,15 +130,30 @@ func (fp *flowProvider) performAgentChain(
 			return fmt.Errorf("%w: %s", ErrAgentModelCall, msg)
 		}
 
+		// Stage 2: a close signal that survived the deterministic idle gate is only
+		// honoured if an independent completion critic confirms the objective is
+		// genuinely met. A rejected signal is fed back and the chain keeps working.
+		if closureDet.evaluate() == closureVerify {
+			confirmed, reason := fp.performCompletionCritic(ctx, optAgentType, chainID, taskID, subtaskID, chain, executor)
+			if confirmed {
+				closureDet.confirm()
+				logger.WithFields(logrus.Fields{"iteration": iteration, "close_signals": closureDet.closeSignals}).
+					Warn("completion critic confirmed closure, invoking reflector for graceful termination")
+			} else {
+				closureDet.reject()
+				chain = append(chain, closureRejectionMessage(reason))
+				logger.WithFields(logrus.Fields{"iteration": iteration, "reason": reason}).
+					Warn("completion critic rejected the close signal, the subtask keeps working")
+			}
+		}
+
 		closureForced := closureDet.evaluate() == closureForce
 		var result *callResult
 		if closureForced || iteration >= maxCallsLimit-maxAgentShutdownIterations {
 			if closureForced {
 				logger.WithFields(logrus.Fields{
-					"iteration":      iteration,
-					"close_verdicts": closureDet.closeVerdicts,
-					"calls":          closureDet.calls,
-					"call_budget":    closureDet.callBudget,
+					"iteration":     iteration,
+					"close_signals": closureDet.closeSignals,
 				}).Warn("closure enforcement reached, invoking reflector for graceful termination")
 			} else {
 				logger.WithFields(logrus.Fields{
@@ -231,7 +245,6 @@ func (fp *flowProvider) performAgentChain(
 				continue
 			}
 
-			closureDet.observeCall()
 			funcName := toolCall.FunctionCall.Name
 			response, err := fp.execToolCall(
 				ctx, optAgentType, chainID, idx, result, monitor, detector, closureDet, executor, taskID, subtaskID, chain,
@@ -416,6 +429,10 @@ func (fp *flowProvider) execToolCall(
 			break
 		}
 	}
+
+	// The idle-on-evidence check must see the primitive's own output, not the
+	// mentor commentary appended below.
+	closureDet.observeResult(response)
 
 	if monitor.shouldInvokeMentor(toolCall) && executor.IsFunctionExists(tools.AdviceToolName) {
 		logger.WithFields(logrus.Fields{
