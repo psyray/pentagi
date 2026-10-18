@@ -1231,8 +1231,10 @@ func TestFlows_FinishFlow_ClosesTheLeftoversOfAWorkerThatDidNotFinish(t *testing
 
 			require.Len(t, q.taskStatus, 1, "a task only the database knows about is closed by nobody else")
 			assert.Equal(t, int64(11), q.taskStatus[0].ID)
-			require.Len(t, q.subtaskStatus, 1)
-			assert.Equal(t, int64(21), q.subtaskStatus[0].ID)
+			require.Len(t, q.subtaskFailed, 1)
+			assert.Equal(t, int64(21), q.subtaskFailed[0].ID)
+			assert.Equal(t, notCompletedSubtaskResult, q.subtaskFailed[0].Result)
+			assert.Empty(t, q.subtaskStatus, "an interrupted subtask is not reported as finished")
 		})
 	}
 }
@@ -1305,7 +1307,10 @@ func TestFlows_FinishFlow_LeavesNoSlotSoARetryClosesWhatItLeftOpen(t *testing.T)
 
 			require.NoError(t, fc.FinishFlow(context.Background(), flowID))
 			require.Len(t, q.taskStatus, 1, "the retry closes the task the first attempt left open")
-			require.Len(t, q.subtaskStatus, 1)
+			require.Len(t, q.subtaskFailed, 1)
+			assert.Equal(t, int64(11), q.subtaskFailed[0].ID)
+			assert.Equal(t, notCompletedSubtaskResult, q.subtaskFailed[0].Result)
+			assert.Empty(t, q.subtaskStatus)
 			assert.Len(t, pub.taskUpdated, 1)
 			assert.Equal(t, tc.wantFlowStatus, q.flowStatus)
 			assert.NotContains(t, fc.flows, flowID)
