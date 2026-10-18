@@ -1,11 +1,14 @@
 package providers
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
+	"pentagi/pkg/database"
 	"pentagi/pkg/templates"
 	"pentagi/pkg/tools"
 
@@ -838,3 +841,66 @@ func TestParseCompletionVerdict(t *testing.T) {
 		})
 	}
 }
+
+func TestSubtaskBudgetDeadline(t *testing.T) {
+	t.Parallel()
+
+	start := time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)
+
+	deadline, seconds := subtaskBudgetDeadline(database.Subtask{})
+	assert.True(t, deadline.IsZero(), "a subtask without a budget is not time-boxed")
+	assert.Zero(t, seconds)
+
+	deadline, seconds = subtaskBudgetDeadline(database.Subtask{
+		BudgetSeconds: sql.NullInt32{Int32: 1200, Valid: true},
+		UpdatedAt:     sql.NullTime{Time: start, Valid: true},
+	})
+	assert.Equal(t, start.Add(20*time.Minute), deadline)
+	assert.Equal(t, 1200, seconds)
+
+	deadline, seconds = subtaskBudgetDeadline(database.Subtask{
+		BudgetSeconds: sql.NullInt32{Int32: 0, Valid: true},
+		UpdatedAt:     sql.NullTime{Time: start, Valid: true},
+	})
+	assert.True(t, deadline.IsZero(), "a non-positive budget disables enforcement")
+	assert.Zero(t, seconds)
+}
+
+func TestFindCrossSubtaskReference(t *testing.T) {
+	t.Parallel()
+
+	subtasks := []database.Subtask{
+		{ID: 10, Title: "current", Status: database.SubtaskStatusRunning},
+		{ID: 11, Title: "quick wins", Status: database.SubtaskStatusCreated},
+		{ID: 12, Title: "old enum", Status: database.SubtaskStatusFinished},
+		{ID: 13, Title: "foothold", Status: database.SubtaskStatusRunning},
+	}
+
+	for _, tt := range []struct {
+		name  string
+		query string
+		want  *int64
+	}{
+		{name: "named planned subtask", query: "SUBTASK 11 - quick wins", want: helpersRef(11)},
+		{name: "hash marker", query: "subtask #11", want: helpersRef(11)},
+		{name: "named running subtask", query: "subtask 13: foothold", want: helpersRef(13)},
+		{name: "current subtask is allowed", query: "subtask 10 is still running"},
+		{name: "finished subtask is context", query: "as subtask 12 showed"},
+		{name: "a bare number is not an id", query: "connect to port 4757"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := findCrossSubtaskReference(tt.query, 10, subtasks)
+			if tt.want == nil {
+				assert.Nil(t, got)
+
+				return
+			}
+			require.NotNil(t, got)
+			assert.Equal(t, *tt.want, got.ID)
+		})
+	}
+}
+
+func helpersRef(id int64) *int64 { return &id }

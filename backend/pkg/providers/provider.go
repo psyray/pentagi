@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -936,6 +937,21 @@ func (fp *flowProvider) PerformAgentChain(ctx context.Context, taskID, subtaskID
 		ctx, optAgentType, msgChain.ID, &taskID, &subtaskID, chain, executor, fp.summarizer,
 	)
 	if err != nil {
+		if errors.Is(err, ErrSubtaskBudgetExhausted) {
+			result := fmt.Sprintf("Subtask closed by the harness: %s. The last verified state is in the subtask logs.", err.Error())
+			if _, dbErr := fp.db.UpdateSubtaskFailedResult(ctx, database.UpdateSubtaskFailedResultParams{
+				Result: result,
+				ID:     subtaskID,
+			}); dbErr != nil {
+				logger.WithError(dbErr).Warn("failed to record the subtask budget result")
+			}
+			executorAgent.End(
+				langfuse.WithAgentStatus(err.Error()),
+				langfuse.WithAgentLevel(langfuse.ObservationLevelWarning),
+			)
+
+			return PerformResultError, nil
+		}
 		return PerformResultError, wrapErrorEndAgentSpan(ctx, executorAgent, "failed to perform primary agent chain", err)
 	}
 

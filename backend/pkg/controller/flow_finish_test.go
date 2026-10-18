@@ -78,6 +78,31 @@ func TestFlowFinish_FinishUnloadedFlow_ClosesTheFlowAndWhatItLeftOpen(t *testing
 		assert.Equal(t, database.FlowStatusFinished, pub.flowUpdated[0].Status)
 	})
 
+	t.Run("a planned subtask that never started is failed, not reported as finished", func(t *testing.T) {
+		t.Parallel()
+
+		q := newQuerier()
+		q.subtasks[11] = append(q.subtasks[11], database.Subtask{ID: 22, Status: database.SubtaskStatusCreated})
+
+		pub, _, err := finish(q, nil)
+
+		require.NoError(t, err)
+		assert.Equal(t, []database.UpdateSubtaskFailedResultParams{{
+			Result: notExecutedSubtaskResult,
+			ID:     22,
+		}}, q.subtaskFailed, "an unexecuted planned subtask must carry an explicit reason")
+		assert.Equal(t, []database.UpdateSubtaskStatusParams{
+			{Status: database.SubtaskStatusFinished, ID: 21},
+			{Status: database.SubtaskStatusFinished, ID: 23},
+		}, q.subtaskStatus, "started subtasks keep the existing finish behaviour")
+
+		require.Len(t, pub.taskSubtasks, 2)
+		assert.Equal(t, []database.Subtask{
+			{ID: 21, Status: database.SubtaskStatusFinished},
+			{ID: 22, Status: database.SubtaskStatusFailed, Result: notExecutedSubtaskResult},
+		}, pub.taskSubtasks[0])
+	})
+
 	t.Run("a container query that fails once is read again for the event", func(t *testing.T) {
 		t.Parallel()
 

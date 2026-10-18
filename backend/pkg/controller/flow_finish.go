@@ -16,6 +16,11 @@ import (
 // in memory, which is what happens when its provider stopped resolving.
 var ErrFlowNotLoaded = fmt.Errorf("flow is not loaded")
 
+// notExecutedSubtaskResult is recorded on a planned subtask that never started
+// before an external finishFlow. Reporting it as finished would turn an
+// unexecuted plan entry into a false success.
+const notExecutedSubtaskResult = "Not executed: the flow was finished before this subtask started."
+
 func (fc *flowController) missingFlowError(ctx context.Context, flowID int64) error {
 	if _, err := fc.db.GetFlow(ctx, flowID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -186,23 +191,32 @@ func (fc *flowController) finishFlowWork(
 			return fmt.Errorf("failed to get subtasks of task %d: %w", task.ID, err)
 		}
 
-		hasFinishedSubtasks := false
+		hasChangedSubtasks := false
 		for _, subtask := range subtasks {
 			if subtask.Status == database.SubtaskStatusFinished || subtask.Status == database.SubtaskStatusFailed {
 				continue
 			}
 
-			if _, err := fc.db.UpdateSubtaskStatus(ctx, database.UpdateSubtaskStatusParams{
+			if subtask.Status == database.SubtaskStatusCreated {
+				// A created subtask never started: close it as failed with an explicit
+				// reason instead of publishing a green task with no execution.
+				if _, err := fc.db.UpdateSubtaskFailedResult(ctx, database.UpdateSubtaskFailedResultParams{
+					Result: notExecutedSubtaskResult,
+					ID:     subtask.ID,
+				}); err != nil {
+					return fmt.Errorf("failed to mark subtask %d as not executed: %w", subtask.ID, err)
+				}
+			} else if _, err := fc.db.UpdateSubtaskStatus(ctx, database.UpdateSubtaskStatusParams{
 				Status: database.SubtaskStatusFinished,
 				ID:     subtask.ID,
 			}); err != nil {
 				return fmt.Errorf("failed to finish subtask %d: %w", subtask.ID, err)
 			}
-			hasFinishedSubtasks = true
+			hasChangedSubtasks = true
 		}
 
 		isTaskClosed := task.Status == database.TaskStatusFinished || task.Status == database.TaskStatusFailed
-		if isTaskClosed && !hasFinishedSubtasks {
+		if isTaskClosed && !hasChangedSubtasks {
 			continue
 		}
 
