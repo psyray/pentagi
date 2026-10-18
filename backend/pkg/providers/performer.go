@@ -47,6 +47,31 @@ const (
 // still trustworthy.
 var ErrAgentModelCall = errors.New("agent model call failed")
 
+// ErrSubtaskBudgetExhausted marks a primary-agent chain stopped because the
+// planned wall-clock budget of its subtask is over. It is deliberately not an
+// ErrAgentModelCall: the subtask is closed and the controller moves on to the
+// next planned subtask instead of stopping the whole task.
+var ErrSubtaskBudgetExhausted = errors.New("subtask time budget exhausted")
+
+// subtaskBudgetDeadline returns the wall-clock deadline planned for a subtask
+// and the budget in seconds. A missing or non-positive budget yields a zero
+// deadline, which disables enforcement. The subtask's UpdatedAt is used as the
+// start time because the controller sets it when the subtask moves to running
+// and refreshes it when a waiting subtask resumes.
+func subtaskBudgetDeadline(subtask database.Subtask) (time.Time, int) {
+	if !subtask.BudgetSeconds.Valid || subtask.BudgetSeconds.Int32 <= 0 {
+		return time.Time{}, 0
+	}
+
+	start := time.Now()
+	if subtask.UpdatedAt.Valid {
+		start = subtask.UpdatedAt.Time
+	}
+
+	budgetSeconds := int(subtask.BudgetSeconds.Int32)
+	return start.Add(time.Duration(budgetSeconds) * time.Second), budgetSeconds
+}
+
 type callResult struct {
 	streamID  int64
 	funcCalls []llms.ToolCall
@@ -186,6 +211,23 @@ func (fp *flowProvider) performAgentChain(
 		criticEnabled:  fp.closeVerifyCritic,
 	}
 
+	// Wall-clock budget: the planner records budget_seconds on each subtask. It
+	// is enforced for the primary agent only; specialists are bounded by the
+	// primary subtask that delegates to them. When the budget is over, the
+	// graceful shutdown runs for a few iterations and then the chain returns
+	// ErrSubtaskBudgetExhausted, which the controller maps to a failed subtask so
+	// the next planned subtask can start.
+	var (
+		budgetDeadline time.Time
+		budgetSeconds  int
+	)
+	if optAgentType == pconfig.OptionsTypePrimaryAgent && subtaskID != nil {
+		if subtask, err := fp.db.GetSubtask(ctx, *subtaskID); err == nil {
+			budgetDeadline, budgetSeconds = subtaskBudgetDeadline(subtask)
+		}
+	}
+	budgetShutdowns := 0
+
 	for iteration := 0; ; iteration++ {
 		if iteration >= maxCallsLimit {
 			msg := fmt.Sprintf("agent chain exceeded maximum iterations (%d)", maxCallsLimit)
@@ -193,10 +235,20 @@ func (fp *flowProvider) performAgentChain(
 			return fmt.Errorf("%w: %s", ErrAgentModelCall, msg)
 		}
 
+		budgetExhausted := !budgetDeadline.IsZero() && !time.Now().Before(budgetDeadline)
+		if budgetExhausted {
+			budgetShutdowns++
+			if budgetShutdowns > maxAgentShutdownIterations {
+				msg := fmt.Sprintf("subtask time budget exhausted (%ds)", budgetSeconds)
+				logger.WithField("budget_seconds", budgetSeconds).Warn(msg)
+				return fmt.Errorf("%w: %s", ErrSubtaskBudgetExhausted, msg)
+			}
+		}
+
 		// Stage 2: a close signal that survived the deterministic idle gate is only
 		// honoured if an independent completion critic confirms the objective is
 		// genuinely met. A rejected signal is fed back and the chain keeps working.
-		if closureDet.evaluate() == closureVerify {
+		if !budgetExhausted && closureDet.evaluate() == closureVerify {
 			confirmed, reason := fp.performCompletionCritic(ctx, optAgentType, chainID, taskID, subtaskID, chain, executor)
 			if confirmed {
 				closureDet.confirm()
@@ -212,12 +264,17 @@ func (fp *flowProvider) performAgentChain(
 
 		closureForced := closureDet.evaluate() == closureForce
 		var result *callResult
-		if closureForced || iteration >= maxCallsLimit-maxAgentShutdownIterations {
+		if closureForced || budgetExhausted || iteration >= maxCallsLimit-maxAgentShutdownIterations {
 			if closureForced {
 				logger.WithFields(logrus.Fields{
 					"iteration":     iteration,
 					"close_signals": closureDet.closeSignals,
 				}).Warn("closure enforcement reached, invoking reflector for graceful termination")
+			} else if budgetExhausted {
+				logger.WithFields(logrus.Fields{
+					"iteration":      iteration,
+					"budget_seconds": budgetSeconds,
+				}).Warn("subtask time budget exhausted, invoking reflector for graceful termination")
 			} else {
 				logger.WithFields(logrus.Fields{
 					"iteration": iteration,
@@ -225,12 +282,20 @@ func (fp *flowProvider) performAgentChain(
 				}).Warn("max tool calls limit will be reached soon, invoking reflector for graceful termination")
 			}
 
-			// Format reflector message for graceful termination
-			result = &callResult{
-				content: fmt.Sprintf(
-					"I can’t continue this multi-turn chain because I’m too close to the AI agent iteration limit (%d).",
-					maxCallsLimit,
-				),
+			if budgetExhausted {
+				result = &callResult{
+					content: fmt.Sprintf(
+						"The subtask time budget (%d seconds) is exhausted. Close the current subtask now with the best verified result and list the remaining work as coverage gaps.",
+						budgetSeconds,
+					),
+				}
+			} else {
+				result = &callResult{
+					content: fmt.Sprintf(
+						"I can’t continue this multi-turn chain because I’m too close to the AI agent iteration limit (%d).",
+						maxCallsLimit,
+					),
+				}
 			}
 		} else {
 			if summarizer != nil {
@@ -500,7 +565,17 @@ func (fp *flowProvider) execToolCall(
 	rawResponse := response
 	closureDet.observeResult(rawResponse)
 
-	if monitor.shouldInvokeMentor(toolCall) && executor.IsFunctionExists(tools.AdviceToolName) {
+	// An explicit adviser consultation is a close signal source too. The
+	// execution monitor below only observes the mentor it invokes on its own;
+	// without this, a `Verdict: CLOSE` returned to the agent's own `advice` call
+	// was silently ignored by the closure detector.
+	if funcName == tools.AdviceToolName {
+		closureDet.observeVerdict(rawResponse)
+	}
+
+	mentorDue := monitor.shouldInvokeMentor(toolCall) && executor.IsFunctionExists(tools.AdviceToolName)
+
+	if mentorDue && funcName != tools.AdviceToolName {
 		logger.WithFields(logrus.Fields{
 			"same_tool_count":  monitor.sameToolCount,
 			"total_call_count": monitor.totalCallCount,
