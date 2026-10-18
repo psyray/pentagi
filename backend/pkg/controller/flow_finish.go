@@ -21,6 +21,11 @@ var ErrFlowNotLoaded = fmt.Errorf("flow is not loaded")
 // unexecuted plan entry into a false success.
 const notExecutedSubtaskResult = "Not executed: the flow was finished before this subtask started."
 
+// notCompletedSubtaskResult is recorded on a subtask that was running or
+// waiting when an external finishFlow closed the flow without a result. Only a
+// terminal subtask with a result is a genuine success.
+const notCompletedSubtaskResult = "Flow finished externally before this subtask completed; no result was recorded."
+
 func (fc *flowController) missingFlowError(ctx context.Context, flowID int64) error {
 	if _, err := fc.db.GetFlow(ctx, flowID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -197,7 +202,8 @@ func (fc *flowController) finishFlowWork(
 				continue
 			}
 
-			if subtask.Status == database.SubtaskStatusCreated {
+			switch {
+			case subtask.Status == database.SubtaskStatusCreated:
 				// A created subtask never started: close it as failed with an explicit
 				// reason instead of publishing a green task with no execution.
 				if _, err := fc.db.UpdateSubtaskFailedResult(ctx, database.UpdateSubtaskFailedResultParams{
@@ -206,11 +212,22 @@ func (fc *flowController) finishFlowWork(
 				}); err != nil {
 					return fmt.Errorf("failed to mark subtask %d as not executed: %w", subtask.ID, err)
 				}
-			} else if _, err := fc.db.UpdateSubtaskStatus(ctx, database.UpdateSubtaskStatusParams{
-				Status: database.SubtaskStatusFinished,
-				ID:     subtask.ID,
-			}); err != nil {
-				return fmt.Errorf("failed to finish subtask %d: %w", subtask.ID, err)
+			case subtask.Result == "":
+				// A running or waiting subtask with no result was interrupted by the
+				// external finish: it did not complete, so it must not be green.
+				if _, err := fc.db.UpdateSubtaskFailedResult(ctx, database.UpdateSubtaskFailedResultParams{
+					Result: notCompletedSubtaskResult,
+					ID:     subtask.ID,
+				}); err != nil {
+					return fmt.Errorf("failed to mark subtask %d as not completed: %w", subtask.ID, err)
+				}
+			default:
+				if _, err := fc.db.UpdateSubtaskStatus(ctx, database.UpdateSubtaskStatusParams{
+					Status: database.SubtaskStatusFinished,
+					ID:     subtask.ID,
+				}); err != nil {
+					return fmt.Errorf("failed to finish subtask %d: %w", subtask.ID, err)
+				}
 			}
 			hasChangedSubtasks = true
 		}
