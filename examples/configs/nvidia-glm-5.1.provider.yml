@@ -35,7 +35,7 @@ simple:
   temperature: 0.6
   top_p: 0.95
   n: 1
-  max_tokens: 16384
+  max_tokens: 8192
   extra_body:
     chat_template_kwargs:
       enable_thinking: false
@@ -45,7 +45,7 @@ simple_json:
   temperature: 0.6
   top_p: 0.95
   n: 1
-  max_tokens: 16384
+  max_tokens: 8192
   json: true
   extra_body:
     chat_template_kwargs:
@@ -100,7 +100,7 @@ adviser:
   temperature: 1.0
   top_p: 0.95
   n: 1
-  max_tokens: 16384
+  max_tokens: 8192
   extra_body:
     chat_template_kwargs:
       enable_thinking: true
@@ -121,7 +121,7 @@ searcher:
   temperature: 0.6
   top_p: 0.95
   n: 1
-  max_tokens: 16384
+  max_tokens: 8192
   extra_body:
     chat_template_kwargs:
       enable_thinking: false
@@ -131,7 +131,7 @@ enricher:
   temperature: 0.6
   top_p: 0.95
   n: 1
-  max_tokens: 16384
+  max_tokens: 8192
   extra_body:
     chat_template_kwargs:
       enable_thinking: false
@@ -152,7 +152,7 @@ installer:
   temperature: 0.6
   top_p: 0.95
   n: 1
-  max_tokens: 16384
+  max_tokens: 4096
   extra_body:
     chat_template_kwargs:
       enable_thinking: true

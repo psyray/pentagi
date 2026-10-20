@@ -72,14 +72,14 @@ refiner:
   temperature: 1
   top_p: 0.95
   n: 1
-  max_tokens: 32768
+  max_tokens: 16384
 
 adviser:
   model: "kimi-k3:cloud"
   temperature: 1
   top_p: 0.95
   n: 1
-  max_tokens: 16384
+  max_tokens: 8192
 
 reflector:
   model: "minimax-m2.7:cloud"
@@ -107,14 +107,14 @@ coder:
   temperature: 1
   top_p: 0.95
   n: 1
-  max_tokens: 20480
+  max_tokens: 16384
 
 installer:
   model: "kimi-k2.7-code:cloud"
   temperature: 1
   top_p: 0.95
   n: 1
-  max_tokens: 16384
+  max_tokens: 4096
 
 pentester:
   model: "deepseek-v4.1-flash:cloud"
