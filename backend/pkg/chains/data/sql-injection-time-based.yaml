@@ -1,0 +1,34 @@
+id: sql-injection-time-based
+name: Blind SQL injection detected by timing
+description: >
+  When a query's result is not reflected anywhere, an injected delay still
+  betrays the injection. Verification compares the response time of a request
+  that sleeps against one that does not, and reads no data.
+cves: []
+product: Web application backed by a relational database
+affected: Blind parameters where no output or error is reflected
+cvss: 9.8
+severity: critical
+tags: [web, sqli, blind, injection, cwe-89]
+references:
+  - https://cwe.mitre.org/data/definitions/89.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/SQL%20Injection
+fingerprint:
+  paths: ["/api", "/search", "/login"]
+  signals:
+    - A parameter whose effect is not directly visible in the response
+  notes: Keep the delay small and repeat once to rule out network jitter.
+links:
+  - name: Sleep injection changes response time
+    cve: ""
+    enables: extracting data one bit at a time
+    verify: >
+      Append a short conditional delay in the database's dialect (for example
+      ' AND SLEEP(3)-- on MySQL, '; WAITFOR DELAY '0:0:3'-- on MSSQL) and compare
+      the response time with an identical request carrying no delay. A
+      consistent, repeatable gap equal to the delay proves injection. Do not
+      extract data.
+remediation: >
+  Parameterise every query value, and set a statement timeout so a single slow
+  query cannot stall the application.

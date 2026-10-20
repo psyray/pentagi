@@ -8,11 +8,13 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 	"unicode/utf8"
 
 	"pentagi/pkg/cast"
+	"pentagi/pkg/chains"
 	"pentagi/pkg/database"
 	obs "pentagi/pkg/observability"
 	"pentagi/pkg/observability/langfuse"
@@ -352,6 +354,10 @@ func (ce *customExecutor) Execute(
 
 		result = database.SanitizeUTF8(result)
 		allowSummarize := slices.Contains(allowedSummarizingToolsResult, name)
+		// Detection must see the RAW output (a summary or truncation could drop the
+		// signature); the block is appended to the FINAL result so it always reaches
+		// the agent verbatim.
+		rawResult := result
 		switch {
 		case ce.summarizer != nil && allowSummarize && len(result) > DefaultResultSizeLimit:
 			summary, err := ce.summarizeResult(ctx, name, args, result)
@@ -370,6 +376,8 @@ func (ce *customExecutor) Execute(
 		case allowSummarize:
 			result = truncateResult(result)
 		}
+
+		result = ce.surfaceDetectedChains(name, rawResult, result)
 
 		durationDelta := time.Since(startTime).Seconds()
 		if err := ce.tclp.UpdateLogSuccess(persistCtx, tcID, result, durationDelta); err != nil {
@@ -420,6 +428,65 @@ func (ce *customExecutor) summarizeResult(ctx context.Context, name string, args
 	}
 
 	return ce.summarizer(ctx, summarizePrompt)
+}
+
+// surfacedState memoises, PER FLOW, the chains already surfaced to the agent. It
+// must outlive a single executor: PentAGI builds a fresh executor per subtask (and
+// the pentester can be re-invoked within a subtask), so an executor-local set let
+// the same chain be re-injected on every subtask (seen on flow 178: the SMB signing
+// block surfaced 8 times). Keyed by flow id, bounded so a long-lived host cannot
+// grow it without limit; evicting a flow may re-surface a chain, which is benign.
+var (
+	surfacedMu     sync.Mutex
+	surfacedChains = map[int64]map[string]struct{}{}
+)
+
+const maxSurfacedFlows = 512
+
+func filterUnsurfaced(flowID int64, dets []chains.Detection) []chains.Detection {
+	if flowID == 0 || len(dets) == 0 {
+		return dets
+	}
+	surfacedMu.Lock()
+	defer surfacedMu.Unlock()
+	if len(surfacedChains) > maxSurfacedFlows {
+		for k := range surfacedChains {
+			delete(surfacedChains, k)
+			if len(surfacedChains) <= maxSurfacedFlows/2 {
+				break
+			}
+		}
+	}
+	seen := surfacedChains[flowID]
+	if seen == nil {
+		seen = map[string]struct{}{}
+		surfacedChains[flowID] = seen
+	}
+	fresh := make([]chains.Detection, 0, len(dets))
+	for _, d := range dets {
+		if _, ok := seen[d.ChainID]; ok {
+			continue
+		}
+		seen[d.ChainID] = struct{}{}
+		fresh = append(fresh, d)
+	}
+	return fresh
+}
+
+// surfaceDetectedChains appends a deterministic <detected_techniques> block to a
+// tool result when its RAW output matches a curated chain fingerprint. Detection
+// runs on the raw output (so a summary or truncation cannot hide the signature)
+// and the block is appended to the FINAL result so it always reaches the agent
+// verbatim, even when the output was summarized. Dedup is per flow.
+func (ce *customExecutor) surfaceDetectedChains(name, raw, final string) string {
+	if name != TerminalToolName {
+		return final
+	}
+	fresh := filterUnsurfaced(ce.flowID, chains.Detect(raw))
+	if block := chains.RenderDetections(fresh); block != "" {
+		return final + block
+	}
+	return final
 }
 
 func truncateResult(result string) string {

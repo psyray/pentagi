@@ -1,0 +1,32 @@
+id: graphql-introspection-enabled
+name: GraphQL endpoint with introspection left enabled
+description: >
+  A GraphQL endpoint left in development mode answers introspection queries and
+  suggests field names, which hands an attacker the whole schema and every query
+  it exposes. Verification is a single read-only introspection query.
+cves: []
+product: GraphQL API
+affected: Endpoints that do not disable introspection in production
+cvss: 5.3
+severity: medium
+tags: [web, graphql, api, information-disclosure, cwe-200]
+references:
+  - https://cwe.mitre.org/data/definitions/200.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/GraphQL%20Injection
+  - https://hacktricks.wiki/
+fingerprint:
+  paths: ["/graphql", "/api/graphql", "/v1/graphql"]
+  signals:
+    - A GraphQL endpoint answering a POST query, or exposing a /graphiql console
+  notes: Introspection is read-only; do not run mutations.
+links:
+  - name: Introspection query returns the schema
+    cve: ""
+    enables: enumerating every type, field and mutation the API exposes
+    verify: >
+      POST the standard introspection query ({"query":"{__schema{types{name}}}"})
+      and check whether the response lists the schema instead of refusing. A
+      populated __schema proves introspection is open. Use read-only queries only.
+remediation: >
+  Disable introspection and field suggestions in production, require
+  authentication, and enforce query depth and cost limits.

@@ -1,0 +1,33 @@
+id: sql-injection-error-based
+name: SQL injection through a query parameter
+description: >
+  A parameter concatenated into a SQL query without parameterisation lets an
+  attacker change the query's logic. Verification uses a benign boolean pair and
+  a lone quote, never a data dump.
+cves: []
+product: Web application backed by a relational database
+affected: Parameters that reach WHERE, LIKE or ORDER clauses
+cvss: 9.8
+severity: critical
+tags: [web, sqli, injection, cwe-89]
+references:
+  - https://cwe.mitre.org/data/definitions/89.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/SQL%20Injection
+fingerprint:
+  paths: ["/", "/product", "/search", "/login", "/api"]
+  signals:
+    - An id, category or search parameter whose value reaches the database
+  notes: A boolean pair and a single quote are enough; never a UNION dump.
+links:
+  - name: Query logic changes with user input
+    cve: ""
+    enables: reading or modifying data the application did not intend to expose
+    verify: >
+      Send the same request with a true condition and a false one (for example
+      ' AND 1=1-- versus ' AND 1=2--) and with a lone single quote. A response
+      that differs between the true and false cases, or a database error on the
+      quote, proves injection. Stop there: do not enumerate tables or dump rows.
+remediation: >
+  Use parameterised queries or prepared statements for every value, and never
+  build SQL by string concatenation.

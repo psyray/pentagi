@@ -1,0 +1,39 @@
+id: race-condition-business-logic
+name: Business logic flippable by concurrent requests
+description: >
+  A check-then-act sequence on a limited resource such as a single-use coupon, a
+  balance or a vote can be bypassed by sending several requests at once before the
+  first commits. Verification fires a small number of concurrent requests for a
+  resource you own and checks for a double effect, never to gain value.
+cves: []
+product: Web application with a limited or single-use action
+affected: Endpoints redeeming a coupon, code, vote or balance without an atomic guard
+cvss: 6.5
+severity: medium
+tags: [web, race-condition, business-logic, cwe-362]
+references:
+  - https://cwe.mitre.org/data/definitions/362.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/Transaction_Authorization_Cheat_Sheet.html
+fingerprint:
+  paths: ["/redeem", "/coupon", "/vote", "/api/transfer"]
+  signals:
+    - A single-use or balance-limited action whose response reflects a remaining count
+  notes: Use only a resource you own; two concurrent requests are enough to prove it.
+links:
+  - name: Single-use action applied more than once
+    cve: ""
+    enables: repeated redemption or an inflated balance
+    verify: >
+      Send two identical requests for a coupon or code you own as close together as
+      possible, then read the remaining balance. If both succeeded, the guard is not
+      atomic. Keep the number small and use only your own resource.
+  - name: Limit check bypassed by request ordering
+    cve: ""
+    enables: exceeding a quota such as votes or invitations
+    verify: >
+      Fire a small batch of concurrent requests against a quota you own and compare the
+      resulting count with the expected maximum. A count above the limit is the proof;
+      do not repeat at volume.
+remediation: >
+  Make the check and the write atomic with a database constraint or a lock, use
+  idempotency keys for one-shot actions, and validate limits inside a transaction.

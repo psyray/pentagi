@@ -1,0 +1,45 @@
+id: smb-anonymous-user-enumeration
+name: Anonymous SMB user enumeration (SAMR) and credentials in account descriptions
+description: >
+  A host that accepts a null or guest SMB session usually answers a SAMR user
+  enumeration even when the classic RID cycling (LSARPC LsarEnumerateAccounts) is
+  refused with STATUS_ACCESS_DENIED. The returned account descriptions are a common
+  place for a plaintext password left behind by an administrator. This is a discovery
+  technique: the check enumerates the accounts and reads the description column only,
+  it modifies nothing.
+cves: []
+product: Microsoft Windows SMB server / SAMR
+affected: Domains and servers that allow an anonymous or guest SAMR user enumeration
+cvss: 5.3
+severity: medium
+tags: [ad, smb, enumeration, null-session, samr, credentials, cwe-200]
+references:
+  - https://cwe.mitre.org/data/definitions/200.html
+  - https://www.thehacker.recipes/ad/recon/ldap
+  - https://github.com/Pennyw0rth/NetExec
+fingerprint:
+  paths: []
+  signals:
+    - An SMB banner reporting a null session accepted (Null Auth:True)
+    - A host reachable through a guest or null SMB session
+  notes: >
+    Enumerate accounts only. A password found in a description is a valid credential
+    to spend on the objective, never a reason to brute force or to change anything.
+links:
+  - name: SAMR user enumeration over a null session
+    cve: ""
+    enables: discovery of account names and of plaintext passwords left in descriptions
+    verify: >
+      Run netexec smb <ip> -u '' -p '' --users (SAMR) on a host whose banner says
+      "Null Auth:True", and read the Description column. A returned account list is
+      the proof. Try this even when --rid-brute (LSARPC) was refused: SAMR and LSARPC
+      are different interfaces and one can answer where the other denies.
+  - name: Password policy readable anonymously
+    cve: ""
+    enables: a lockout-safe password spraying decision
+    verify: >
+      Run netexec smb <ip> -u '' -p '' --pass-pol and read the lockout threshold before
+      any spraying. Reading the policy is passive and changes nothing.
+remediation: >
+  Disable anonymous and guest SMB access, restrict null sessions, and remove every
+  credential left in account descriptions and comments.

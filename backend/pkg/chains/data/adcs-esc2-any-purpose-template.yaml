@@ -1,0 +1,40 @@
+id: adcs-esc2-any-purpose-template
+name: ADCS template carrying the Any Purpose EKU
+description: >
+  A certificate template that allows the Any Purpose extended key usage, or sets no
+  EKU at all, can issue a certificate usable for client authentication, so any enrollee
+  may obtain a certificate that authenticates them to any service trusting the CA.
+  Verification reads the template definition only, without requesting a certificate.
+cves: []
+product: Microsoft Active Directory Certificate Services
+affected: Published templates whose extended key usage includes Any Purpose or is unset
+cvss: 7.5
+severity: high
+tags: [ad, adcs, pki, privesc, cwe-269]
+references:
+  - https://cwe.mitre.org/data/definitions/269.html
+  - https://www.thehacker.recipes/
+  - https://github.com/ly4k/Certipy
+fingerprint:
+  paths: []
+  signals:
+    - A template whose extended key usage contains Any Purpose or is left unset
+  notes: Template enumeration is read-only; no certificate is requested.
+links:
+  - name: Template issues a certificate valid for any purpose
+    cve: ""
+    enables: authentication as the enrollee to any service that trusts the CA
+    verify: >
+      Enumerate the published templates read-only and flag those with the Any Purpose
+      EKU or none set. The template definition is the proof; do NOT request a
+      certificate.
+  - name: Enrollee scope wider than intended
+    cve: ""
+    enables: low-privileged users to obtain the wide certificate
+    verify: >
+      Read the enrollment permissions of the flagged template. A group that includes
+      your account is the proof; still do not request a certificate.
+remediation: >
+  Remove Any Purpose and empty extended key usages from templates, scope enrollment to
+  the smallest group, require manager approval for sensitive templates, and audit
+  templates on a schedule.

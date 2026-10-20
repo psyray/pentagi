@@ -1,0 +1,40 @@
+id: adcs-esc7-ca-manage-roles
+name: CA roles ManageCA or ManageCertificates held too broadly
+description: >
+  The ManageCA role can change CA configuration, for instance enabling
+  requester-supplied subject alternative names, and ManageCertificates can approve
+  pending or denied requests. A low-privileged principal holding either role can turn
+  the CA into an escalation path. Verification reads the CA security descriptor only.
+cves: []
+product: Microsoft Active Directory Certificate Services
+affected: CAs whose access control grants ManageCA or ManageCertificates too broadly
+cvss: 8.1
+severity: high
+tags: [ad, adcs, pki, privesc, cwe-269]
+references:
+  - https://cwe.mitre.org/data/definitions/269.html
+  - https://www.thehacker.recipes/
+  - https://github.com/ly4k/Certipy
+fingerprint:
+  paths: []
+  signals:
+    - A CA security descriptor granting ManageCA or ManageCertificates to a broad principal
+  notes: Reading the CA security descriptor is read-only; change no CA setting.
+links:
+  - name: ManageCA held by a broad or unprivileged principal
+    cve: ""
+    enables: enabling requester-supplied subject alternative names and forest-wide escalation
+    verify: >
+      Read the CA security descriptor read-only, for example with certipy ca, and list
+      who holds ManageCA. A broad group or an unprivileged principal in the list is the
+      proof; do NOT change any CA policy flag.
+  - name: ManageCertificates held by a broad principal
+    cve: ""
+    enables: approving a pending request to obtain a privileged certificate
+    verify: >
+      List the holders of ManageCertificates read-only. A broad principal is the proof;
+      do not approve or issue any certificate.
+remediation: >
+  Limit ManageCA and ManageCertificates to dedicated PKI administrators, review the CA
+  security descriptor on a schedule, and monitor for CA policy changes and unexpected
+  pending-request approvals.
