@@ -2154,6 +2154,61 @@ func (r *queryResolver) FlowsExecutionStatsByPeriod(ctx context.Context, period 
 	return result, nil
 }
 
+// FlowExecutionStats is the resolver for the flowExecutionStats field.
+func (r *queryResolver) FlowExecutionStats(ctx context.Context, flowID int64) (*model.FlowExecutionStats, error) {
+	uid, err := validatePermissionWithFlowID(ctx, "usage.view", flowID, r.DB)
+	if err != nil {
+		return nil, err
+	}
+
+	r.Logger.WithFields(logrus.Fields{
+		"uid":  uid,
+		"flow": flowID,
+	}).Debug("get flow execution stats")
+
+	flow, err := r.DB.GetFlow(ctx, flowID)
+	if err != nil {
+		return nil, err
+	}
+
+	tasks, err := r.DB.GetTasksForFlow(ctx, flowID)
+	if err != nil {
+		return nil, err
+	}
+
+	taskIDs := make([]int64, len(tasks))
+	for i, task := range tasks {
+		taskIDs[i] = task.ID
+	}
+
+	var subtasks []database.GetSubtasksForTasksRow
+	if len(taskIDs) > 0 {
+		subtasks, err = r.DB.GetSubtasksForTasks(ctx, taskIDs)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	msgchains, err := r.DB.GetMsgchainsForFlow(ctx, flowID)
+	if err != nil {
+		return nil, err
+	}
+
+	toolcalls, err := r.DB.GetToolcallsForFlow(ctx, flowID)
+	if err != nil {
+		return nil, err
+	}
+
+	assistantsCount, err := r.DB.GetAssistantsCountForFlow(ctx, flowID)
+	if err != nil {
+		return nil, err
+	}
+
+	stats := converter.BuildFlowExecutionStats(flow.ID, flow.Title, tasks, subtasks, msgchains, toolcalls, int(assistantsCount))
+
+	return stats, nil
+}
+
 // Settings is the resolver for the settings field.
 func (r *queryResolver) Settings(ctx context.Context) (*model.Settings, error) {
 	_, _, err := validatePermission(ctx, "settings.view")

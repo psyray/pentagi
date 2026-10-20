@@ -27,7 +27,9 @@ ORDER BY id ASC;
 
 -- name: GetMsgchainsForFlow :many
 -- Get all msgchains for a flow (including task and subtask level)
-SELECT id, type, flow_id, task_id, subtask_id, duration_seconds, created_at, updated_at
+SELECT id, type, flow_id, task_id, subtask_id, duration_seconds,
+       usage_in, usage_out, usage_cache_in, usage_cache_out, usage_cost_in, usage_cost_out,
+       created_at, updated_at
 FROM msgchains
 WHERE flow_id = $1
 ORDER BY created_at ASC;

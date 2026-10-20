@@ -82,9 +82,12 @@ INSERT INTO subtasks (
   status,
   title,
   description,
-  task_id
+  task_id,
+  type,
+  evidence,
+  budget_seconds
 ) VALUES (
-  $1, $2, $3, $4
+  $1, $2, $3, $4, $5, $6, $7
 )
 RETURNING *;
 

@@ -54,8 +54,11 @@ type Browser struct {
 }
 
 type SubtaskInfo struct {
-	Title       string `json:"title" jsonschema:"required,title=Subtask title" jsonschema_description:"Engagement-log plan entry — short title of this subtask capturing its main goal as it appears in the engagement plan. Written in the engagement language declared by your system prompt."`
-	Description string `json:"description" jsonschema:"required,title=Subtask to complete" jsonschema_description:"Engagement-log plan entry — full description of this subtask (instructions, rules, requirements, success criteria) as it appears in the engagement plan. Written in the engagement language declared by your system prompt."`
+	Title         string  `json:"title" jsonschema:"required,title=Subtask title" jsonschema_description:"Engagement-log plan entry — short title of this subtask capturing its main goal as it appears in the engagement plan. Written in the engagement language declared by your system prompt."`
+	Description   string  `json:"description" jsonschema:"required,title=Subtask to complete" jsonschema_description:"Engagement-log plan entry — full description of this subtask (instructions, rules, requirements, success criteria) as it appears in the engagement plan. Written in the engagement language declared by your system prompt."`
+	Type          string  `json:"type,omitempty" jsonschema:"title=Subtask type" jsonschema_description:"Optional plan step, one kebab-case value from: recon, enumeration, vulnerability-analysis, web-testing, exploitation, credential-access, privilege-escalation, lateral-movement, collection, exfiltration, persistence, research, analysis, verification, setup, coding, reporting. Omit when none fits; never invent a value."`
+	Evidence      Strings `json:"evidence,omitempty" jsonschema:"title=Expected evidence classes" jsonschema_description:"Optional list (0-3) of proof classes this subtask is expected to produce, e.g. http-discovery-evidence, injection-evidence, credential-evidence, objective-achieved-evidence. Omit when the subtask produces no specific proof."`
+	BudgetSeconds Int64   `json:"budget_seconds,omitempty" jsonschema:"title=Planned time budget (seconds)" jsonschema_description:"Optional planned wall-clock allowance for this subtask, in seconds (e.g. 600 for 10 minutes). Omit when the task has no time budget."`
 }
 
 type SubtaskList struct {
@@ -76,11 +79,14 @@ const (
 
 // SubtaskOperation defines a single operation on the subtask list for delta-based refinement
 type SubtaskOperation struct {
-	Op          SubtaskOperationType `json:"op" jsonschema:"required,type=string,enum=add,enum=remove,enum=modify,enum=reorder" jsonschema_description:"Operation type: 'add' creates a new subtask, 'remove' deletes a subtask by ID, 'modify' updates title/description of existing subtask, 'reorder' moves a subtask to a different position"`
-	ID          *int64               `json:"id,omitempty" jsonschema:"title=Subtask ID" jsonschema_description:"ID of existing subtask (required for remove/modify/reorder operations)"`
-	AfterID     *int64               `json:"after_id,omitempty" jsonschema:"title=Insert after ID" jsonschema_description:"For add/reorder: insert after this subtask ID (null/0 = insert at beginning)"`
-	Title       string               `json:"title,omitempty" jsonschema:"title=New title" jsonschema_description:"Engagement-log plan entry — new subtask title (required for add, optional for modify). Written in the engagement language declared by your system prompt."`
-	Description string               `json:"description,omitempty" jsonschema:"title=New description" jsonschema_description:"Engagement-log plan entry — new subtask description (required for add, optional for modify). Written in the engagement language declared by your system prompt."`
+	Op            SubtaskOperationType `json:"op" jsonschema:"required,type=string,enum=add,enum=remove,enum=modify,enum=reorder" jsonschema_description:"Operation type: 'add' creates a new subtask, 'remove' deletes a subtask by ID, 'modify' updates title/description of existing subtask, 'reorder' moves a subtask to a different position"`
+	ID            *int64               `json:"id,omitempty" jsonschema:"title=Subtask ID" jsonschema_description:"ID of existing subtask (required for remove/modify/reorder operations)"`
+	AfterID       *int64               `json:"after_id,omitempty" jsonschema:"title=Insert after ID" jsonschema_description:"For add/reorder: insert after this subtask ID (null/0 = insert at beginning)"`
+	Title         string               `json:"title,omitempty" jsonschema:"title=New title" jsonschema_description:"Engagement-log plan entry — new subtask title (required for add, optional for modify). Written in the engagement language declared by your system prompt."`
+	Description   string               `json:"description,omitempty" jsonschema:"title=New description" jsonschema_description:"Engagement-log plan entry — new subtask description (required for add, optional for modify). Written in the engagement language declared by your system prompt."`
+	Type          string               `json:"type,omitempty" jsonschema:"title=Subtask type" jsonschema_description:"Optional plan step (same vocabulary as SubtaskInfo.type). For 'add' set it when relevant; for 'modify' set it to change it, leave empty to keep the existing value, use 'none' to clear it."`
+	Evidence      Strings              `json:"evidence,omitempty" jsonschema:"title=Expected evidence classes" jsonschema_description:"Optional list of proof classes (same vocabulary as SubtaskInfo.evidence). For 'add' set it when relevant; for 'modify' set it to replace it, leave empty to keep the existing value."`
+	BudgetSeconds Int64                `json:"budget_seconds,omitempty" jsonschema:"title=Planned time budget (seconds)" jsonschema_description:"Optional planned wall-clock allowance in seconds (same meaning as SubtaskInfo.budget_seconds)."`
 }
 
 type SubtaskInfoPatch struct {
