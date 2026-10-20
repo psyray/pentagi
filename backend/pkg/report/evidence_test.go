@@ -59,18 +59,45 @@ func TestBuildEvidencePack_CollectsToolcallsTermlogsAndScreenshots(t *testing.T)
 	pack, candidates, err := buildEvidencePack(context.Background(), q, []int64{11}, EvidenceCaps{})
 	require.NoError(t, err)
 
-	// stdin is skipped: the command already lives in the toolcall candidate.
-	assert.Contains(t, pack, `[E1] toolcall "terminal"`)
+	// Screenshots are reserved first, then the toolcall, then the terminal output;
+	// stdin is skipped because the command already lives in the toolcall candidate.
+	assert.Contains(t, pack, `[E1] screenshot "foothold as lp" (id 12)`)
+	assert.Contains(t, pack, `[E2] toolcall "terminal"`)
 	assert.Contains(t, pack, "lp:x:1000:1000")
-	assert.Contains(t, pack, "[E2] terminal stdout")
+	assert.Contains(t, pack, "[E3] terminal stdout")
 	assert.Contains(t, pack, "uid=0(root)")
-	assert.Contains(t, pack, `[E3] screenshot "foothold as lp" (id 12)`)
 	assert.NotContains(t, pack, "[E4]")
 
 	require.Len(t, candidates, 3)
-	assert.Equal(t, EvidenceRef{Index: 1, Kind: EvidenceKindToolcall, Label: `toolcall "terminal"`, Path: "/work/results/foothold.txt"}, candidates[0])
-	assert.Equal(t, EvidenceKindTermlog, candidates[1].Kind)
-	assert.Equal(t, EvidenceRef{Index: 3, Kind: EvidenceKindScreenshot, Label: `screenshot "foothold as lp" (id 12)`, ScreenshotID: 12, ScreenshotName: "foothold as lp"}, candidates[2])
+	assert.Equal(t, EvidenceRef{Index: 1, Kind: EvidenceKindScreenshot, Label: `screenshot "foothold as lp" (id 12)`, ScreenshotID: 12, ScreenshotName: "foothold as lp"}, candidates[0])
+	assert.Equal(t, EvidenceRef{Index: 2, Kind: EvidenceKindToolcall, Label: `toolcall "terminal"`, Path: "/work/results/foothold.txt"}, candidates[1])
+	assert.Equal(t, EvidenceKindTermlog, candidates[2].Kind)
+}
+
+// TestBuildEvidencePack_KeepsScreenshotsWhenTextSaturatesThePack guards the
+// vision path: screenshots used to be appended after toolcalls and terminal
+// output, so a saturating pack silently dropped every candidate the writer
+// could receive as an image.
+func TestBuildEvidencePack_KeepsScreenshotsWhenTextSaturatesThePack(t *testing.T) {
+	toolcalls := make([]database.Toolcall, 0, 8)
+	for id := int64(1); id <= 8; id++ {
+		toolcalls = append(toolcalls, database.Toolcall{
+			ID:     id,
+			Name:   "terminal",
+			Result: strings.Repeat("A", 4000),
+		})
+	}
+	q := &evidenceFakeQuerier{
+		toolcalls: map[int64][]database.Toolcall{11: toolcalls},
+		shots:     map[int64][]database.Screenshot{11: {{ID: 12, Name: "foothold as lp"}}},
+	}
+
+	pack, candidates, err := buildEvidencePack(context.Background(), q, []int64{11}, EvidenceCaps{ItemBytes: 4000, PackBytes: 9000})
+	require.NoError(t, err)
+
+	require.NotEmpty(t, candidates)
+	assert.Equal(t, EvidenceKindScreenshot, candidates[0].Kind)
+	assert.Contains(t, pack, `[E1] screenshot "foothold as lp" (id 12)`)
 }
 
 func TestBuildEvidencePack_DeduplicatesRepeatedCandidates(t *testing.T) {

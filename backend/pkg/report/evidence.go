@@ -132,6 +132,28 @@ func buildEvidencePack(
 	for _, subtaskID := range subtaskIDs {
 		nullID := sql.NullInt64{Int64: subtaskID, Valid: true}
 
+		// Screenshots come first: they are the only candidates the writer can
+		// receive as images, and the pack cap used to fill up on toolcalls and
+		// terminal output before reaching them, so the vision probe never ran on
+		// a productive subtask (observed on prod reports 2026-10-20). Their
+		// text bodies are tiny, so reserving them costs almost no budget.
+		screenshots, err := db.GetSubtaskScreenshots(ctx, nullID)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to load screenshots for subtask %d: %w", subtaskID, err)
+		}
+		for _, shot := range screenshots {
+			label := shot.Name
+			if label == "" {
+				label = fmt.Sprintf("screenshot %d", shot.ID)
+			}
+			add(fmt.Sprintf("screenshot:%d", shot.ID), fmt.Sprintf("screenshot %q (id %d)", label, shot.ID),
+				fmt.Sprintf("Screenshot captured during the subtask: %s.", label), EvidenceRef{
+					Kind:           EvidenceKindScreenshot,
+					ScreenshotID:   shot.ID,
+					ScreenshotName: shot.Name,
+				})
+		}
+
 		toolcalls, err := db.GetSubtaskToolcalls(ctx, nullID)
 		if err != nil {
 			return "", nil, fmt.Errorf("failed to load toolcalls for subtask %d: %w", subtaskID, err)
@@ -157,23 +179,6 @@ func buildEvidencePack(
 				Kind: EvidenceKindTermlog,
 				Path: firstContainerPath(tl.Text),
 			})
-		}
-
-		screenshots, err := db.GetSubtaskScreenshots(ctx, nullID)
-		if err != nil {
-			return "", nil, fmt.Errorf("failed to load screenshots for subtask %d: %w", subtaskID, err)
-		}
-		for _, shot := range screenshots {
-			label := shot.Name
-			if label == "" {
-				label = fmt.Sprintf("screenshot %d", shot.ID)
-			}
-			add(fmt.Sprintf("screenshot:%d", shot.ID), fmt.Sprintf("screenshot %q (id %d)", label, shot.ID),
-				fmt.Sprintf("Screenshot captured during the subtask: %s.", label), EvidenceRef{
-					Kind:           EvidenceKindScreenshot,
-					ScreenshotID:   shot.ID,
-					ScreenshotName: shot.Name,
-				})
 		}
 	}
 
