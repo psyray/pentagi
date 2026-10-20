@@ -67,6 +67,8 @@ const (
 	PromptTypeQuestionExecutionMonitor PromptType = "question_execution_monitor" // question for adviser to monitor agent execution progress
 	PromptTypeQuestionTaskPlanner      PromptType = "question_task_planner"      // question for adviser to create execution plan for agent
 	PromptTypeTaskAssignmentWrapper    PromptType = "task_assignment_wrapper"    // wraps original request with execution plan for specialist agents
+	PromptTypeReportPlanner            PromptType = "report_planner"             // instantiates the report outline from the engagement record
+	PromptTypeReportWriter             PromptType = "report_writer"              // writes one report section from the record
 )
 
 var PromptVariables = map[PromptType][]string{
@@ -439,6 +441,28 @@ var PromptVariables = map[PromptType][]string{
 		"OriginalRequest",
 		"ExecutionPlan",
 	},
+	PromptTypeReportPlanner: {
+		"Outline",
+		"Record",
+		"Language",
+		"Title",
+		"AdditionalInstructions",
+		"Notes",
+	},
+	PromptTypeReportWriter: {
+		"Language",
+		"LengthHint",
+		"AdditionalInstructions",
+		"Notes",
+		"Outline",
+		"Record",
+		"SectionContext",
+		"SectionKey",
+		"SectionTitle",
+		"SectionInstructions",
+		"Evidence",
+		"ScreenshotsAttached",
+	},
 }
 
 type Prompt struct {
@@ -489,9 +513,15 @@ type ToolsPrompts struct {
 	TaskAssignmentWrapper    Prompt
 }
 
+type ReportPrompts struct {
+	Planner Prompt
+	Writer  Prompt
+}
+
 type DefaultPrompts struct {
 	AgentsPrompts AgentsPrompts
 	ToolsPrompts  ToolsPrompts
+	ReportPrompts ReportPrompts
 }
 
 func GetDefaultPrompts() (*DefaultPrompts, error) {
@@ -592,6 +622,10 @@ func GetDefaultPrompts() (*DefaultPrompts, error) {
 			QuestionExecutionMonitor: getPrompt(PromptTypeQuestionExecutionMonitor),
 			QuestionTaskPlanner:      getPrompt(PromptTypeQuestionTaskPlanner),
 			TaskAssignmentWrapper:    getPrompt(PromptTypeTaskAssignmentWrapper),
+		},
+		ReportPrompts: ReportPrompts{
+			Planner: getPrompt(PromptTypeReportPlanner),
+			Writer:  getPrompt(PromptTypeReportWriter),
 		},
 	}, nil
 }

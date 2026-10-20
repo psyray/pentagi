@@ -9,6 +9,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/sqlc-dev/pqtype"
@@ -209,6 +210,8 @@ const (
 	MsgchainTypeSummarizer    MsgchainType = "summarizer"
 	MsgchainTypeToolCallFixer MsgchainType = "tool_call_fixer"
 	MsgchainTypeAssistant     MsgchainType = "assistant"
+	MsgchainTypeReportControl MsgchainType = "report_control"
+	MsgchainTypeReportContent MsgchainType = "report_content"
 )
 
 func (e *MsgchainType) Scan(src interface{}) error {
@@ -1034,6 +1037,117 @@ type Provider struct {
 	CreatedAt sql.NullTime    `json:"created_at"`
 	UpdatedAt sql.NullTime    `json:"updated_at"`
 	DeletedAt sql.NullTime    `json:"deleted_at"`
+}
+
+type Report struct {
+	ID                     int64                 `json:"id"`
+	FlowID                 int64                 `json:"flow_id"`
+	UserID                 int64                 `json:"user_id"`
+	Status                 string                `json:"status"`
+	Title                  string                `json:"title"`
+	TemplateKey            string                `json:"template_key"`
+	TemplateLabel          string                `json:"template_label"`
+	ProviderName           string                `json:"provider_name"`
+	ProviderType           ProviderType          `json:"provider_type"`
+	Language               string                `json:"language"`
+	AdditionalInstructions sql.NullString        `json:"additional_instructions"`
+	ControlBudgetSeconds   int32                 `json:"control_budget_seconds"`
+	ContentBudgetSeconds   int32                 `json:"content_budget_seconds"`
+	ControlUsedSeconds     float64               `json:"control_used_seconds"`
+	ContentUsedSeconds     float64               `json:"content_used_seconds"`
+	SectionsEstimate       int32                 `json:"sections_estimate"`
+	SectionsTotal          int32                 `json:"sections_total"`
+	SectionsDone           int32                 `json:"sections_done"`
+	TokensIn               int64                 `json:"tokens_in"`
+	TokensOut              int64                 `json:"tokens_out"`
+	Error                  sql.NullString        `json:"error"`
+	CreatedAt              sql.NullTime          `json:"created_at"`
+	UpdatedAt              sql.NullTime          `json:"updated_at"`
+	FinishedAt             sql.NullTime          `json:"finished_at"`
+	Labels                 pqtype.NullRawMessage `json:"labels"`
+	BrandingTitle          sql.NullString        `json:"branding_title"`
+	BrandingSubtitle       sql.NullString        `json:"branding_subtitle"`
+	BrandingHeader         sql.NullString        `json:"branding_header"`
+	BrandingFooter         sql.NullString        `json:"branding_footer"`
+	StartedAt              sql.NullTime          `json:"started_at"`
+	MsgchainControlID      sql.NullInt64         `json:"msgchain_control_id"`
+	MsgchainContentID      sql.NullInt64         `json:"msgchain_content_id"`
+}
+
+type ReportBrandingLogo struct {
+	ReportID  int64     `json:"report_id"`
+	Data      []byte    `json:"data"`
+	Name      string    `json:"name"`
+	MediaType string    `json:"media_type"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type ReportLog struct {
+	ID        int64                 `json:"id"`
+	ReportID  int64                 `json:"report_id"`
+	SectionID sql.NullInt64         `json:"section_id"`
+	Kind      string                `json:"kind"`
+	Message   string                `json:"message"`
+	Payload   pqtype.NullRawMessage `json:"payload"`
+	CreatedAt sql.NullTime          `json:"created_at"`
+}
+
+type ReportSection struct {
+	ID               int64           `json:"id"`
+	ReportID         int64           `json:"report_id"`
+	ParentID         sql.NullInt64   `json:"parent_id"`
+	Position         int32           `json:"position"`
+	Key              string          `json:"key"`
+	Kind             string          `json:"kind"`
+	Title            string          `json:"title"`
+	Status           string          `json:"status"`
+	Content          string          `json:"content"`
+	Instructions     sql.NullString  `json:"instructions"`
+	Variables        json.RawMessage `json:"variables"`
+	Warnings         []string        `json:"warnings"`
+	Hidden           bool            `json:"hidden"`
+	TokensIn         int64           `json:"tokens_in"`
+	TokensOut        int64           `json:"tokens_out"`
+	DurationSeconds  float64         `json:"duration_seconds"`
+	CreatedAt        sql.NullTime    `json:"created_at"`
+	UpdatedAt        sql.NullTime    `json:"updated_at"`
+	SourceSubtaskIds []int64         `json:"source_subtask_ids"`
+	EvidenceRefs     json.RawMessage `json:"evidence_refs"`
+	RegenRequested   bool            `json:"regen_requested"`
+}
+
+type ReportSectionAttachment struct {
+	ID        int64     `json:"id"`
+	ReportID  int64     `json:"report_id"`
+	SectionID int64     `json:"section_id"`
+	Label     string    `json:"label"`
+	Path      string    `json:"path"`
+	Bytes     int64     `json:"bytes"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type ReportTemplate struct {
+	ID               int64          `json:"id"`
+	UserID           sql.NullInt64  `json:"user_id"`
+	Key              string         `json:"key"`
+	Label            string         `json:"label"`
+	Version          int32          `json:"version"`
+	Yaml             string         `json:"yaml"`
+	Enabled          bool           `json:"enabled"`
+	BrandingTitle    sql.NullString `json:"branding_title"`
+	BrandingSubtitle sql.NullString `json:"branding_subtitle"`
+	BrandingHeader   sql.NullString `json:"branding_header"`
+	BrandingFooter   sql.NullString `json:"branding_footer"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
+}
+
+type ReportTemplateBrandingLogo struct {
+	TemplateID int64     `json:"template_id"`
+	Data       []byte    `json:"data"`
+	Name       string    `json:"name"`
+	MediaType  string    `json:"media_type"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 type Role struct {

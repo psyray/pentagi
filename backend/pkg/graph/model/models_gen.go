@@ -98,6 +98,7 @@ type AgentsConfig struct {
 	Coder        *AgentConfig `json:"coder"`
 	Installer    *AgentConfig `json:"installer"`
 	Pentester    *AgentConfig `json:"pentester"`
+	Reporter     *AgentConfig `json:"reporter"`
 }
 
 type AgentsPrompts struct {
@@ -198,6 +199,16 @@ type CreateKnowledgeDocumentInput struct {
 	GuideType   *KnowledgeGuideType  `json:"guideType,omitempty"`
 	AnswerType  *KnowledgeAnswerType `json:"answerType,omitempty"`
 	CodeLang    *string              `json:"codeLang,omitempty"`
+}
+
+type CreateReportInput struct {
+	TemplateKey            *string `json:"templateKey,omitempty"`
+	ProviderName           *string `json:"providerName,omitempty"`
+	Title                  *string `json:"title,omitempty"`
+	Language               *string `json:"language,omitempty"`
+	AdditionalInstructions *string `json:"additionalInstructions,omitempty"`
+	ControlBudgetSeconds   *int    `json:"controlBudgetSeconds,omitempty"`
+	ContentBudgetSeconds   *int    `json:"contentBudgetSeconds,omitempty"`
 }
 
 type CredentialStatusRow struct {
@@ -494,6 +505,7 @@ type ProviderTestResult struct {
 	Coder        *AgentTestResult `json:"coder"`
 	Installer    *AgentTestResult `json:"installer"`
 	Pentester    *AgentTestResult `json:"pentester"`
+	Reporter     *AgentTestResult `json:"reporter"`
 }
 
 type ProviderUsageStats struct {
@@ -549,6 +561,159 @@ type ReasoningConfig struct {
 	MaxTokens *int             `json:"maxTokens,omitempty"`
 }
 
+type Report struct {
+	ID                     int64            `json:"id"`
+	FlowID                 int64            `json:"flowId"`
+	UserID                 int64            `json:"userId"`
+	Status                 ReportStatusType `json:"status"`
+	Title                  string           `json:"title"`
+	TemplateKey            string           `json:"templateKey"`
+	TemplateLabel          string           `json:"templateLabel"`
+	ProviderName           string           `json:"providerName"`
+	ProviderType           ProviderType     `json:"providerType"`
+	Language               string           `json:"language"`
+	AdditionalInstructions *string          `json:"additionalInstructions,omitempty"`
+	ControlBudgetSeconds   int              `json:"controlBudgetSeconds"`
+	ContentBudgetSeconds   int              `json:"contentBudgetSeconds"`
+	ControlUsedSeconds     float64          `json:"controlUsedSeconds"`
+	ContentUsedSeconds     float64          `json:"contentUsedSeconds"`
+	SectionsEstimate       int              `json:"sectionsEstimate"`
+	SectionsTotal          int              `json:"sectionsTotal"`
+	SectionsDone           int              `json:"sectionsDone"`
+	TokensIn               int              `json:"tokensIn"`
+	TokensOut              int              `json:"tokensOut"`
+	Error                  *string          `json:"error,omitempty"`
+	CreatedAt              time.Time        `json:"createdAt"`
+	UpdatedAt              time.Time        `json:"updatedAt"`
+	FinishedAt             *time.Time       `json:"finishedAt,omitempty"`
+	StartedAt              *time.Time       `json:"startedAt,omitempty"`
+}
+
+type ReportAttachment struct {
+	ID        int64     `json:"id"`
+	Label     string    `json:"label"`
+	Path      string    `json:"path"`
+	Bytes     int       `json:"bytes"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type ReportAttachmentInput struct {
+	Label *string `json:"label,omitempty"`
+	Path  string  `json:"path"`
+	Bytes *int    `json:"bytes,omitempty"`
+}
+
+type ReportBranding struct {
+	Title            *string `json:"title,omitempty"`
+	Subtitle         *string `json:"subtitle,omitempty"`
+	Header           *string `json:"header,omitempty"`
+	Footer           *string `json:"footer,omitempty"`
+	ResolvedTitle    string  `json:"resolvedTitle"`
+	ResolvedSubtitle string  `json:"resolvedSubtitle"`
+	ResolvedHeader   string  `json:"resolvedHeader"`
+	ResolvedFooter   string  `json:"resolvedFooter"`
+	HasLogo          bool    `json:"hasLogo"`
+	LogoName         *string `json:"logoName,omitempty"`
+	LogoMediaType    *string `json:"logoMediaType,omitempty"`
+}
+
+type ReportBrandingInput struct {
+	Title    *string `json:"title,omitempty"`
+	Subtitle *string `json:"subtitle,omitempty"`
+	Header   *string `json:"header,omitempty"`
+	Footer   *string `json:"footer,omitempty"`
+	Logo     *string `json:"logo,omitempty"`
+	LogoName *string `json:"logoName,omitempty"`
+}
+
+type ReportLog struct {
+	ID        int64                  `json:"id"`
+	ReportID  int64                  `json:"reportId"`
+	SectionID *int64                 `json:"sectionId,omitempty"`
+	Kind      ReportLogKind          `json:"kind"`
+	Message   string                 `json:"message"`
+	Payload   map[string]interface{} `json:"payload,omitempty"`
+	CreatedAt time.Time              `json:"createdAt"`
+}
+
+type ReportSection struct {
+	ID              int64                   `json:"id"`
+	ReportID        int64                   `json:"reportId"`
+	ParentID        *int64                  `json:"parentId,omitempty"`
+	Position        int                     `json:"position"`
+	Key             string                  `json:"key"`
+	Kind            ReportSectionKind       `json:"kind"`
+	Title           string                  `json:"title"`
+	Status          ReportSectionStatusType `json:"status"`
+	Content         string                  `json:"content"`
+	Instructions    *string                 `json:"instructions,omitempty"`
+	Variables       []*ReportVariable       `json:"variables"`
+	Warnings        []string                `json:"warnings,omitempty"`
+	Hidden          bool                    `json:"hidden"`
+	TokensIn        int                     `json:"tokensIn"`
+	TokensOut       int                     `json:"tokensOut"`
+	DurationSeconds float64                 `json:"durationSeconds"`
+	CreatedAt       time.Time               `json:"createdAt"`
+	UpdatedAt       time.Time               `json:"updatedAt"`
+	Attachments     []*ReportAttachment     `json:"attachments"`
+}
+
+type ReportSectionInput struct {
+	Title        string   `json:"title"`
+	Instructions *string  `json:"instructions,omitempty"`
+	Variables    *string  `json:"variables,omitempty"`
+	Warnings     []string `json:"warnings,omitempty"`
+}
+
+type ReportTemplate struct {
+	ID        int64                   `json:"id"`
+	Key       string                  `json:"key"`
+	Label     string                  `json:"label"`
+	Version   int                     `json:"version"`
+	Yaml      string                  `json:"yaml"`
+	Enabled   bool                    `json:"enabled"`
+	Source    ReportTemplateSource    `json:"source"`
+	UserID    *int64                  `json:"userId,omitempty"`
+	Branding  *ReportTemplateBranding `json:"branding"`
+	CreatedAt *time.Time              `json:"createdAt,omitempty"`
+	UpdatedAt *time.Time              `json:"updatedAt,omitempty"`
+}
+
+type ReportTemplateBranding struct {
+	Title         *string `json:"title,omitempty"`
+	Subtitle      *string `json:"subtitle,omitempty"`
+	Header        *string `json:"header,omitempty"`
+	Footer        *string `json:"footer,omitempty"`
+	HasLogo       bool    `json:"hasLogo"`
+	LogoName      *string `json:"logoName,omitempty"`
+	LogoMediaType *string `json:"logoMediaType,omitempty"`
+}
+
+type ReportTemplateBrandingInput struct {
+	Title    *string `json:"title,omitempty"`
+	Subtitle *string `json:"subtitle,omitempty"`
+	Header   *string `json:"header,omitempty"`
+	Footer   *string `json:"footer,omitempty"`
+	Logo     *string `json:"logo,omitempty"`
+	LogoName *string `json:"logoName,omitempty"`
+}
+
+type ReportTemplateInput struct {
+	Yaml    string `json:"yaml"`
+	Enabled *bool  `json:"enabled,omitempty"`
+	Global  *bool  `json:"global,omitempty"`
+}
+
+type ReportVariable struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+type ReportVision struct {
+	Vision bool    `json:"vision"`
+	Error  *string `json:"error,omitempty"`
+}
+
 type Screenshot struct {
 	ID        int64     `json:"id"`
 	FlowID    int64     `json:"flowId"`
@@ -579,6 +744,7 @@ type Settings struct {
 	DockerInside       bool   `json:"dockerInside"`
 	IsDevelopMode      bool   `json:"isDevelopMode"`
 	AssistantUseAgents bool   `json:"assistantUseAgents"`
+	ReportsEnabled     bool   `json:"reportsEnabled"`
 }
 
 type Subscription struct {
@@ -813,6 +979,7 @@ const (
 	AgentConfigTypeCoder        AgentConfigType = "coder"
 	AgentConfigTypeInstaller    AgentConfigType = "installer"
 	AgentConfigTypePentester    AgentConfigType = "pentester"
+	AgentConfigTypeReporter     AgentConfigType = "reporter"
 )
 
 var AllAgentConfigType = []AgentConfigType{
@@ -829,11 +996,12 @@ var AllAgentConfigType = []AgentConfigType{
 	AgentConfigTypeCoder,
 	AgentConfigTypeInstaller,
 	AgentConfigTypePentester,
+	AgentConfigTypeReporter,
 }
 
 func (e AgentConfigType) IsValid() bool {
 	switch e {
-	case AgentConfigTypeSimple, AgentConfigTypeSimpleJSON, AgentConfigTypePrimaryAgent, AgentConfigTypeAssistant, AgentConfigTypeGenerator, AgentConfigTypeRefiner, AgentConfigTypeAdviser, AgentConfigTypeReflector, AgentConfigTypeSearcher, AgentConfigTypeEnricher, AgentConfigTypeCoder, AgentConfigTypeInstaller, AgentConfigTypePentester:
+	case AgentConfigTypeSimple, AgentConfigTypeSimpleJSON, AgentConfigTypePrimaryAgent, AgentConfigTypeAssistant, AgentConfigTypeGenerator, AgentConfigTypeRefiner, AgentConfigTypeAdviser, AgentConfigTypeReflector, AgentConfigTypeSearcher, AgentConfigTypeEnricher, AgentConfigTypeCoder, AgentConfigTypeInstaller, AgentConfigTypePentester, AgentConfigTypeReporter:
 		return true
 	}
 	return false
@@ -878,6 +1046,8 @@ const (
 	AgentTypeSummarizer    AgentType = "summarizer"
 	AgentTypeToolCallFixer AgentType = "tool_call_fixer"
 	AgentTypeAssistant     AgentType = "assistant"
+	AgentTypeReportControl AgentType = "report_control"
+	AgentTypeReportContent AgentType = "report_content"
 )
 
 var AllAgentType = []AgentType{
@@ -896,11 +1066,13 @@ var AllAgentType = []AgentType{
 	AgentTypeSummarizer,
 	AgentTypeToolCallFixer,
 	AgentTypeAssistant,
+	AgentTypeReportControl,
+	AgentTypeReportContent,
 }
 
 func (e AgentType) IsValid() bool {
 	switch e {
-	case AgentTypePrimaryAgent, AgentTypeReporter, AgentTypeGenerator, AgentTypeRefiner, AgentTypeReflector, AgentTypeEnricher, AgentTypeAdviser, AgentTypeCoder, AgentTypeMemorist, AgentTypeSearcher, AgentTypeInstaller, AgentTypePentester, AgentTypeSummarizer, AgentTypeToolCallFixer, AgentTypeAssistant:
+	case AgentTypePrimaryAgent, AgentTypeReporter, AgentTypeGenerator, AgentTypeRefiner, AgentTypeReflector, AgentTypeEnricher, AgentTypeAdviser, AgentTypeCoder, AgentTypeMemorist, AgentTypeSearcher, AgentTypeInstaller, AgentTypePentester, AgentTypeSummarizer, AgentTypeToolCallFixer, AgentTypeAssistant, AgentTypeReportControl, AgentTypeReportContent:
 		return true
 	}
 	return false
@@ -1577,6 +1749,237 @@ func (e ReasoningMode) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
+type ReportLogKind string
+
+const (
+	ReportLogKindControl ReportLogKind = "control"
+	ReportLogKindSection ReportLogKind = "section"
+	ReportLogKindNote    ReportLogKind = "note"
+	ReportLogKindError   ReportLogKind = "error"
+	ReportLogKindStatus  ReportLogKind = "status"
+)
+
+var AllReportLogKind = []ReportLogKind{
+	ReportLogKindControl,
+	ReportLogKindSection,
+	ReportLogKindNote,
+	ReportLogKindError,
+	ReportLogKindStatus,
+}
+
+func (e ReportLogKind) IsValid() bool {
+	switch e {
+	case ReportLogKindControl, ReportLogKindSection, ReportLogKindNote, ReportLogKindError, ReportLogKindStatus:
+		return true
+	}
+	return false
+}
+
+func (e ReportLogKind) String() string {
+	return string(e)
+}
+
+func (e *ReportLogKind) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ReportLogKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ReportLogKind", str)
+	}
+	return nil
+}
+
+func (e ReportLogKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type ReportSectionKind string
+
+const (
+	ReportSectionKindLlm       ReportSectionKind = "llm"
+	ReportSectionKindAggregate ReportSectionKind = "aggregate"
+	ReportSectionKindComposed  ReportSectionKind = "composed"
+)
+
+var AllReportSectionKind = []ReportSectionKind{
+	ReportSectionKindLlm,
+	ReportSectionKindAggregate,
+	ReportSectionKindComposed,
+}
+
+func (e ReportSectionKind) IsValid() bool {
+	switch e {
+	case ReportSectionKindLlm, ReportSectionKindAggregate, ReportSectionKindComposed:
+		return true
+	}
+	return false
+}
+
+func (e ReportSectionKind) String() string {
+	return string(e)
+}
+
+func (e *ReportSectionKind) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ReportSectionKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ReportSectionKind", str)
+	}
+	return nil
+}
+
+func (e ReportSectionKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type ReportSectionStatusType string
+
+const (
+	ReportSectionStatusTypeQueued     ReportSectionStatusType = "queued"
+	ReportSectionStatusTypeWriting    ReportSectionStatusType = "writing"
+	ReportSectionStatusTypeDone       ReportSectionStatusType = "done"
+	ReportSectionStatusTypeFailed     ReportSectionStatusType = "failed"
+	ReportSectionStatusTypeSkipped    ReportSectionStatusType = "skipped"
+	ReportSectionStatusTypeNotWritten ReportSectionStatusType = "not_written"
+)
+
+var AllReportSectionStatusType = []ReportSectionStatusType{
+	ReportSectionStatusTypeQueued,
+	ReportSectionStatusTypeWriting,
+	ReportSectionStatusTypeDone,
+	ReportSectionStatusTypeFailed,
+	ReportSectionStatusTypeSkipped,
+	ReportSectionStatusTypeNotWritten,
+}
+
+func (e ReportSectionStatusType) IsValid() bool {
+	switch e {
+	case ReportSectionStatusTypeQueued, ReportSectionStatusTypeWriting, ReportSectionStatusTypeDone, ReportSectionStatusTypeFailed, ReportSectionStatusTypeSkipped, ReportSectionStatusTypeNotWritten:
+		return true
+	}
+	return false
+}
+
+func (e ReportSectionStatusType) String() string {
+	return string(e)
+}
+
+func (e *ReportSectionStatusType) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ReportSectionStatusType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ReportSectionStatusType", str)
+	}
+	return nil
+}
+
+func (e ReportSectionStatusType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type ReportStatusType string
+
+const (
+	ReportStatusTypeCreated    ReportStatusType = "created"
+	ReportStatusTypePlanning   ReportStatusType = "planning"
+	ReportStatusTypeGenerating ReportStatusType = "generating"
+	ReportStatusTypeCompleted  ReportStatusType = "completed"
+	ReportStatusTypeFailed     ReportStatusType = "failed"
+	ReportStatusTypeCanceled   ReportStatusType = "canceled"
+)
+
+var AllReportStatusType = []ReportStatusType{
+	ReportStatusTypeCreated,
+	ReportStatusTypePlanning,
+	ReportStatusTypeGenerating,
+	ReportStatusTypeCompleted,
+	ReportStatusTypeFailed,
+	ReportStatusTypeCanceled,
+}
+
+func (e ReportStatusType) IsValid() bool {
+	switch e {
+	case ReportStatusTypeCreated, ReportStatusTypePlanning, ReportStatusTypeGenerating, ReportStatusTypeCompleted, ReportStatusTypeFailed, ReportStatusTypeCanceled:
+		return true
+	}
+	return false
+}
+
+func (e ReportStatusType) String() string {
+	return string(e)
+}
+
+func (e *ReportStatusType) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ReportStatusType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ReportStatusType", str)
+	}
+	return nil
+}
+
+func (e ReportStatusType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type ReportTemplateSource string
+
+const (
+	ReportTemplateSourceBundled ReportTemplateSource = "bundled"
+	ReportTemplateSourceUser    ReportTemplateSource = "user"
+	ReportTemplateSourceGlobal  ReportTemplateSource = "global"
+)
+
+var AllReportTemplateSource = []ReportTemplateSource{
+	ReportTemplateSourceBundled,
+	ReportTemplateSourceUser,
+	ReportTemplateSourceGlobal,
+}
+
+func (e ReportTemplateSource) IsValid() bool {
+	switch e {
+	case ReportTemplateSourceBundled, ReportTemplateSourceUser, ReportTemplateSourceGlobal:
+		return true
+	}
+	return false
+}
+
+func (e ReportTemplateSource) String() string {
+	return string(e)
+}
+
+func (e *ReportTemplateSource) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ReportTemplateSource(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ReportTemplateSource", str)
+	}
+	return nil
+}
+
+func (e ReportTemplateSource) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
 type ResultFormat string
 
 const (
@@ -1658,6 +2061,47 @@ func (e *ResultType) UnmarshalGQL(v interface{}) error {
 }
 
 func (e ResultType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type SectionDirection string
+
+const (
+	SectionDirectionUp   SectionDirection = "up"
+	SectionDirectionDown SectionDirection = "down"
+)
+
+var AllSectionDirection = []SectionDirection{
+	SectionDirectionUp,
+	SectionDirectionDown,
+}
+
+func (e SectionDirection) IsValid() bool {
+	switch e {
+	case SectionDirectionUp, SectionDirectionDown:
+		return true
+	}
+	return false
+}
+
+func (e SectionDirection) String() string {
+	return string(e)
+}
+
+func (e *SectionDirection) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = SectionDirection(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid SectionDirection", str)
+	}
+	return nil
+}
+
+func (e SectionDirection) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 

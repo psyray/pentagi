@@ -2,7 +2,17 @@ import type { ReactElement } from 'react';
 
 import { describe, expect, it } from 'vitest';
 
-import { renderTextWithCJK, splitByCJK } from './report-pdf';
+import { pdfStyles, renderTextWithCJK, splitByCJK } from './report-pdf';
+
+describe('pdf paragraph leading', () => {
+    // react-pdf lays a Text's line box out with its own default font size when the
+    // Text inherits the page's, which doubled the paragraph leading against the
+    // lists. The explicit size on the paragraph is what keeps them equal.
+    it('sets its own font size so a paragraph is as tight as a list item', () => {
+        expect(pdfStyles.paragraph.fontSize).toBe(pdfStyles.listContent.fontSize);
+        expect(pdfStyles.paragraph.lineHeight).toBe(pdfStyles.listContent.lineHeight);
+    });
+});
 
 type CJKElement = ReactElement<{ style: Record<string, string | undefined> }>;
 

@@ -81,6 +81,7 @@ func TestCustom_BuildProviderConfig_DefaultsEveryAgentToTheServerModel(t *testin
 			// simple_json takes the simple agent's settings when it has none of its own.
 			named: map[pconfig.ProviderOptionsType]string{
 				pconfig.OptionsTypeSimple: "custom-model", pconfig.OptionsTypeSimpleJSON: "custom-model",
+				pconfig.OptionsTypeReporter: "custom-model",
 			},
 		},
 		{

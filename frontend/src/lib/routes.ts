@@ -21,6 +21,7 @@ export const routes = {
 
     flow: (id: number | string, { tab }: { tab?: string } = {}) => withQuery(`/flows/${id}`, { tab }),
     flowReport: (id: number | string) => `/flows/${id}/report`,
+    flowReportDocument: (flowId: number | string, reportId: number | string) => `/flows/${flowId}/reports/${reportId}`,
     flows: '/flows',
 
     knowledge: (id: number | string) => `/knowledges/${id}`,
@@ -31,6 +32,8 @@ export const routes = {
     newTemplate: '/templates/new',
 
     oauthResult: '/oauth/result',
+    report: (reportId: number | string) => `/reports/${reportId}`,
+    reports: '/reports',
     resources: '/resources',
 
     root: '/',
@@ -43,6 +46,7 @@ export const routes = {
         prompts: '/settings/prompts',
         provider: (id: string) => `/settings/providers/${id}`,
         providers: '/settings/providers',
+        reportTemplates: '/settings/report-templates',
         root: '/settings',
     },
 

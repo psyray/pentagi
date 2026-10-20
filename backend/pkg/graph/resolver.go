@@ -29,6 +29,7 @@ type Resolver struct {
 	DefaultPrompter templates.Prompter
 	ProvidersCtrl   providers.ProviderController
 	Controller      controller.FlowController
+	ReportsCtrl     controller.ReportController
 	Subscriptions   subscriptions.SubscriptionsController
 	Knowledge       knowledge.KnowledgeStore
 	Replacer        anonymizer.Replacer

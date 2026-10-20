@@ -11,6 +11,12 @@ import (
 
 type Querier interface {
 	AddFavoriteFlow(ctx context.Context, arg AddFavoriteFlowParams) (UserPreference, error)
+	AppendReportSectionWarning(ctx context.Context, arg AppendReportSectionWarningParams) (ReportSection, error)
+	ClearReportBrandingLogo(ctx context.Context, reportID int64) error
+	ClearReportTemplateBrandingLogo(ctx context.Context, templateID int64) error
+	// Pulls the siblings after a removed section back by one so positions stay
+	// contiguous across add/delete cycles (IS NOT DISTINCT FROM for the NULL parent).
+	CompactReportSectionPositions(ctx context.Context, arg CompactReportSectionPositionsParams) error
 	CountAPITokens(ctx context.Context) (int64, error)
 	CountActiveFlows(ctx context.Context) (int64, error)
 	CountAssistants(ctx context.Context) (int64, error)
@@ -32,6 +38,11 @@ type Querier interface {
 	CreateMsgChain(ctx context.Context, arg CreateMsgChainParams) (Msgchain, error)
 	CreateMsgLog(ctx context.Context, arg CreateMsgLogParams) (Msglog, error)
 	CreateProvider(ctx context.Context, arg CreateProviderParams) (Provider, error)
+	CreateReport(ctx context.Context, arg CreateReportParams) (Report, error)
+	CreateReportLog(ctx context.Context, arg CreateReportLogParams) (ReportLog, error)
+	CreateReportSection(ctx context.Context, arg CreateReportSectionParams) (ReportSection, error)
+	CreateReportSectionAttachment(ctx context.Context, arg CreateReportSectionAttachmentParams) (ReportSectionAttachment, error)
+	CreateReportTemplate(ctx context.Context, arg CreateReportTemplateParams) (ReportTemplate, error)
 	CreateResultAssistantLog(ctx context.Context, arg CreateResultAssistantLogParams) (Assistantlog, error)
 	CreateResultMsgLog(ctx context.Context, arg CreateResultMsgLogParams) (Msglog, error)
 	CreateScreenshot(ctx context.Context, arg CreateScreenshotParams) (Screenshot, error)
@@ -57,8 +68,16 @@ type Querier interface {
 	DeleteFlowTemplate(ctx context.Context, arg DeleteFlowTemplateParams) error
 	// Delete a knowledge document by UUID (admin — no user_id check).
 	DeleteKnowledgeDocument(ctx context.Context, uuid sql.NullString) error
+	// Removes a chain that is not FK-bound to its owner, e.g. a report's chains once
+	// the report is deleted (backlog v2, L8).
+	DeleteMsgChain(ctx context.Context, id int64) error
 	DeletePrompt(ctx context.Context, id int64) error
 	DeleteProvider(ctx context.Context, id int64) (Provider, error)
+	DeleteReport(ctx context.Context, arg DeleteReportParams) error
+	DeleteReportSection(ctx context.Context, arg DeleteReportSectionParams) error
+	// The set mutation replaces a section's attachments wholesale.
+	DeleteReportSectionAttachments(ctx context.Context, arg DeleteReportSectionAttachmentsParams) error
+	DeleteReportTemplate(ctx context.Context, arg DeleteReportTemplateParams) error
 	DeleteSubtask(ctx context.Context, id int64) error
 	DeleteSubtasks(ctx context.Context, ids []int64) error
 	DeleteUser(ctx context.Context, id int64) error
@@ -75,9 +94,11 @@ type Querier interface {
 	// (providers_name_user_id_unique is partial on deleted_at IS NULL). Mirrors the
 	// guard GetUserProvider already applies on the rename path.
 	DeleteUserProvider(ctx context.Context, arg DeleteUserProviderParams) (Provider, error)
+	FinishReport(ctx context.Context, arg FinishReportParams) (Report, error)
 	GetAPIToken(ctx context.Context, id int64) (ApiToken, error)
 	GetAPITokenByTokenID(ctx context.Context, tokenID string) (ApiToken, error)
 	GetAPITokens(ctx context.Context) ([]ApiToken, error)
+	GetActiveReports(ctx context.Context) ([]Report, error)
 	// Get toolcalls stats for all flows
 	GetAllFlowsToolcallsStats(ctx context.Context) ([]GetAllFlowsToolcallsStatsRow, error)
 	GetAllFlowsUsageStats(ctx context.Context) ([]GetAllFlowsUsageStatsRow, error)
@@ -104,6 +125,8 @@ type Querier interface {
 	GetFlowMsgChains(ctx context.Context, flowID int64) ([]Msgchain, error)
 	GetFlowMsgLogs(ctx context.Context, flowID int64) ([]Msglog, error)
 	GetFlowPrimaryContainer(ctx context.Context, flowID int64) (Container, error)
+	GetFlowReport(ctx context.Context, arg GetFlowReportParams) (Report, error)
+	GetFlowReports(ctx context.Context, arg GetFlowReportsParams) ([]Report, error)
 	GetFlowScreenshots(ctx context.Context, flowID int64) ([]Screenshot, error)
 	GetFlowSearchLog(ctx context.Context, arg GetFlowSearchLogParams) (Searchlog, error)
 	GetFlowSearchLogs(ctx context.Context, flowID int64) ([]Searchlog, error)
@@ -133,8 +156,10 @@ type Querier interface {
 	GetFlowsForPeriod(ctx context.Context, arg GetFlowsForPeriodParams) ([]GetFlowsForPeriodRow, error)
 	// One dense row per calendar day in the caller's timezone, zeros included.
 	GetFlowsStatsByDay(ctx context.Context, arg GetFlowsStatsByDayParams) ([]GetFlowsStatsByDayRow, error)
+	GetGlobalReportTemplates(ctx context.Context) ([]ReportTemplate, error)
 	// Fetch a single knowledge document by its UUID (admin view — no user_id check).
 	GetKnowledgeDocument(ctx context.Context, uuid string) (GetKnowledgeDocumentRow, error)
+	GetMaxReportSectionPosition(ctx context.Context, reportID int64) (sql.NullInt32, error)
 	GetMsgChain(ctx context.Context, id int64) (Msgchain, error)
 	// Get all msgchains for a flow (including task and subtask level)
 	GetMsgchainsForFlow(ctx context.Context, flowID int64) ([]GetMsgchainsForFlowRow, error)
@@ -142,6 +167,25 @@ type Querier interface {
 	GetProvider(ctx context.Context, id int64) (Provider, error)
 	GetProviders(ctx context.Context) ([]Provider, error)
 	GetProvidersByType(ctx context.Context, type_ ProviderType) ([]Provider, error)
+	GetReport(ctx context.Context, arg GetReportParams) (Report, error)
+	GetReportBrandingLogo(ctx context.Context, reportID int64) (GetReportBrandingLogoRow, error)
+	GetReportBrandingLogoInfo(ctx context.Context, reportID int64) (GetReportBrandingLogoInfoRow, error)
+	GetReportByID(ctx context.Context, id int64) (Report, error)
+	GetReportLogs(ctx context.Context, arg GetReportLogsParams) ([]ReportLog, error)
+	GetReportSection(ctx context.Context, arg GetReportSectionParams) (ReportSection, error)
+	// Every operator attachment of one report, in creation order; the controller
+	// groups them by section for the reader and the archive (backlog v2, L6).
+	GetReportSectionAttachments(ctx context.Context, reportID int64) ([]ReportSectionAttachment, error)
+	GetReportSectionAttachmentsBySection(ctx context.Context, arg GetReportSectionAttachmentsBySectionParams) ([]ReportSectionAttachment, error)
+	GetReportSections(ctx context.Context, reportID int64) ([]ReportSection, error)
+	GetReportTemplate(ctx context.Context, id int64) (ReportTemplate, error)
+	GetReportTemplateBrandingLogo(ctx context.Context, templateID int64) (GetReportTemplateBrandingLogoRow, error)
+	GetReportTemplateBrandingLogoInfo(ctx context.Context, templateID int64) (GetReportTemplateBrandingLogoInfoRow, error)
+	// DB-first template resolution (L3): a user's own template wins over a global
+	// one (IS NOT DISTINCT FROM matches the NULL user_id of a global template), and
+	// the caller prefers enabled templates but falls back to a disabled one so an
+	// historical report still renders after its template was switched off.
+	GetReportTemplateByKey(ctx context.Context, arg GetReportTemplateByKeyParams) (ReportTemplate, error)
 	GetRole(ctx context.Context, id int64) (GetRoleRow, error)
 	GetRoleByName(ctx context.Context, name string) (GetRoleByNameRow, error)
 	GetRoles(ctx context.Context) ([]GetRolesRow, error)
@@ -235,6 +279,8 @@ type Querier interface {
 	GetUserProviderByName(ctx context.Context, arg GetUserProviderByNameParams) (Provider, error)
 	GetUserProviders(ctx context.Context, userID int64) ([]Provider, error)
 	GetUserProvidersByType(ctx context.Context, arg GetUserProvidersByTypeParams) ([]Provider, error)
+	GetUserReportTemplates(ctx context.Context, userID sql.NullInt64) ([]ReportTemplate, error)
+	GetUserReports(ctx context.Context, userID int64) ([]Report, error)
 	GetUserResourceByID(ctx context.Context, id int64) (UserResource, error)
 	GetUserResourcesAll(ctx context.Context, userID int64) ([]UserResource, error)
 	GetUserResourcesByIDs(ctx context.Context, ids []int64) ([]UserResource, error)
@@ -255,8 +301,14 @@ type Querier interface {
 	ListAllKnowledgeDocuments(ctx context.Context) ([]ListAllKnowledgeDocumentsRow, error)
 	// List non-memory knowledge documents belonging to a specific flow (admin scoped).
 	ListFlowKnowledgeDocuments(ctx context.Context, flowID sql.NullString) ([]ListFlowKnowledgeDocumentsRow, error)
+	// Every template the Settings page lists for the caller: the caller's own plus
+	// the global ones, newest first.
+	ListReportTemplates(ctx context.Context, userID sql.NullInt64) ([]ReportTemplate, error)
 	// List all non-memory knowledge documents owned by a specific user (user-scoped view).
 	ListUserKnowledgeDocuments(ctx context.Context, userID sql.NullString) ([]ListUserKnowledgeDocumentsRow, error)
+	// A resume restarts the run cleanly: the previous finished_at and error must
+	// not linger while the worker is generating again.
+	ResetReportForResume(ctx context.Context, arg ResetReportForResumeParams) (Report, error)
 	SaveAssistantLog(ctx context.Context, arg SaveAssistantLogParams) error
 	SaveAssistantLogContent(ctx context.Context, arg SaveAssistantLogContentParams) error
 	// Vector similarity search over all knowledge documents (admin view, no user filter).
@@ -273,6 +325,38 @@ type Querier interface {
 	// lim          maximum number of rows to return
 	// user_id      owner filter as a decimal text string (e.g. "42")
 	SearchUserKnowledgeDocuments(ctx context.Context, arg SearchUserKnowledgeDocumentsParams) ([]SearchUserKnowledgeDocumentsRow, error)
+	SetReportBrandingLogo(ctx context.Context, arg SetReportBrandingLogoParams) error
+	SetReportBrandingText(ctx context.Context, arg SetReportBrandingTextParams) (Report, error)
+	// Used by resumeReport when the operator grants fresh content seconds.
+	SetReportContentBudget(ctx context.Context, arg SetReportContentBudgetParams) (Report, error)
+	SetReportEstimate(ctx context.Context, arg SetReportEstimateParams) (Report, error)
+	SetReportLabels(ctx context.Context, arg SetReportLabelsParams) (Report, error)
+	// Persists the report's two msgchains so a resume reopens them instead of
+	// duplicating (backlog v2, L8).
+	SetReportMsgChainIDs(ctx context.Context, arg SetReportMsgChainIDsParams) (Report, error)
+	SetReportPlan(ctx context.Context, arg SetReportPlanParams) (Report, error)
+	SetReportSectionEvidence(ctx context.Context, arg SetReportSectionEvidenceParams) (ReportSection, error)
+	SetReportSectionHidden(ctx context.Context, arg SetReportSectionHiddenParams) (ReportSection, error)
+	SetReportSectionPosition(ctx context.Context, arg SetReportSectionPositionParams) (ReportSection, error)
+	SetReportSectionRegenRequested(ctx context.Context, arg SetReportSectionRegenRequestedParams) (ReportSection, error)
+	SetReportSectionSources(ctx context.Context, arg SetReportSectionSourcesParams) (ReportSection, error)
+	SetReportSectionStatus(ctx context.Context, arg SetReportSectionStatusParams) (ReportSection, error)
+	SetReportSectionTitle(ctx context.Context, arg SetReportSectionTitleParams) (ReportSection, error)
+	// Stamps the current run's start so the panel can show the run duration
+	// (finished_at - started_at) instead of the report's whole lifetime.
+	SetReportStartedAt(ctx context.Context, id int64) (Report, error)
+	SetReportTemplateBrandingLogo(ctx context.Context, arg SetReportTemplateBrandingLogoParams) error
+	SetReportTemplateBrandingText(ctx context.Context, arg SetReportTemplateBrandingTextParams) (ReportTemplate, error)
+	SetReportTemplateEnabled(ctx context.Context, arg SetReportTemplateEnabledParams) (ReportTemplate, error)
+	// IS NOT DISTINCT FROM so a NULL parent (top-level sections) matches the NULL
+	// argument: `parent_id = NULL` never matched and silently skipped the shift,
+	// leaving the new section on top of an existing position.
+	ShiftReportSectionPositions(ctx context.Context, arg ShiftReportSectionPositionsParams) error
+	// Derives the counters from the section rows so a hand-added (or deleted)
+	// section is reflected: total excludes the skipped alternatives, done counts the
+	// resolved ones. The planner's own total only holds until the first sync, which
+	// keeps a fresh report's "not planned yet" signal (sections_total = 0) intact.
+	SyncReportSectionCounts(ctx context.Context, reportID sql.NullInt64) (Report, error)
 	UpdateAPIToken(ctx context.Context, arg UpdateAPITokenParams) (ApiToken, error)
 	UpdateAssistant(ctx context.Context, arg UpdateAssistantParams) (Assistant, error)
 	UpdateAssistantLanguage(ctx context.Context, arg UpdateAssistantLanguageParams) (Assistant, error)
@@ -320,6 +404,11 @@ type Querier interface {
 	UpdateMsgLogResult(ctx context.Context, arg UpdateMsgLogResultParams) (Msglog, error)
 	UpdatePrompt(ctx context.Context, arg UpdatePromptParams) (Prompt, error)
 	UpdateProvider(ctx context.Context, arg UpdateProviderParams) (Provider, error)
+	UpdateReportProgress(ctx context.Context, arg UpdateReportProgressParams) (Report, error)
+	UpdateReportSectionContent(ctx context.Context, arg UpdateReportSectionContentParams) (ReportSection, error)
+	UpdateReportSectionFields(ctx context.Context, arg UpdateReportSectionFieldsParams) (ReportSection, error)
+	UpdateReportStatus(ctx context.Context, arg UpdateReportStatusParams) (Report, error)
+	UpdateReportTemplate(ctx context.Context, arg UpdateReportTemplateParams) (ReportTemplate, error)
 	UpdateSubtaskContext(ctx context.Context, arg UpdateSubtaskContextParams) (Subtask, error)
 	UpdateSubtaskFailedResult(ctx context.Context, arg UpdateSubtaskFailedResultParams) (Subtask, error)
 	UpdateSubtaskFinishedResult(ctx context.Context, arg UpdateSubtaskFinishedResultParams) (Subtask, error)

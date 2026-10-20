@@ -40,11 +40,13 @@ import { SystemSettingsProvider } from './providers/system-settings-provider';
 const Dashboard = lazy(() => import('@/pages/dashboard/dashboard'));
 const Flow = lazy(() => import('@/pages/flows/flow'));
 const FlowReport = lazy(() => import('@/pages/flows/flow-report'));
+const FlowReportDocument = lazy(() => import('@/pages/flows/flow-report-document'));
 const Flows = lazy(() => import('@/pages/flows/flows'));
 const NewFlow = lazy(() => import('@/pages/flows/new-flow'));
 const Login = lazy(() => import('@/pages/login'));
 const Knowledge = lazy(() => import('@/pages/knowledges/knowledge'));
 const Knowledges = lazy(() => import('@/pages/knowledges/knowledges'));
+const Reports = lazy(() => import('@/pages/reports/reports'));
 const Resources = lazy(() => import('@/pages/resources/resources'));
 const Template = lazy(() => import('@/pages/templates/template'));
 const Templates = lazy(() => import('@/pages/templates/templates'));
@@ -55,6 +57,7 @@ const SettingsPrompt = lazy(() => import('@/pages/settings/settings-prompt'));
 const SettingsPrompts = lazy(() => import('@/pages/settings/settings-prompts'));
 const SettingsProvider = lazy(() => import('@/pages/settings/settings-provider'));
 const SettingsProviders = lazy(() => import('@/pages/settings/settings-providers'));
+const SettingsReportTemplates = lazy(() => import('@/pages/settings/settings-report-templates'));
 
 function FlowWithProvider() {
     return (
@@ -163,6 +166,23 @@ const router = createBrowserRouter(
                     </Route>
 
                     <Route
+                        element={<FlowReportDocument />}
+                        handle={routeTitles.flowReportDocument}
+                        path="flows/:flowId/reports/:reportId"
+                    />
+
+                    <Route
+                        element={<Reports />}
+                        handle={routeTitles.reports}
+                        path="reports"
+                    />
+                    <Route
+                        element={<FlowReportDocument />}
+                        handle={routeTitles.report}
+                        path="reports/:reportId"
+                    />
+
+                    <Route
                         element={<Templates />}
                         handle={routeTitles.templates}
                         path="templates"
@@ -235,6 +255,11 @@ const router = createBrowserRouter(
                         element={<SettingsAPITokens />}
                         handle={routeTitles.apiTokens}
                         path="api-tokens"
+                    />
+                    <Route
+                        element={<SettingsReportTemplates />}
+                        handle={routeTitles.reportTemplates}
+                        path="report-templates"
                     />
                     <Route
                         element={

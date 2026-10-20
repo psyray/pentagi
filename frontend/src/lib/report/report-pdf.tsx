@@ -1,7 +1,10 @@
-import { Document, Font, Page, pdf, StyleSheet, Text, View } from '@react-pdf/renderer';
+import { Document, Font, Image, Page, pdf, StyleSheet, Text, View } from '@react-pdf/renderer';
 import { marked } from 'marked';
 
 import { Log } from '@/lib/log';
+import { resolvePageTokens } from '@/lib/report/report-branding';
+
+import { ReportPaginator } from './report-pagination';
 
 const CJK_RE =
     /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Bopomofo}\u3000-\u303f\uff00-\uffef]+/gu;
@@ -98,7 +101,7 @@ export const splitByCJK = (text: string): TextSegment[] => {
     return segments.length > 0 ? segments : [{ isCJK: false, text }];
 };
 
-const pdfStyles = StyleSheet.create({
+export const pdfStyles = StyleSheet.create({
     bold: {
         fontWeight: 'bold',
     },
@@ -203,6 +206,10 @@ const pdfStyles = StyleSheet.create({
         marginBottom: 4,
         marginLeft: 16,
     },
+    logo: {
+        marginBottom: 12,
+        width: 150,
+    },
     page: {
         backgroundColor: '#ffffff',
         color: '#334155',
@@ -211,9 +218,27 @@ const pdfStyles = StyleSheet.create({
         lineHeight: 1.5,
         padding: 40,
     },
+    pageFooter: {
+        color: '#94a3b8',
+        fontSize: 8,
+        marginBottom: 6,
+        marginTop: 6,
+        textAlign: 'center',
+    },
+    pageHeader: {
+        color: '#94a3b8',
+        fontSize: 8,
+        marginBottom: 6,
+        marginTop: 6,
+        textAlign: 'center',
+    },
     paragraph: {
         color: '#475569',
-        lineHeight: 1.6,
+        // The font size is set here on purpose: react-pdf lays the line box out
+        // with its own default size (12) when a Text inherits the page's, which
+        // doubled the paragraph leading while the list kept a tight one.
+        fontSize: 10,
+        lineHeight: 1.5,
         marginBottom: 8,
         textAlign: 'justify',
     },
@@ -513,9 +538,14 @@ const renderInlineTokens = (tokens: InlineToken[], keyPrefix: string) => {
     });
 };
 
-const renderPDFContent = (parsed: ParsedContent[]) => {
+const renderPDFContent = (parsed: ParsedContent[], paginate: boolean) => {
+    const paginator = paginate ? new ReportPaginator() : null;
     const elements = parsed
         .map((item, index) => {
+            if (item.type !== 'heading') {
+                paginator?.content();
+            }
+
             switch (item.type) {
                 case 'code': {
                     if (!item.content) {
@@ -550,8 +580,12 @@ const renderPDFContent = (parsed: ParsedContent[]) => {
                                     ? pdfStyles.h5
                                     : pdfStyles.h6;
 
+                    const headingText = item.inlineTokens.map((token) => token.text).join('');
+                    const breakBefore = paginator ? paginator.heading(item.level ?? 1, headingText).breakBefore : false;
+
                     return (
                         <Text
+                            break={breakBefore}
                             key={`heading-${index}`}
                             style={style}
                         >
@@ -619,9 +653,30 @@ const renderPDFContent = (parsed: ParsedContent[]) => {
     return elements;
 };
 
-function PDFReportDocument({ content }: { content: string }) {
+export interface PdfBranding {
+    footer?: string;
+    header?: string;
+    logo?: null | PdfBrandingLogo;
+}
+
+// The export branding the PDF carries: the cover logo and the page
+// header/footer repeated on every page. The size is measured by the caller so
+// react-pdf does not have to decode the image to lay it out.
+export interface PdfBrandingLogo {
+    dataUrl: string;
+    height?: number;
+    width?: number;
+}
+
+interface PDFReportDocumentProps {
+    branding?: PdfBranding;
+    content: string;
+    paginateSections?: boolean;
+}
+
+function PDFReportDocument({ branding, content, paginateSections = false }: PDFReportDocumentProps) {
     const parsed = parseMarkdownTokens(content);
-    const elements = renderPDFContent(parsed);
+    const elements = renderPDFContent(parsed, paginateSections);
 
     return (
         <Document>
@@ -629,18 +684,47 @@ function PDFReportDocument({ content }: { content: string }) {
                 size="A4"
                 style={pdfStyles.page}
             >
+                {branding?.logo && (
+                    <Image
+                        src={branding.logo.dataUrl}
+                        style={
+                            branding.logo.width
+                                ? { height: branding.logo.height, width: branding.logo.width }
+                                : pdfStyles.logo
+                        }
+                    />
+                )}
+                {branding?.header && (
+                    <Text
+                        fixed
+                        render={({ pageNumber, totalPages }) =>
+                            resolvePageTokens(branding.header ?? '', pageNumber, totalPages)
+                        }
+                        style={pdfStyles.pageHeader}
+                    />
+                )}
                 {elements}
+                {branding?.footer && (
+                    <Text
+                        fixed
+                        render={({ pageNumber, totalPages }) =>
+                            resolvePageTokens(branding.footer ?? '', pageNumber, totalPages)
+                        }
+                        style={pdfStyles.pageFooter}
+                    />
+                )}
             </Page>
         </Document>
     );
 }
 
-export const generatePDFFromMarkdownNew = async (content: string, fileName: string): Promise<void> => {
+export const generatePDFFromMarkdownNew = async (
+    content: string,
+    fileName: string,
+    options?: { branding?: PdfBranding; paginateSections?: boolean },
+): Promise<void> => {
     try {
-        ensureFonts(content);
-
-        const doc = <PDFReportDocument content={content} />;
-        const blob = await pdf(doc).toBlob();
+        const blob = await buildPDFBlob(content, options);
 
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -655,4 +739,21 @@ export const generatePDFFromMarkdownNew = async (content: string, fileName: stri
         Log.error('Failed to generate PDF:', error);
         throw error;
     }
+};
+
+// buildPDFBlob renders the document without downloading it, so the print preview
+// and the export walk the exact same layout (page count included).
+export const buildPDFBlob = async (
+    content: string,
+    options?: { branding?: PdfBranding; paginateSections?: boolean },
+): Promise<Blob> => {
+    ensureFonts(content);
+
+    return pdf(
+        <PDFReportDocument
+            branding={options?.branding}
+            content={content}
+            paginateSections={options?.paginateSections}
+        />,
+    ).toBlob();
 };

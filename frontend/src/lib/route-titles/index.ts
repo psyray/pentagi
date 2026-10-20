@@ -2,8 +2,10 @@ import type { ComponentType } from 'react';
 
 import {
     FlowDocument,
+    FlowReportsDocument,
     FlowTemplateDocument,
     KnowledgeDocumentDocument,
+    ReportRowDocument,
     SettingsProvidersDocument,
 } from '@/graphql/types';
 
@@ -46,6 +48,15 @@ export const routeTitles = {
         }),
     },
     flowReport: { title: 'Flow report' },
+    flowReportDocument: {
+        title: apolloTitle({
+            document: FlowReportsDocument,
+            select: (data, { reportId }) =>
+                // GraphQL `ID` arrives as an integer while the route param is a string.
+                data?.reports?.find((report) => String(report.id) === String(reportId))?.title || 'Report',
+            variables: ({ flowId }) => (flowId ? { flowId } : null),
+        }),
+    },
     flows: { title: 'Flows' },
     knowledge: {
         title: apolloTitle({
@@ -83,6 +94,18 @@ export const routeTitles = {
     },
 
     providers: { title: 'Providers' },
+
+    report: {
+        title: apolloTitle({
+            document: ReportRowDocument,
+            select: (data) => data?.report?.title || 'Report',
+            variables: ({ reportId }) => (reportId ? { reportId } : null),
+        }),
+    },
+
+    reports: { title: 'Reports' },
+
+    reportTemplates: { title: 'Report templates' },
 
     resources: { title: 'Resources' },
 

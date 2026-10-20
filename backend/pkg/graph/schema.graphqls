@@ -123,6 +123,8 @@ enum AgentType {
   summarizer
   tool_call_fixer
   assistant
+  report_control
+  report_content
 }
 
 # AI agent type for provider configuration
@@ -140,6 +142,7 @@ enum AgentConfigType {
   coder
   installer
   pentester
+  reporter
 }
 
 # Terminal output stream types
@@ -202,6 +205,7 @@ type Settings {
   dockerInside: Boolean!
   isDevelopMode: Boolean!
   assistantUseAgents: Boolean!
+  reportsEnabled: Boolean!
 }
 
 enum UpdateState {
@@ -624,6 +628,7 @@ type ProviderTestResult {
   coder: AgentTestResult!
   installer: AgentTestResult!
   pentester: AgentTestResult!
+  reporter: AgentTestResult!
 }
 
 # ==================== Analytics & Usage Statistics Types ====================
@@ -902,6 +907,9 @@ type AgentsConfig {
   coder: AgentConfig!
   installer: AgentConfig!
   pentester: AgentConfig!
+  # The report engine's dedicated slot, resolved to simple when unset, so the
+  # provider form always shows the model reports will use.
+  reporter: AgentConfig!
 }
 
 # ==================== Input Types ====================
@@ -957,6 +965,8 @@ input AgentsConfigInput {
   coder: AgentConfigInput!
   installer: AgentConfigInput!
   pentester: AgentConfigInput!
+  # The report engine's dedicated slot; omit it to fall back to simple.
+  reporter: AgentConfigInput
 }
 
 # ==================== Knowledge (Vector Store) Types ====================
@@ -1271,6 +1281,23 @@ type Query {
   flowDetectedCVEs(flowId: ID!): [DetectedCVERow!]!
   flowGraphitiToolUsage(flowId: ID!): [GraphitiToolUsageRow!]!
   flowArtifacts(flowId: ID!): [ArtifactRow!]!
+
+  # Reports (fork extended-version, section 6): AI-generated documents.
+  # Without flowId the query lists every report owned by the caller (global
+  # Reports page, L5); with flowId it stays scoped to that flow.
+  reports(flowId: ID): [Report!]!
+  report(reportId: ID!): Report!
+  reportSections(reportId: ID!): [ReportSection!]!
+  reportLogs(reportId: ID!, limit: Int): [ReportLog!]!
+  reportDocument(reportId: ID!): String!
+  # reportVision probes whether the provider a report would use can read images.
+  reportVision(flowId: ID!, providerName: String): ReportVision!
+  # The per-report export branding (plan § 6.6 / P6).
+  reportBranding(reportId: ID!): ReportBranding!
+  # Every report template the caller may use: the bundled ones plus their own
+  # and the global ones (Settings > Report templates, backlog v2 L3).
+  reportTemplates: [ReportTemplate!]!
+
 }
 
 type Mutation {
@@ -1321,6 +1348,37 @@ type Mutation {
   renameKnowledgeDocument(id: String!, question: String!): KnowledgeDocument!
   deleteKnowledgeDocument(id: String!): ResultType!
   anonymizeText(text: String!): String!
+
+  # Reports (fork extended-version, section 6)
+  createReport(flowId: ID!, input: CreateReportInput!): Report!
+  updateReportBranding(reportId: ID!, input: ReportBrandingInput!): ReportBranding!
+  putReportNote(reportId: ID!, note: String!): ResultType!
+  stopReport(reportId: ID!): ResultType!
+  deleteReport(reportId: ID!): ResultType!
+  # resumeReport re-queues the unwritten sections and relaunches a finished,
+  # failed or canceled report; contentBudgetSeconds grants fresh content time.
+  # It returns ResultType: the live reportUpdated frames carry the state (a
+  # returned Report would be written to the client cache and could clobber a
+  # newer frame when the run finishes before the response lands).
+  resumeReport(reportId: ID!, contentBudgetSeconds: Int): ResultType!
+  # writeReportSection runs the writer on a single section.
+  writeReportSection(reportId: ID!, sectionId: ID!): ResultType!
+  updateReportSection(reportId: ID!, sectionId: ID!, input: ReportSectionInput!): ReportSection!
+  setReportSectionContent(reportId: ID!, sectionId: ID!, content: String!): ReportSection!
+  moveReportSection(reportId: ID!, sectionId: ID!, direction: SectionDirection!): ResultType!
+  hideReportSection(reportId: ID!, sectionId: ID!, hidden: Boolean!): ReportSection!
+  addReportSection(reportId: ID!, afterSectionId: ID, parentId: ID, title: String!): ReportSection!
+  deleteReportSection(reportId: ID!, sectionId: ID!): ResultType!
+  # setReportSectionAttachments replaces a section's operator attachments wholesale.
+  setReportSectionAttachments(reportId: ID!, sectionId: ID!, attachments: [ReportAttachmentInput!]!): [ReportAttachment!]!
+
+  # Report templates (backlog v2, L3). A personal template needs reports.edit;
+  # a global one (input.global on create) needs reports.admin.
+  createReportTemplate(input: ReportTemplateInput!): ReportTemplate!
+  updateReportTemplate(templateId: ID!, input: ReportTemplateInput!): ReportTemplate!
+  setReportTemplateEnabled(templateId: ID!, enabled: Boolean!): ReportTemplate!
+  deleteReportTemplate(templateId: ID!): ResultType!
+  setReportTemplateBranding(templateId: ID!, input: ReportTemplateBrandingInput!): ReportTemplateBranding!
 }
 
 type Subscription {
@@ -1380,5 +1438,243 @@ type Subscription {
   knowledgeDocumentCreated: KnowledgeDocument!
   knowledgeDocumentUpdated: KnowledgeDocument!
   knowledgeDocumentDeleted: KnowledgeDocument!
-  
+
+  # Report events (fork extended-version, section 6)
+  reportCreated(flowId: ID!): Report!
+  reportUpdated(flowId: ID!): Report!
+  reportDeleted(flowId: ID!): Report!
+  reportSectionUpdated(flowId: ID!): ReportSection!
+  reportLogAdded(flowId: ID!): ReportLog!
+
+}
+
+# ==================== Reports Types (fork extended-version, section 6) ====================
+
+enum ReportStatusType {
+  created
+  planning
+  generating
+  completed
+  failed
+  canceled
+}
+
+enum ReportSectionStatusType {
+  queued
+  writing
+  done
+  failed
+  skipped
+  not_written
+}
+
+enum ReportSectionKind {
+  llm
+  aggregate
+  composed
+}
+
+enum ReportLogKind {
+  control
+  section
+  note
+  error
+  status
+}
+
+enum SectionDirection {
+  up
+  down
+}
+
+# Where a listed report template comes from (backlog v2, L3).
+enum ReportTemplateSource {
+  # A bundled template compiled into the binary; read-only.
+  bundled
+  # The caller's own template.
+  user
+  # A global template, managed by an admin and visible to everyone.
+  global
+}
+
+# One report template: the YAML outline a report run follows. The YAML is the
+# source of truth for key/label/version; a bundled template carries id 0 and
+# cannot be edited.
+type ReportTemplate {
+  id: ID!
+  key: String!
+  label: String!
+  version: Int!
+  yaml: String!
+  enabled: Boolean!
+  source: ReportTemplateSource!
+  # The owner of a personal template; null for a global or bundled one.
+  userId: ID
+  branding: ReportTemplateBranding!
+  createdAt: Time
+  updatedAt: Time
+}
+
+# The branding a report template hands down to the reports that use it.
+type ReportTemplateBranding {
+  title: String
+  subtitle: String
+  header: String
+  footer: String
+  hasLogo: Boolean!
+  logoName: String
+  logoMediaType: String
+}
+
+input ReportTemplateInput {
+  # The template document (YAML). Its key/label/version are read back from it.
+  yaml: String!
+  # Omitted means true on create, kept on update.
+  enabled: Boolean
+  # Create only: true stores a global template (requires reports.admin).
+  global: Boolean
+}
+
+input ReportTemplateBrandingInput {
+  title: String
+  subtitle: String
+  header: String
+  footer: String
+  # A data URL or raw base64 png/jpeg. An empty string clears the logo; null keeps it.
+  logo: String
+  logoName: String
+}
+
+type Report {
+  id: ID!
+  flowId: ID!
+  userId: ID!
+  status: ReportStatusType!
+  title: String!
+  templateKey: String!
+  templateLabel: String!
+  providerName: String!
+  providerType: ProviderType!
+  language: String!
+  additionalInstructions: String
+  controlBudgetSeconds: Int!
+  contentBudgetSeconds: Int!
+  controlUsedSeconds: Float!
+  contentUsedSeconds: Float!
+  sectionsEstimate: Int!
+  sectionsTotal: Int!
+  sectionsDone: Int!
+  tokensIn: Int!
+  tokensOut: Int!
+  error: String
+  createdAt: Time!
+  updatedAt: Time!
+  finishedAt: Time
+  startedAt: Time
+}
+
+type ReportVariable {
+  name: String!
+  value: String!
+}
+
+# One operator-attached file on a report section (backlog v2, L6). The archive
+# bundles it; the text exports only list it.
+type ReportAttachment {
+  id: ID!
+  label: String!
+  # Cache-relative ("uploads/x", "resources/y", "container/z") or an absolute
+  # container path ("/work/...").
+  path: String!
+  bytes: Int!
+  createdAt: Time!
+}
+
+input ReportAttachmentInput {
+  label: String
+  path: String!
+  bytes: Int
+}
+
+type ReportVision {
+  vision: Boolean!
+  error: String
+}
+
+# The per-report branding the exports print (fork extended-version, P6).
+type ReportBranding {
+  # The stored overrides, empty when unset: the edit form's values.
+  title: String
+  subtitle: String
+  header: String
+  footer: String
+  # The values an export prints: the override, else the localized default.
+  resolvedTitle: String!
+  resolvedSubtitle: String!
+  resolvedHeader: String!
+  resolvedFooter: String!
+  hasLogo: Boolean!
+  logoName: String
+  logoMediaType: String
+}
+
+input ReportBrandingInput {
+  title: String
+  subtitle: String
+  header: String
+  footer: String
+  # A data URL or raw base64 png/jpeg. An empty string clears the logo; null keeps it.
+  logo: String
+  logoName: String
+}
+
+type ReportSection {
+  id: ID!
+  reportId: ID!
+  parentId: ID
+  position: Int!
+  key: String!
+  kind: ReportSectionKind!
+  title: String!
+  status: ReportSectionStatusType!
+  content: String!
+  instructions: String
+  variables: [ReportVariable!]!
+  warnings: [String!]
+  hidden: Boolean!
+  tokensIn: Int!
+  tokensOut: Int!
+  durationSeconds: Float!
+  createdAt: Time!
+  updatedAt: Time!
+  # Operator attachments (backlog v2, L6). Loaded per section on demand.
+  attachments: [ReportAttachment!]!
+}
+
+type ReportLog {
+  id: ID!
+  reportId: ID!
+  sectionId: ID
+  kind: ReportLogKind!
+  message: String!
+  payload: JSON
+  createdAt: Time!
+}
+
+input CreateReportInput {
+  templateKey: String
+  providerName: String
+  title: String
+  # Empty falls back to the flow's language, then to English (plan § 6.11).
+  language: String
+  additionalInstructions: String
+  controlBudgetSeconds: Int
+  contentBudgetSeconds: Int
+}
+
+input ReportSectionInput {
+  title: String!
+  instructions: String
+  variables: String
+  warnings: [String!]
 }

@@ -90,12 +90,15 @@ func TestAgentForChain_AgentByChain_NamesAConfiguredAgentForEveryChainType(t *te
 }
 
 // Every other chain runs under the agent of its own name.
-func TestAgentForChain_AgentByChain_RunsFourChainsUnderAnotherAgentsName(t *testing.T) {
+func TestAgentForChain_AgentByChain_RunsChainsUnderAnotherAgentsName(t *testing.T) {
 	borrowed := map[database.MsgchainType]pconfig.ProviderOptionsType{
 		database.MsgchainTypeReporter:      pconfig.OptionsTypeSimple,
 		database.MsgchainTypeSummarizer:    pconfig.OptionsTypeSimple,
 		database.MsgchainTypeToolCallFixer: pconfig.OptionsTypeSimpleJSON,
 		database.MsgchainTypeMemorist:      pconfig.OptionsTypeSearcher,
+		// The report engine runs both its chains under the reporter slot (L4/L8).
+		database.MsgchainTypeReportControl: pconfig.OptionsTypeReporter,
+		database.MsgchainTypeReportContent: pconfig.OptionsTypeReporter,
 	}
 
 	for chain, got := range agentByChain {

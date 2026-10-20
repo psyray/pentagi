@@ -753,7 +753,7 @@ func TestProviders_NewProviderController_LeavesAnUnusableDoorOffAndSaysWhy(t *te
 	}
 }
 
-func TestProviders_TestAgent_RunsTheSimpleAgentOnTheFormsModel(t *testing.T) {
+func TestProviders_TestAgent_RunsTheFormsModelOnEverySingleAgentSlot(t *testing.T) {
 	const defaultModel, formModel = "vendor-a", "vendor-b"
 
 	var (
@@ -784,11 +784,20 @@ func TestProviders_TestAgent_RunsTheSimpleAgentOnTheFormsModel(t *testing.T) {
 	require.NoError(t, err)
 	pc := &providerController{cfg: cfg, defaultConfigs: defaultConfigs}
 
-	var coder pconfig.AgentConfig
-	require.NoError(t, json.Unmarshal([]byte(`{"model":"`+formModel+`"}`), &coder))
+	var agent pconfig.AgentConfig
+	require.NoError(t, json.Unmarshal([]byte(`{"model":"`+formModel+`"}`), &agent))
 
-	_, err = pc.TestAgent(context.Background(), provider.ProviderCustom, pconfig.OptionsTypeCoder, &coder, &coder)
-	require.NoError(t, err)
+	// Every single-agent slot the form can test must be routed to its own config,
+	// so a slot the enum exposes but the switch forgets is caught here (L4 reporter).
+	for _, slot := range []pconfig.ProviderOptionsType{
+		pconfig.OptionsTypeCoder,
+		pconfig.OptionsTypeReporter,
+	} {
+		t.Run(string(slot), func(t *testing.T) {
+			_, err := pc.TestAgent(context.Background(), provider.ProviderCustom, slot, &agent, &agent)
+			require.NoError(t, err)
+		})
+	}
 
 	mu.Lock()
 	defer mu.Unlock()

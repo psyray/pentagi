@@ -24,8 +24,10 @@ const EXCLUDED: Record<string, string> = {
     '/flows/new': 'create form; no stable list/detail ready-state to sweep',
     '/knowledges/new': 'create-mode variant of the knowledge detail page',
     '/oauth/result': 'OAuth popup landing; only meaningful mid-OAuth-roundtrip',
+    '/reports': 'global reports list; needs a cross-flow reports cassette before joining the sweep',
     '/settings': 'redirects to /settings/account',
     '/settings/account': 'needs an account cassette + visual baseline before joining the sweep',
+    '/settings/report-templates': 'settings CRUD page; unit-covered by settings-report-templates.test.tsx',
     '/templates/new': 'create-mode variant of the template detail page',
 };
 
@@ -33,8 +35,10 @@ const EXCLUDED: Record<string, string> = {
 const DYNAMIC_ROUTES: Record<string, string> = {
     flow: 'manifest entry (routes.flow("5"))',
     flowReport: 'not swept: needs a finished-flow report cassette',
+    flowReportDocument: 'not swept: report document page; unit-covered by the report-outline tests',
     knowledge: 'specs/crud/knowledges.spec.ts — detail page after create',
     login: 'specs/smoke.spec.ts + the /login a11y scan',
+    report: 'not swept: cross-flow report document; unit-covered by the report-outline tests',
     'settings.newProvider': 'specs/settings/providers.spec.ts — opened from the empty state',
     'settings.prompt': 'specs/settings/prompt-detail.spec.ts',
     'settings.provider': 'not swept: provider form; unit-covered by settings-provider.test.tsx',
