@@ -94,7 +94,7 @@ refiner:
   top_p: 0.95
   top_k: 40
   n: 1
-  max_tokens: 32768
+  max_tokens: 16384
   price:
     input: 0.33
     output: 1.33
@@ -106,7 +106,7 @@ adviser:
   top_p: 0.95
   top_k: 40
   n: 1
-  max_tokens: 16384
+  max_tokens: 8192
   price:
     input: 0.33
     output: 1.33
@@ -173,7 +173,7 @@ coder:
   top_p: 0.95
   top_k: 40
   n: 1
-  max_tokens: 20480
+  max_tokens: 16384
   price:
     input: 0.33
     output: 1.33
@@ -185,7 +185,7 @@ installer:
   top_p: 0.95
   top_k: 40
   n: 1
-  max_tokens: 16384
+  max_tokens: 4096
   price:
     input: 0.33
     output: 1.33

@@ -1,12 +1,12 @@
 simple:
   model: "qwen3:32b-fp16-tc"
   n: 1
-  max_tokens: 40000
+  max_tokens: 8192
 
 simple_json:
   model: "qwen3:32b-fp16-tc"
   n: 1
-  max_tokens: 40000
+  max_tokens: 8192
 
 primary_agent:
   model: "qwen3:32b-fp16-tc"
@@ -16,7 +16,7 @@ primary_agent:
 assistant:
   model: "qwen3:32b-fp16-tc"
   n: 1
-  max_tokens: 40000
+  max_tokens: 16384
 
 generator:
   model: "qwen3:32b-fp16-tc"
@@ -26,12 +26,12 @@ generator:
 refiner:
   model: "qwen3:32b-fp16-tc"
   n: 1
-  max_tokens: 40000
+  max_tokens: 16384
 
 adviser:
   model: "qwen3:32b-fp16-tc"
   n: 1
-  max_tokens: 40000
+  max_tokens: 8192
 
 reflector:
   model: "qwen3:32b-fp16-tc"
@@ -41,24 +41,24 @@ reflector:
 searcher:
   model: "qwen3:32b-fp16-tc"
   n: 1
-  max_tokens: 40000
+  max_tokens: 8192
 
 enricher:
   model: "qwen3:32b-fp16-tc"
   n: 1
-  max_tokens: 40000
+  max_tokens: 8192
 
 coder:
   model: "qwen3:32b-fp16-tc"
   n: 1
-  max_tokens: 40000
+  max_tokens: 16384
 
 installer:
   model: "qwen3:32b-fp16-tc"
   n: 1
-  max_tokens: 40000
+  max_tokens: 4096
 
 pentester:
   model: "qwen3:32b-fp16-tc"
   n: 1
-  max_tokens: 40000
+  max_tokens: 24576

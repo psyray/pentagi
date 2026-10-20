@@ -89,7 +89,7 @@ generator:
 refiner:
   model: deepseek-v4-pro
   n: 1
-  max_tokens: 32768
+  max_tokens: 16384
   reasoning:
     effort: high
   extra_body:
@@ -103,7 +103,7 @@ refiner:
 adviser:
   model: qwen3.7-plus
   n: 1
-  max_tokens: 16384
+  max_tokens: 8192
   reasoning:
     effort: high
   extra_body:
@@ -160,7 +160,7 @@ enricher:
 coder:
   model: minimax-m3
   n: 1
-  max_tokens: 20480
+  max_tokens: 16384
   reasoning:
     effort: high
   extra_body:
@@ -174,7 +174,7 @@ coder:
 installer:
   model: deepseek-v4-flash
   n: 1
-  max_tokens: 12288
+  max_tokens: 4096
   reasoning:
     effort: high
   extra_body:

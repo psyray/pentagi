@@ -51,7 +51,7 @@ generator:
 refiner:
   model: grok-4.3
   n: 1
-  max_tokens: 32768
+  max_tokens: 16384
   price:
     input: 1.25
     output: 2.50
@@ -60,7 +60,7 @@ refiner:
 adviser:
   model: grok-4.3
   n: 1
-  max_tokens: 16384
+  max_tokens: 8192
   price:
     input: 1.25
     output: 2.50
@@ -100,7 +100,7 @@ enricher:
 coder:
   model: grok-4.3
   n: 1
-  max_tokens: 20480
+  max_tokens: 16384
   price:
     input: 1.25
     output: 2.50
@@ -109,7 +109,7 @@ coder:
 installer:
   model: grok-4.3
   n: 1
-  max_tokens: 16384
+  max_tokens: 4096
   price:
     input: 1.25
     output: 2.50
