@@ -26,7 +26,7 @@ var fsStackFiles = map[ProductStack][]string{
 		"example.custom.provider.yml", "example.ollama.provider.yml", "example.bedrock.provider.yml",
 	},
 	ProductStackGraphiti:      {"docker-compose-graphiti.yml", "graphiti", "neo4j"},
-	ProductStackLangfuse:      {"docker-compose-langfuse.yml"},
+	ProductStackLangfuse:      {"docker-compose-langfuse.yml", "langfuse/clickhouse/system-logs.xml"},
 	ProductStackObservability: {"docker-compose-observability.yml", "observability"},
 }
 
@@ -64,7 +64,7 @@ func TestFs_EnsureStackIntegrity_ExtractsEveryFileOfTheStack(t *testing.T) {
 		wantErr string
 	}{
 		{"pentagi with its provider examples", ProductStackPentagi, fsStackFiles[ProductStackPentagi], ""},
-		{"langfuse has its compose file only", ProductStackLangfuse, fsStackFiles[ProductStackLangfuse], ""},
+		{"langfuse with its clickhouse config", ProductStackLangfuse, fsStackFiles[ProductStackLangfuse], ""},
 		{"observability with its directory", ProductStackObservability, fsStackFiles[ProductStackObservability], ""},
 		{"compose covers every stack", ProductStackCompose, fsEveryStackFile, ""},
 		{"all covers every stack", ProductStackAll, fsEveryStackFile, ""},
@@ -91,7 +91,7 @@ func TestFs_VerifyStackIntegrity_RestoresEveryMissingFileItVerifies(t *testing.T
 		wantErr string
 	}{
 		{"pentagi with its provider examples", ProductStackPentagi, fsStackFiles[ProductStackPentagi], ""},
-		{"langfuse has its compose file only", ProductStackLangfuse, []string{"docker-compose-langfuse.yml"}, ""},
+		{"langfuse with its clickhouse config", ProductStackLangfuse, fsStackFiles[ProductStackLangfuse], ""},
 		{"observability with its directory", ProductStackObservability, fsStackFiles[ProductStackObservability], ""},
 		{"compose covers every stack", ProductStackCompose, fsEveryStackFile, ""},
 		{"all covers every stack", ProductStackAll, fsEveryStackFile, ""},
@@ -171,7 +171,9 @@ func TestFs_EnsureStackIntegrity_ExtractsEveryFileItsComposeFileMounts(t *testin
 			"./graphiti", "./neo4j/backups", "./neo4j/conf", "./neo4j/import", "./neo4j/logs",
 			"./neo4j/metrics", "./neo4j/plugins", "./neo4j/ssl",
 		}},
-		{ProductStackLangfuse, "docker-compose-langfuse.yml", nil},
+		{ProductStackLangfuse, "docker-compose-langfuse.yml", []string{
+			"./langfuse/clickhouse/system-logs.xml",
+		}},
 		{ProductStackObservability, "docker-compose-observability.yml", []string{
 			"./observability/clickhouse/prometheus.xml",
 			"./observability/grafana/config", "./observability/grafana/dashboards",
@@ -273,7 +275,7 @@ func TestFs_CleanupStackFiles_RemovesEveryFileOfTheStackAndNothingElse(t *testin
 	}{
 		{"pentagi with its provider examples", ProductStackPentagi, fsStackFiles[ProductStackPentagi], ""},
 		{"graphiti with its config directories", ProductStackGraphiti, fsStackFiles[ProductStackGraphiti], ""},
-		{"langfuse has its compose file only", ProductStackLangfuse, fsStackFiles[ProductStackLangfuse], ""},
+		{"langfuse with its clickhouse config", ProductStackLangfuse, fsStackFiles[ProductStackLangfuse], ""},
 		{"observability with its directory", ProductStackObservability, fsStackFiles[ProductStackObservability], ""},
 		{"compose covers every stack", ProductStackCompose, fsEveryStackFile, ""},
 		{"all covers every stack", ProductStackAll, fsEveryStackFile, ""},
@@ -285,6 +287,7 @@ func TestFs_CleanupStackFiles_RemovesEveryFileOfTheStackAndNothingElse(t *testin
 				if filepath.Ext(name) == "" {
 					require.NoError(t, os.MkdirAll(filepath.Join(dir, name, "conf"), 0o755))
 				} else {
+					require.NoError(t, os.MkdirAll(filepath.Dir(filepath.Join(dir, name)), 0o755))
 					require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o644))
 				}
 			}
@@ -460,17 +463,18 @@ func TestFs_ValidateYamlFile_RejectsOnlyMalformedYAML(t *testing.T) {
 
 func TestFs_CheckStackIntegrity_ReportsEveryFileOfTheStack(t *testing.T) {
 	statuses := FilesCheckResult{
-		"docker-compose.yml":               files.FileStatusOK,
-		"docker-compose-graphiti.yml":      files.FileStatusOK,
-		"graphiti/openai.yaml":             files.FileStatusOK,
-		"neo4j/conf/neo4j.conf":            files.FileStatusOK,
-		"neo4j/conf/apoc.conf":             files.FileStatusOK,
-		"neo4j/plugins/apoc-core.jar":      files.FileStatusOK,
-		"docker-compose-langfuse.yml":      files.FileStatusModified,
-		"docker-compose-observability.yml": files.FileStatusMissing,
-		"observability/config1.yml":        files.FileStatusOK,
-		"observability/config2.yml":        files.FileStatusModified,
-		"observability/subdir/config3.yml": files.FileStatusMissing,
+		"docker-compose.yml":                  files.FileStatusOK,
+		"docker-compose-graphiti.yml":         files.FileStatusOK,
+		"graphiti/openai.yaml":                files.FileStatusOK,
+		"neo4j/conf/neo4j.conf":               files.FileStatusOK,
+		"neo4j/conf/apoc.conf":                files.FileStatusOK,
+		"neo4j/plugins/apoc-core.jar":         files.FileStatusOK,
+		"docker-compose-langfuse.yml":         files.FileStatusModified,
+		"langfuse/clickhouse/system-logs.xml": files.FileStatusOK,
+		"docker-compose-observability.yml":    files.FileStatusMissing,
+		"observability/config1.yml":           files.FileStatusOK,
+		"observability/config2.yml":           files.FileStatusModified,
+		"observability/subdir/config3.yml":    files.FileStatusMissing,
 	}
 	lists := map[string][]string{
 		"graphiti":      {"graphiti/openai.yaml"},
@@ -484,7 +488,10 @@ func TestFs_CheckStackIntegrity_ReportsEveryFileOfTheStack(t *testing.T) {
 		wantErr string
 	}{
 		{"pentagi reports its compose file", ProductStackPentagi, FilesCheckResult{"docker-compose.yml": files.FileStatusOK}, ""},
-		{"langfuse reports its compose file", ProductStackLangfuse, FilesCheckResult{"docker-compose-langfuse.yml": files.FileStatusModified}, ""},
+		{"langfuse reports its compose file and clickhouse config", ProductStackLangfuse, FilesCheckResult{
+			"docker-compose-langfuse.yml":         files.FileStatusModified,
+			"langfuse/clickhouse/system-logs.xml": files.FileStatusOK,
+		}, ""},
 		{"observability with its directory", ProductStackObservability, FilesCheckResult{
 			"docker-compose-observability.yml": files.FileStatusMissing,
 			"observability/config1.yml":        files.FileStatusOK,
