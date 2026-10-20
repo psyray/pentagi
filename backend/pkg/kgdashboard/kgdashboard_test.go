@@ -191,3 +191,84 @@ func TestAttackGraphViewSpecsCoverAllScopedViews(t *testing.T) {
 	assert.Empty(t, attackGraphViewSpecs[AttackGraphViewMain].edgeTypes)
 	assert.NotEmpty(t, attackGraphViewSpecs[AttackGraphViewInfra].edgeTypes)
 }
+
+func TestTargetHostsFragmentUsesCanonicalTopologyAndLegacyFallbacks(t *testing.T) {
+	t.Parallel()
+	// Graphiti 1.1 canonical backbone.
+	assert.Contains(t, targetHostsFragment, "(th)-[:HAS_PORT]->(:Port)")
+	assert.Contains(t, targetHostsFragment, "(th)-[:HAS_PORT]->(:Port)-[:RUNS_SERVICE]->(:Service)")
+	// Graphiti 0.9 fallbacks.
+	assert.Contains(t, targetHostsFragment, "(th)-[:RUNS_SERVICE]->(:Service)")
+	assert.Contains(t, targetHostsFragment, "HAS_VULNERABILITY*1..4")
+	assert.Contains(t, targetHostsFragment, "(th)<-[:ON_HOST]-(:ValidAccess)")
+	// The edge-type count heuristic is gone.
+	assert.NotContains(t, targetHostsFragment, "$minEdgeTypes")
+	assert.NotContains(t, targetHostsFragment, "count(DISTINCT type(tr))")
+}
+
+func TestTargetConnectedFilterCoversBothTopologies(t *testing.T) {
+	t.Parallel()
+	// Variable-depth forward path: covers Host -> Port -> Service -> WebApp ->
+	// Endpoint (1.1) and Host -> Service -> WebApp -> Vhost -> Endpoint (0.9).
+	assert.Contains(t, targetConnectedFilter, "HAS_PORT|RUNS_SERVICE|HAS_VHOST|HOSTS_APP|HAS_ENDPOINT")
+	assert.Contains(t, targetConnectedFilter, "*1..4")
+	// Reverse links used by attempts, evidence, valid accesses and services.
+	assert.Contains(t, targetConnectedFilter, "ON_HOST")
+	assert.Contains(t, targetConnectedFilter, "ATTEMPTED_ON")
+	assert.Contains(t, targetConnectedFilter, "EXTRACTED_FROM|ASSERTS")
+	// Account layer (Credential/ValidAccess -> Account and MEMBER_OF nesting).
+	assert.Contains(t, targetConnectedFilter, "AS_ACCOUNT|BELONGS_TO_ACCOUNT|MEMBER_OF")
+}
+
+func TestScopedQueriesDoNotRequireMinEdgeTypes(t *testing.T) {
+	t.Parallel()
+	queries := map[string]string{
+		"attackGraphScopedQuery":      attackGraphScopedQuery,
+		"attackGraphScopedCountQuery": attackGraphScopedCountQuery,
+		"tagStatsQuery":               tagStatsQuery,
+		"attackSurfaceQuery":          attackSurfaceQuery,
+		"validAccessesQuery":          validAccessesQuery,
+		"infraMapQuery":               infraMapQuery,
+		"openPortsQuery":              openPortsQuery,
+		"allVulnerabilitiesQuery":     allVulnerabilitiesQuery,
+	}
+	for name, q := range queries {
+		assert.NotContainsf(t, q, "$minEdgeTypes", "%s still requires $minEdgeTypes", name)
+	}
+}
+
+func TestInfraQueriesUsePortToServiceAndLegacyFallback(t *testing.T) {
+	t.Parallel()
+	for name, q := range map[string]string{
+		"infraMapQuery":  infraMapQuery,
+		"openPortsQuery": openPortsQuery,
+	} {
+		assert.Containsf(t, q, "(p)-[:RUNS_SERVICE]->(s:Service)", "%s uses the canonical Port -> Service edge", name)
+		assert.Containsf(t, q, "(h)-[:RUNS_SERVICE]->(s09:Service)", "%s keeps the 0.9 Host -> Service fallback", name)
+	}
+}
+
+func TestValidAccessesQueryPrefersCanonicalOnHost(t *testing.T) {
+	t.Parallel()
+	assert.Contains(t, validAccessesQuery, "(va)-[:ON_HOST]->(h:Host)")
+	assert.Contains(t, validAccessesQuery, "(s)-[:ON_HOST]->(h09:Host)")
+}
+
+func TestCredentialsByCompromisedQueryUsesCanonicalDirections(t *testing.T) {
+	t.Parallel()
+	assert.Contains(t, credentialsByCompromisedQuery, "(c)-[:YIELDED_ACCESS]->(va:ValidAccess)")
+	assert.Contains(t, credentialsByCompromisedQuery, "(c)-[:BELONGS_TO_ACCOUNT]->(ac:Account)<-[:AS_ACCOUNT]-(va:ValidAccess)")
+	assert.Contains(t, credentialsByCompromisedQuery, "(c)-[:AUTHENTICATES_TO]->(s:Service)")
+}
+
+func TestAttackGraphViewsKeepLegacyVhostAndAddMemberOf(t *testing.T) {
+	t.Parallel()
+	for _, v := range []AttackGraphView{AttackGraphViewMain, AttackGraphViewAction} {
+		spec := attackGraphViewSpecs[v]
+		assert.Containsf(t, spec.labels, "Vhost", "view %q keeps the legacy Vhost label", v)
+		assert.Containsf(t, spec.labels, "VHost", "view %q keeps the legacy VHost label", v)
+	}
+	assert.Contains(t, attackGraphViewSpecs[AttackGraphViewAction].edgeTypes, "HAS_VHOST")
+	assert.Contains(t, attackGraphViewSpecs[AttackGraphViewPrivesc].edgeTypes, "MEMBER_OF")
+	assert.Contains(t, attackSurfaceLabels, "VHost")
+}
