@@ -396,6 +396,7 @@ func (pc *providerController) NewFlowProvider(
 		Provider:        prv,
 		maxGACallsLimit: pc.cfg.MaxGeneralAgentToolCalls,
 		maxLACallsLimit: pc.cfg.MaxLimitedAgentToolCalls,
+		clm:             newCLMVerifier(pc.cfg),
 		buildMonitor: func() *executionMonitor {
 			return &executionMonitor{
 				enabled:        pc.cfg.ExecutionMonitorEnabled,
@@ -446,6 +447,7 @@ func (pc *providerController) LoadFlowProvider(
 		Provider:        prv,
 		maxGACallsLimit: pc.cfg.MaxGeneralAgentToolCalls,
 		maxLACallsLimit: pc.cfg.MaxLimitedAgentToolCalls,
+		clm:             newCLMVerifier(pc.cfg),
 		buildMonitor: func() *executionMonitor {
 			return &executionMonitor{
 				enabled:        pc.cfg.ExecutionMonitorEnabled,
