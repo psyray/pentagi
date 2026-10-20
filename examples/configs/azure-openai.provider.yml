@@ -48,7 +48,7 @@ refiner:
   temperature: 0.7
   top_p: 0.8
   n: 1
-  max_tokens: 16384
+  max_tokens: 20480
   price:
     input: 2.0
     output: 8.0
@@ -94,7 +94,7 @@ coder:
   temperature: 0.2
   top_p: 0.1
   n: 1
-  max_tokens: 16384
+  max_tokens: 20480
   price:
     input: 2.0
     output: 8.0
@@ -104,7 +104,7 @@ installer:
   temperature: 0.2
   top_p: 0.1
   n: 1
-  max_tokens: 4096
+  max_tokens: 16384
   price:
     input: 2.0
     output: 8.0

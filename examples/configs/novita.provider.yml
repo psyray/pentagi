@@ -59,7 +59,7 @@ refiner:
   model: "moonshotai/kimi-k2.5"
   temperature: 1.0
   n: 1
-  max_tokens: 16384
+  max_tokens: 20480
   reasoning:
     effort: medium
   price:
@@ -116,7 +116,7 @@ coder:
   model: "moonshotai/kimi-k2.5"
   temperature: 1.0
   n: 1
-  max_tokens: 16384
+  max_tokens: 32768
   reasoning:
     effort: medium
   price:
@@ -128,7 +128,7 @@ installer:
   model: "moonshotai/kimi-k2-instruct"
   temperature: 0.7
   n: 1
-  max_tokens: 4096
+  max_tokens: 8192
   price:
     input: 0.57
     output: 2.3
