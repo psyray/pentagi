@@ -681,7 +681,7 @@ func TestPerformer_ExecToolCall_AnswersARepeatWithWhatTheToolSaidUntilItAborts(t
 	call := func() (string, error) {
 		return fp.execToolCall(
 			context.Background(), pconfig.OptionsTypePentester, 1, 0, result,
-			&executionMonitor{}, detector, &failureDetector{}, executor, nil, nil, nil,
+			&executionMonitor{}, detector, &failureDetector{}, &closureDetector{}, executor, nil, nil, nil,
 		)
 	}
 
@@ -720,7 +720,7 @@ func TestPerformer_ExecToolCall_ReturnsAnErrorNoCorrectionCanFixAtOnce(t *testin
 
 			_, err := fp.execToolCall(
 				context.Background(), pconfig.OptionsTypePentester, 1, 0, performerToolCallResult(),
-				&executionMonitor{}, &repeatingDetector{}, &failureDetector{}, executor, nil, nil, nil,
+				&executionMonitor{}, &repeatingDetector{}, &failureDetector{}, &closureDetector{}, executor, nil, nil, nil,
 			)
 
 			assert.ErrorIs(t, err, tt.err)
