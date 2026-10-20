@@ -17,8 +17,11 @@ import "time"
 type AttackGraphView string
 
 const (
-	// AttackGraphViewMain restricts the graph to the attack-chain backbone:
-	// Host → Port → Service → WebApp → Vhost → Endpoint → Vulnerability.
+	// AttackGraphViewMain restricts the graph to the attack-chain backbone.
+	// Graphiti 1.1 canonical hierarchy:
+	// Host → Port → Service → WebApp → Endpoint → Vulnerability.
+	// Vhost/VHost are still matched as a legacy fallback for graphs ingested
+	// with Graphiti 0.9 (which had Host → … → Vhost).
 	AttackGraphViewMain AttackGraphView = "MAIN"
 	// AttackGraphViewAction materializes the action chain: the backbone plus
 	// the action-level entities (Attempt, Artifact, Evidence, AttackTechnique,
@@ -83,8 +86,8 @@ type GraphitiTagStat struct {
 // AttackSurfaceItem is one row of the attack surface overview (one entity
 // belonging to one of the watched tags: Tool, ToolExecution, Service,
 // Vulnerability, Endpoint, Agent, Account, Credential, Artifact, Port,
-// Attempt, Host, Misconfiguration, ValidAccess, WebApp, Subtask, Vhost,
-// PrivChange, ...).
+// Attempt, Host, Misconfiguration, ValidAccess, WebApp, Subtask, Vhost (0.9
+// legacy), VHost (0.9 legacy), PrivChange, ...).
 type AttackSurfaceItem struct {
 	Type      string    `json:"type"`
 	Name      string    `json:"name"`
@@ -97,7 +100,8 @@ type CredentialStatus string
 
 const (
 	// CredentialStatusCompromised: the credential led to a ValidAccess / Account
-	// (via YIELDED_ACCESS, AS_ACCOUNT, AUTHENTICATES_TO, BELONGS_TO_ACCOUNT).
+	// (via YIELDED_ACCESS, AS_ACCOUNT, AUTHENTICATES_TO, BELONGS_TO_ACCOUNT,
+	// MEMBER_OF).
 	CredentialStatusCompromised CredentialStatus = "Compromised"
 	// CredentialStatusDiscovered: the credential is present in the graph but
 	// did not yield access.

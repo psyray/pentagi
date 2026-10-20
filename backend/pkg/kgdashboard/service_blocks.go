@@ -47,8 +47,7 @@ func (s *service) GetTagStats(ctx context.Context, flowID int64, groupID string)
 
 	out := make([]GraphitiTagStat, 0)
 	err := s.run(ctx, tagStatsQuery, map[string]any{
-		"group_id":     groupID,
-		"minEdgeTypes": int64(minHostEdgeTypes),
+		"group_id": groupID,
 	}, func(rec *neo4j.Record) error {
 		out = append(out, GraphitiTagStat{
 			Tag:   recStr(rec, "tag"),
@@ -76,10 +75,9 @@ func (s *service) GetAttackSurface(ctx context.Context, flowID int64, groupID st
 
 	out := make([]AttackSurfaceItem, 0, s.rowLimit)
 	err := s.run(ctx, attackSurfaceQuery, map[string]any{
-		"group_id":     groupID,
-		"labels":       attackSurfaceLabels,
-		"limit":        int64(s.rowLimit),
-		"minEdgeTypes": int64(minHostEdgeTypes),
+		"group_id": groupID,
+		"labels":   attackSurfaceLabels,
+		"limit":    int64(s.rowLimit),
 	}, func(rec *neo4j.Record) error {
 		labels := recLabels(rec, "labels")
 		out = append(out, AttackSurfaceItem{
@@ -165,7 +163,7 @@ func (s *service) GetCredentialsStatus(ctx context.Context, flowID int64, groupI
 }
 
 // GetValidAccesses returns each ValidAccess with its reachable Account, the
-// backing Service and the Host that runs the service.
+// backing Service and the Host it applies to.
 func (s *service) GetValidAccesses(ctx context.Context, flowID int64, groupID string) ([]ValidAccessRow, error) {
 	if !s.IsEnabled() {
 		return nil, nil
@@ -177,8 +175,7 @@ func (s *service) GetValidAccesses(ctx context.Context, flowID int64, groupID st
 
 	out := make([]ValidAccessRow, 0)
 	err := s.run(ctx, validAccessesQuery, map[string]any{
-		"group_id":     groupID,
-		"minEdgeTypes": int64(minHostEdgeTypes),
+		"group_id": groupID,
 	}, func(rec *neo4j.Record) error {
 		out = append(out, ValidAccessRow{
 			Access:  recStr(rec, "access"),
@@ -208,8 +205,7 @@ func (s *service) GetInfrastructureMap(ctx context.Context, flowID int64, groupI
 	}
 	out := make([]InfraMapRow, 0)
 	err := s.run(ctx, infraMapQuery, map[string]any{
-		"group_id":     groupID,
-		"minEdgeTypes": int64(minHostEdgeTypes),
+		"group_id": groupID,
 	}, func(rec *neo4j.Record) error {
 		out = append(out, InfraMapRow{
 			Host:    recStr(rec, "host"),
@@ -237,8 +233,7 @@ func (s *service) GetOpenPorts(ctx context.Context, flowID int64, groupID string
 	}
 	out := make([]OpenPortRow, 0)
 	err := s.run(ctx, openPortsQuery, map[string]any{
-		"group_id":     groupID,
-		"minEdgeTypes": int64(minHostEdgeTypes),
+		"group_id": groupID,
 	}, func(rec *neo4j.Record) error {
 		out = append(out, OpenPortRow{
 			Port:    recStr(rec, "port"),
@@ -353,8 +348,7 @@ func (s *service) fetchVulnerabilities(ctx context.Context, flowID int64, groupI
 
 	out := make([]vulnRow, 0)
 	err := s.run(ctx, allVulnerabilitiesQuery, map[string]any{
-		"group_id":     groupID,
-		"minEdgeTypes": int64(minHostEdgeTypes),
+		"group_id": groupID,
 	}, func(rec *neo4j.Record) error {
 		out = append(out, vulnRow{
 			name:    recStr(rec, "name"),

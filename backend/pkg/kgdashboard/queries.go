@@ -27,14 +27,18 @@ type viewSpec struct {
 // MAIN is the attack-chain backbone only (EE "Main Attack Chain"). ACTION adds
 // the action-level entities (EE "Action Chain"). INFRA is the infrastructure
 // map (Host → Port → Service). PRIVESC is the privilege-escalation chain.
+//
+// Graphiti 1.1 removed the VHost node and the HAS_VHOST edge. Vhost/VHost and
+// HAS_VHOST are kept below as legacy support for graphs ingested with 0.9;
+// they are harmless for 1.1 graphs.
 var attackGraphViewSpecs = map[AttackGraphView]viewSpec{
 	AttackGraphViewMain: {
-		labels:   []string{"Host", "Port", "Service", "WebApp", "Vhost", "Endpoint", "Vulnerability"},
+		labels:   []string{"Host", "Port", "Service", "WebApp", "Vhost", "VHost", "Endpoint", "Vulnerability"},
 		capNodes: 200,
 	},
 	AttackGraphViewAction: {
 		labels: []string{
-			"Host", "Port", "Service", "WebApp", "Vhost", "Endpoint", "Vulnerability",
+			"Host", "Port", "Service", "WebApp", "Vhost", "VHost", "Endpoint", "Vulnerability",
 			"Misconfiguration", "Attempt", "Artifact", "Evidence", "AttackTechnique",
 			"Tool", "ToolExecution",
 		},
@@ -54,7 +58,7 @@ var attackGraphViewSpecs = map[AttackGraphView]viewSpec{
 		labels: []string{"Host", "Service", "Account", "Credential", "ValidAccess", "PrivChange"},
 		edgeTypes: []string{
 			"YIELDED_ACCESS", "YIELDED_PRIV_ACCESS", "ESCALATED_VIA", "AUTHENTICATES_TO",
-			"AS_ACCOUNT", "BELONGS_TO_ACCOUNT", "VIA_SERVICE", "ON_HOST", "HAS_CREDENTIAL",
+			"AS_ACCOUNT", "BELONGS_TO_ACCOUNT", "MEMBER_OF", "VIA_SERVICE", "ON_HOST",
 		},
 		capNodes: 200,
 	},
@@ -67,70 +71,69 @@ var attackGraphViewSpecs = map[AttackGraphView]viewSpec{
 // graph view.
 var attackSurfaceLabels = []string{
 	"Host", "Port", "Service", "Vulnerability", "Misconfiguration",
-	"ValidAccess", "Account", "Credential", "Endpoint", "WebApp", "Vhost",
+	"ValidAccess", "Account", "Credential", "Endpoint", "WebApp", "Vhost", "VHost",
 	"PrivChange",
 }
 
-// minHostEdgeTypes is the minimum number of distinct attack-chain edge types
-// a Host must have to be considered a real target (as opposed to localhost,
-// VPN, gateway infrastructure that Graphiti happens to extract from command
-// output). The real target host (e.g. 10.129.244.174 with 4 types: HAS_PORT,
-// RUNS_SERVICE, HAS_VHOST, HOSTS_APP) passes easily; noise hosts with only
-// HAS_PORT from `ip a` output are filtered out.
-const minHostEdgeTypes = 2
-
 // targetHostsFragment is a reusable Cypher preamble that identifies "target"
-// Host UUIDs — Hosts with >= minHostEdgeTypes distinct outgoing attack-chain
-// edge types. Queries that need to filter to the attack target(s) prepend
-// this fragment and use the resulting `targetUUIDs` list in their WHERE
-// clause. Requires $group_id and $minEdgeTypes parameters.
+// Host UUIDs and exposes them as `targetUUIDs`. A target Host exposes a Port
+// and at least one other attack-chain signal (Service, Vulnerability,
+// Misconfiguration, ValidAccess, Attempt or Evidence). Localhost/VPN/container
+// noise hosts usually expose only a Port (from `ip a` output), so requiring a
+// second signal filters them out.
+//
+// The fragment is topology-version agnostic:
+//   - Graphiti 1.1 canonical shape: Host -HAS_PORT-> Port -RUNS_SERVICE->
+//     Service, then HOSTS_APP -> WebApp -> HAS_ENDPOINT -> Endpoint.
+//   - Graphiti 0.9 legacy shape: Host -RUNS_SERVICE-> Service and
+//     Host -HAS_VULNERABILITY-> Vulnerability are still accepted.
+//
+// It only needs $group_id; the former $minEdgeTypes heuristic is gone.
 const targetHostsFragment = `
-MATCH (th:Host)-[tr:HAS_PORT|HAS_VULNERABILITY|HAS_MISCONFIGURATION|HOSTS_APP|RUNS_SERVICE|HAS_VHOST|DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY]->()
-WHERE th.group_id = $group_id
-WITH th, count(DISTINCT type(tr)) AS tCount
-WHERE tCount >= $minEdgeTypes
+MATCH (th:Host) WHERE th.group_id = $group_id
+WITH th,
+  EXISTS { MATCH (th)-[:HAS_PORT]->(:Port) } AS c_port,
+  EXISTS { MATCH (th)-[:HAS_PORT]->(:Port)-[:RUNS_SERVICE]->(:Service) } AS c_service_11,
+  EXISTS { MATCH (th)-[:RUNS_SERVICE]->(:Service) } AS c_service_09,
+  EXISTS { MATCH (th)-[:HAS_PORT|RUNS_SERVICE|HOSTS_APP|HAS_ENDPOINT|HAS_VHOST|DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY|HAS_VULNERABILITY*1..4]->(:Vulnerability) } AS c_vuln,
+  EXISTS { MATCH (th)-[:HAS_MISCONFIGURATION]->(:Misconfiguration) } AS c_misconf,
+  EXISTS { MATCH (th)<-[:ON_HOST]-(:ValidAccess) } AS c_access,
+  EXISTS { MATCH (th)<-[:ON_HOST]-(:Service) } AS c_access_09,
+  EXISTS { MATCH (th)<-[:ATTEMPTED_ON]-(:Attempt) } AS c_attempt,
+  EXISTS { MATCH (th)<-[:ASSERTS|EXTRACTED_FROM]-(:Evidence) } AS c_evidence
+WHERE c_port AND (c_service_11 OR c_service_09 OR c_vuln OR c_misconf OR c_access OR c_access_09 OR c_attempt OR c_evidence)
 WITH collect(th.uuid) AS targetUUIDs
 `
 
 // targetConnectedFilter is a reusable Cypher WHERE clause fragment that keeps
-// only nodes connected to a target Host (directly at depth 1, or indirectly at
-// depth 2 through a Service/Port/Endpoint). This filters out orphan noise
-// like "read_file command" (a tool name misclassified as Port) while keeping
-// Vulnerabilities and Credentials that connect to the Host through a Service.
-//
-// Depth 1: Host -> n (HAS_PORT, RUNS_SERVICE, HAS_VHOST, etc.)
-// Depth 1 (reverse): n -> Host (ON_HOST)
-// Depth 2 forward: Host -> Service -> DETECTED_VULNERABILITY -> Vulnerability
-// Depth 2 backward: Host -> Service <- AUTHENTICATES_TO <- Credential
-// Depth 2 backward: Host -> Service <- VIA_SERVICE <- ValidAccess
-// Depth 2 reverse: Service -> ON_HOST -> Host, Service -> DETECTED_VULN -> Vuln
-// Depth 2 reverse: Service -> ON_HOST -> Host, Service <- AUTHENTICATES_TO <- Cred
+// only nodes connected to a target Host. The forward structural path uses a
+// variable depth (1..4) so it covers both the Graphiti 1.1 canonical chain
+// (Host -> Port -> Service -> WebApp -> Endpoint, with Vulnerabilities and
+// Misconfigurations hanging off it) and the 0.9 chain (Host -> Service ->
+// WebApp -> Vhost -> Endpoint). The reverse branches keep entities that point
+// at the target (ValidAccess/Service ON_HOST, Attempt ATTEMPTED_ON, Evidence
+// EXTRACTED_FROM/ASSERTS) and the account layer (Credential/ValidAccess ->
+// Account, plus MEMBER_OF nesting).
 const targetConnectedFilter = `
   AND (
     n.uuid IN targetUUIDs
     OR EXISTS {
-      MATCH (th)-[:HAS_PORT|RUNS_SERVICE|HAS_VHOST|HAS_VULNERABILITY|HAS_MISCONFIGURATION|HOSTS_APP|HAS_ENDPOINT|ON_HOST|DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY]->(n)
+      MATCH (th)-[:HAS_PORT|RUNS_SERVICE|HAS_VHOST|HOSTS_APP|HAS_ENDPOINT|DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY|HAS_VULNERABILITY|HAS_MISCONFIGURATION*1..4]->(n)
       WHERE th.uuid IN targetUUIDs
     }
     OR EXISTS {
-      MATCH (n)-[:ON_HOST]->(th) WHERE th.uuid IN targetUUIDs
-    }
-    OR EXISTS {
-      MATCH (th)-[:RUNS_SERVICE|HAS_PORT|HAS_VHOST|HOSTS_APP|HAS_ENDPOINT]->(mid)
-            -[:DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY|HOSTS_APP|HAS_ENDPOINT|HAS_VHOST]->(n)
+      MATCH (n)-[:ON_HOST|ATTEMPTED_ON|TOOL_DISCOVERED|TOOL_TARGETED|AGENT_ANALYZED|EXTRACTED_FROM|ASSERTS]->(th)
       WHERE th.uuid IN targetUUIDs
     }
     OR EXISTS {
-      MATCH (th)-[:RUNS_SERVICE|HAS_PORT|HAS_VHOST|HOSTS_APP|HAS_ENDPOINT]->(mid)
+      MATCH (th)-[:HAS_PORT|RUNS_SERVICE|HAS_VHOST|HOSTS_APP|HAS_ENDPOINT*1..4]->(mid)
             <-[:AUTHENTICATES_TO|VIA_SERVICE|YIELDED_ACCESS|YIELDED_PRIV_ACCESS|ESCALATED_VIA]-(n)
       WHERE th.uuid IN targetUUIDs
     }
     OR EXISTS {
-      MATCH (th)<-[:ON_HOST]-(mid)-[:DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY|HOSTS_APP|HAS_ENDPOINT|HAS_VHOST]->(n)
-      WHERE th.uuid IN targetUUIDs
-    }
-    OR EXISTS {
-      MATCH (th)<-[:ON_HOST]-(mid)<-[:AUTHENTICATES_TO|VIA_SERVICE|YIELDED_ACCESS|YIELDED_PRIV_ACCESS]-(n)
+      MATCH (th)-[:HAS_PORT|RUNS_SERVICE|HAS_VHOST|HOSTS_APP|HAS_ENDPOINT*1..4]->(mid)
+            <-[:AUTHENTICATES_TO|VIA_SERVICE|YIELDED_ACCESS|YIELDED_PRIV_ACCESS|ESCALATED_VIA]-(linked)
+            -[:AS_ACCOUNT|BELONGS_TO_ACCOUNT|MEMBER_OF*1..3]->(n)
       WHERE th.uuid IN targetUUIDs
     }
   )
@@ -139,10 +142,11 @@ const targetConnectedFilter = `
 // ─── Attack graph queries ───────────────────────────────────────────────
 
 // attackGraphScopedQuery returns the subgraph of a scoped view: nodes whose
-// labels are in $labels and that are connected to target hosts (directly at
-// depth 1, or via a Service at depth 2). This filters out orphan noise like
-// "read_file command" (a tool name misclassified as Port by Graphiti) while
-// keeping Vulnerabilities and Credentials connected through Services.
+// labels are in $labels and that are connected to target hosts (structure
+// path up to 4 hops, or directly pointing at the target). This filters out
+// orphan noise like "read_file command" (a tool name misclassified as Port by
+// Graphiti) while keeping Vulnerabilities and Credentials connected through
+// Services.
 const attackGraphScopedQuery = targetHostsFragment + `
 MATCH (n) WHERE n.group_id = $group_id
   AND ANY(l IN labels(n) WHERE l IN $labels)` + targetConnectedFilter + `
@@ -235,15 +239,19 @@ LIMIT $limit
 // ─── Credentials ────────────────────────────────────────────────────────
 
 // credentialsByCompromisedQuery returns credential UUIDs that led to a
-// ValidAccess or Account (heuristic for the "Compromised" status).
+// ValidAccess or Account (heuristic for the "Compromised" status). Graphiti
+// 1.1 canonical directions are Credential -AUTHENTICATES_TO-> Service,
+// Credential -BELONGS_TO_ACCOUNT-> Account, Credential -YIELDED_ACCESS->
+// ValidAccess and ValidAccess -AS_ACCOUNT-> Account. The latter also matches
+// the 0.9 graphs (the original query already used that direction).
 const credentialsByCompromisedQuery = `
 MATCH (c:Credential) WHERE c.group_id = $group_id
   AND (
     EXISTS { MATCH (c)-[:AUTHENTICATES_TO]->(s:Service) WHERE s.group_id = $group_id }
     OR EXISTS { MATCH (c)-[:BELONGS_TO_ACCOUNT]->(a:Account) WHERE a.group_id = $group_id }
+    OR EXISTS { MATCH (c)-[:YIELDED_ACCESS]->(va:ValidAccess) WHERE va.group_id = $group_id }
     OR EXISTS {
-      MATCH (at:Attempt)-[:YIELDED_ACCESS]->(va:ValidAccess)
-            <-[:AS_ACCOUNT]-(ac:Account)<-[:BELONGS_TO_ACCOUNT]-(c)
+      MATCH (c)-[:BELONGS_TO_ACCOUNT]->(ac:Account)<-[:AS_ACCOUNT]-(va:ValidAccess)
       WHERE va.group_id = $group_id
     }
   )
@@ -260,53 +268,67 @@ ORDER BY c.created_at DESC
 // ─── Valid accesses ──────────────────────────────────────────────────────
 
 // validAccessesQuery returns each ValidAccess with its reachable Account,
-// backing Service and the Host the service runs on. The Host is filtered to
-// target hosts only so noise hosts (localhost, VPN) don't appear.
+// backing Service and the Host it applies to. Graphiti 1.1 links the
+// ValidAccess straight to the Host (ValidAccess -ON_HOST-> Host); the 0.9
+// shape went through the Service (Service -ON_HOST-> Host). Both are kept,
+// canonical first, and the Host is restricted to target hosts so noise hosts
+// (localhost, VPN) don't appear.
 const validAccessesQuery = targetHostsFragment + `
 MATCH (va:ValidAccess) WHERE va.group_id = $group_id
 OPTIONAL MATCH (va)-[:AS_ACCOUNT]->(a:Account)
 OPTIONAL MATCH (va)-[:VIA_SERVICE]->(s:Service)
-OPTIONAL MATCH (s)-[:ON_HOST]->(h:Host) WHERE h.uuid IN targetUUIDs
-RETURN va.summary AS access, a.name AS account, h.name AS host, s.name AS service, va.summary AS summary
+OPTIONAL MATCH (va)-[:ON_HOST]->(h:Host) WHERE h.uuid IN targetUUIDs
+OPTIONAL MATCH (s)-[:ON_HOST]->(h09:Host) WHERE h09.uuid IN targetUUIDs
+WITH va, a, s, coalesce(h, h09) AS host
+RETURN va.summary AS access, a.name AS account, host.name AS host, s.name AS service, va.summary AS summary
 ORDER BY va.created_at DESC
 `
 
 // ─── Infrastructure map ──────────────────────────────────────────────────
 
 // infraMapQuery returns Host -> Port -> Service rows, filtered to target hosts
-// only so localhost, VPN, and container IPs don't clutter the map.
+// only so localhost, VPN, and container IPs don't clutter the map. Graphiti 1.1
+// hangs the Service off the Port (Port -RUNS_SERVICE-> Service); the 0.9
+// Host -RUNS_SERVICE-> Service edge is kept as a fallback.
 const infraMapQuery = targetHostsFragment + `
 MATCH (h:Host)-[:HAS_PORT]->(p:Port)
 WHERE h.group_id = $group_id AND p.group_id = $group_id AND h.uuid IN targetUUIDs
-OPTIONAL MATCH (h)-[:RUNS_SERVICE]->(s:Service)
-RETURN h.name AS host, p.name AS port, s.name AS service
+OPTIONAL MATCH (p)-[:RUNS_SERVICE]->(s:Service)
+OPTIONAL MATCH (h)-[:RUNS_SERVICE]->(s09:Service)
+WITH p, h, coalesce(s.name, s09.name) AS serviceName
+WITH DISTINCT p, h, serviceName
+RETURN h.name AS host, p.name AS port, serviceName AS service
 ORDER BY host, toInteger(p.name)
 `
 
 // ─── Open ports ─────────────────────────────────────────────────────────
 
-// openPortsQuery returns one row per discovered port on a target host.
+// openPortsQuery returns one row per discovered port on a target host, with
+// the Service attached to that port (1.1) or to the host (0.9 fallback).
 const openPortsQuery = targetHostsFragment + `
 MATCH (p:Port)<-[:HAS_PORT]-(h:Host)
 WHERE p.group_id = $group_id AND h.group_id = $group_id AND h.uuid IN targetUUIDs
-OPTIONAL MATCH (h)-[:RUNS_SERVICE]->(s:Service)
-RETURN p.name AS port, s.name AS service, h.name AS host
+OPTIONAL MATCH (p)-[:RUNS_SERVICE]->(s:Service)
+OPTIONAL MATCH (h)-[:RUNS_SERVICE]->(s09:Service)
+WITH p, h, coalesce(s.name, s09.name) AS serviceName
+WITH DISTINCT p, h, serviceName
+RETURN p.name AS port, serviceName AS service, h.name AS host
 ORDER BY toInteger(p.name), host
 `
 
 // ─── Vulnerabilities ────────────────────────────────────────────────────
 
 // allVulnerabilitiesQuery returns every Vulnerability node connected to a
-// target host (directly via HAS_VULNERABILITY, or via a Service at depth 2
-// through DETECTED_VULNERABILITY/CONFIRMED_VULNERABILITY).
+// target host. The structural path is version-agnostic: 1.1 hangs the
+// Vulnerability off a Service/WebApp/Endpoint, 0.9 could attach it to the Host
+// directly (HAS_VULNERABILITY) or through Host -RUNS_SERVICE-> Service.
 const allVulnerabilitiesQuery = targetHostsFragment + `
 MATCH (v:Vulnerability) WHERE v.group_id = $group_id
-  AND (
-    EXISTS { MATCH (h:Host)-[:HAS_VULNERABILITY]->(v) WHERE h.uuid IN targetUUIDs }
-    OR EXISTS { MATCH (h:Host)-[:RUNS_SERVICE]->(s:Service)-[:DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY]->(v) WHERE h.uuid IN targetUUIDs }
-    OR EXISTS { MATCH (h:Host)<-[:ON_HOST]-(s:Service)-[:DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY]->(v) WHERE h.uuid IN targetUUIDs }
-  )
-OPTIONAL MATCH (src)-[rel:DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY]->(v)
+  AND EXISTS {
+    MATCH (th:Host)-[:HAS_PORT|RUNS_SERVICE|HOSTS_APP|HAS_ENDPOINT|HAS_VHOST|DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY|HAS_VULNERABILITY*1..4]->(v)
+    WHERE th.uuid IN targetUUIDs
+  }
+OPTIONAL MATCH (src)-[:DETECTED_VULNERABILITY|CONFIRMED_VULNERABILITY|HAS_VULNERABILITY]->(v)
 OPTIONAL MATCH (v)<-[:HAS_VULNERABILITY]-(h:Host) WHERE h.uuid IN targetUUIDs
 RETURN v.uuid AS uuid, v.name AS name, v.summary AS summary,
        h.name AS foundOn, coalesce(src.source_description, src.name, '') AS source
