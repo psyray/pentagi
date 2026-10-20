@@ -30,6 +30,10 @@ export const labelColors: Record<string, LabelColor> = {
     Service: { bg: '#22c55e20', border: '#22c55e99', dot: '#22c55e', text: '#86efac' }, // green
     ValidAccess: { bg: '#f9731620', border: '#f9731699', dot: '#f97316', text: '#fdba74' }, // orange
     Vhost: { bg: '#ec489920', border: '#ec489999', dot: '#ec4899', text: '#f9a8d4' }, // pink
+    // VHost is the spelling some Graphiti 0.9 graphs used; Graphiti 1.1 dropped
+    // the entity entirely (host aliases / WebApp.vhost carry the information).
+    // Kept as a legacy alias so old flow graphs keep their colour.
+    VHost: { bg: '#ec489920', border: '#ec489999', dot: '#ec4899', text: '#f9a8d4' }, // pink (legacy 0.9)
     Vulnerability: { bg: '#ef444420', border: '#ef444499', dot: '#ef4444', text: '#fca5a5' }, // red
     WebApp: { bg: '#d946ef20', border: '#d946ef99', dot: '#d946ef', text: '#e879f9' }, // fuchsia
 };

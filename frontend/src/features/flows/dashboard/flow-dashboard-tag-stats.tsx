@@ -6,7 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { FlowGraphitiTagStatsDocument } from '@/graphql/types';
 
 // preferredOrder controls the display order of the tag stat blocks. Tags not
-// in this list appear after, sorted alphabetically.
+// in this list appear after, sorted alphabetically. Vhost/VHost are Graphiti
+// 0.9 legacy labels, kept so historical flow graphs still render.
 const preferredOrder = [
     'ValidAccess',
     'Account',
@@ -19,6 +20,7 @@ const preferredOrder = [
     'Endpoint',
     'WebApp',
     'Vhost',
+    'VHost',
     'PrivChange',
     'Capability',
     'Attempt',
@@ -43,6 +45,7 @@ const tagIcon: Record<string, string> = {
     Service: '⚙️',
     ValidAccess: '🔓',
     Vhost: '💽',
+    VHost: '💽', // legacy Graphiti 0.9 spelling
     Vulnerability: '🛡️',
     WebApp: '🌐',
 };

@@ -49,8 +49,9 @@ import { cn } from '@/lib/utils';
 // labelColumnMap controls the left-to-right column order of entity types
 // in the graph. Labels sharing the same column index appear in the same
 // vertical lane. Host and Account share column 2 (same attack-chain depth);
-// WebApp and Vhost share column 5. Labels not in the map land in a
-// trailing column, ordered alphabetically.
+// WebApp and Vhost share column 5. Vhost/VHost are Graphiti 0.9 legacy labels
+// (1.1 folded the vhost into Host.aliases and WebApp.vhost). Labels not in the
+// map land in a trailing column, ordered alphabetically.
 const labelColumnMap: Record<string, number> = {
     Account: 2,
     Agent: 8,
@@ -68,6 +69,7 @@ const labelColumnMap: Record<string, number> = {
     Service: 4,
     ValidAccess: 0,
     Vhost: 5,
+    VHost: 5, // legacy Graphiti 0.9 spelling
     Vulnerability: 6,
     WebApp: 5,
 };
