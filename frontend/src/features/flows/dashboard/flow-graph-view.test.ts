@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { colorForLabel, fallbackColor } from './flow-graph-labels';
 import { buildLayout, columnForLabel, relatedNodes, toFlowEdges } from './flow-graph-view';
 
 const node = (uuid: string, label: string, name = '') => ({
@@ -24,6 +25,18 @@ describe('flow-graph-view layout', () => {
         expect(columnForLabel('Host')).toBe(2);
         expect(columnForLabel('Service')).toBe(4);
         expect(columnForLabel('SomethingBrandNew')).toBeGreaterThan(9);
+    });
+
+    it('keeps the legacy Graphiti 0.9 Vhost/VHost labels in the same lane', () => {
+        expect(columnForLabel('Vhost')).toBe(5);
+        expect(columnForLabel('VHost')).toBe(5);
+        expect(columnForLabel('VHost')).toBe(columnForLabel('Vhost'));
+    });
+
+    it('colours the legacy VHost alias like Vhost and falls back for unknown labels', () => {
+        expect(colorForLabel('VHost')).toEqual(colorForLabel('Vhost'));
+        expect(colorForLabel('VHost')).not.toEqual(fallbackColor);
+        expect(colorForLabel('SomethingBrandNew')).toEqual(fallbackColor);
     });
 
     it('drops hidden labels from the graph (legend filter)', () => {
