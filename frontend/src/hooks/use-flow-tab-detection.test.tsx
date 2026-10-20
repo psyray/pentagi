@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { BrowserRouter, useLocation, useNavigate } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const currentFlow = { id: '1', messageLogs: [{ id: '1' }] as { id: string }[] };
 
@@ -46,6 +46,8 @@ const renderFlowPage = (entry: string) => {
 };
 
 describe('useFlowTabDetection', () => {
+    beforeEach(() => window.localStorage.clear());
+
     it('resolves the tab the URL names', () => {
         expect(renderDetection('/flows/1?tab=dashboard').result.current.detection.resolvedTab).toBe('dashboard');
     });
@@ -95,7 +97,7 @@ describe('useFlowTabDetection', () => {
     });
 
     it('ignores a tab the consumer cannot render', () => {
-        expect(renderDetection('/flows/1?tab=terminal').result.current.detection.resolvedTab).toBe('automation');
+        expect(renderDetection('/flows/1?tab=terminal').result.current.detection.resolvedTab).toBe('dashboard');
     });
 
     it('knows every tab the flow tabs put on screen', () => {
@@ -104,39 +106,53 @@ describe('useFlowTabDetection', () => {
         expect([...onScreen].sort()).toEqual([...FLOW_TAB_VALUES].sort());
     });
 
-    it('does not carry a tab picked on one flow over to the next', () => {
+    it('carries the tab picked on one flow over to the next when the next has none', () => {
         currentFlow.id = '1';
 
         const { rerender, result } = renderDetection('/flows/1');
 
-        act(() => result.current.detection.handleTabChange('dashboard'));
-        expect(result.current.detection.resolvedTab).toBe('dashboard');
+        act(() => result.current.detection.handleTabChange('automation'));
+        expect(result.current.detection.resolvedTab).toBe('automation');
 
         // the sidebar link carries no ?tab=, and a change of :flowId does not remount the route element
         act(() => result.current.navigate('/flows/2'));
         currentFlow.id = '2';
         rerender();
 
-        expect(result.current.detection.resolvedTab, 'the tab chosen on the previous flow decided this one').not.toBe(
-            'dashboard',
+        expect(result.current.detection.resolvedTab, 'the tab chosen on the previous flow decided this one').toBe(
+            'automation',
         );
 
         currentFlow.id = '1';
     });
 
-    it('does not move the tab when the first automation log arrives', () => {
+    it('reopens a flow on the tab last shown in that flow', () => {
+        currentFlow.id = '1';
+
+        const { rerender, result } = renderDetection('/flows/1');
+
+        act(() => result.current.detection.handleTabChange('assistant'));
+
+        act(() => result.current.navigate('/flows/2'));
+        currentFlow.id = '2';
+        rerender();
+
+        act(() => result.current.detection.handleTabChange('dashboard'));
+
+        act(() => result.current.navigate('/flows/1'));
+        currentFlow.id = '1';
+        rerender();
+
+        expect(result.current.detection.resolvedTab, "flow 1 reopened on flow 2's tab").toBe('assistant');
+    });
+
+    it('opens on Dashboard by default', () => {
         currentFlow.id = '9';
         currentFlow.messageLogs = [];
 
-        const { rerender, result } = renderDetection('/flows/9');
+        const { result } = renderDetection('/flows/9');
 
-        expect(result.current.detection.resolvedTab).toBe('assistant');
-
-        // the log arrives over a subscription while the reader sits on the tab
-        currentFlow.messageLogs = [{ id: 'first-automation-log' }];
-        rerender();
-
-        expect(result.current.detection.resolvedTab, 'the tab moved under the reader').toBe('assistant');
+        expect(result.current.detection.resolvedTab).toBe('dashboard');
 
         currentFlow.id = '1';
         currentFlow.messageLogs = [{ id: '1' }];
@@ -144,6 +160,8 @@ describe('useFlowTabDetection', () => {
 });
 
 describe('useFlowSideTab', () => {
+    beforeEach(() => window.localStorage.clear());
+
     it('opens the side tab a link names, whatever strip the layout put it in', () => {
         expect(renderFlowPage('/flows/1?tab=screenshots').result.current.side.resolvedTab).toBe('screenshots');
     });
@@ -197,6 +215,8 @@ describe('useFlowSideTab', () => {
 });
 
 describe('crossing the two-panel boundary', () => {
+    beforeEach(() => window.localStorage.clear());
+
     it('carries a side tab picked on the single strip into the two-panel layout', () => {
         const { result } = renderFlowPage('/flows/1');
 

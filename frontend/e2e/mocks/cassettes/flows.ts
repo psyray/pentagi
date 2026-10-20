@@ -19,6 +19,7 @@ import type {
 
 import {
     AgentType,
+    AttackGraphView,
     MessageLogType,
     ProviderType,
     ResultFormat,
@@ -164,6 +165,10 @@ export const flowsCassette = (override: Cassette = {}): Cassette =>
         {
             queries: {
                 ...baseQueries(),
+                // The flow opens on Dashboard, so every flow landing queries the
+                // Overview; mock it for both seeded flows so no spec leaves those
+                // calls unmatched (the pager opens flow 6 on the same default).
+                ...dashboardQueries([FLOW_A.id, FLOW_B.id]),
                 assistants: [{ data: noAssistants }],
                 flow: [
                     {
@@ -429,6 +434,7 @@ const toolcallsStatsByFunctionForFlow: ResultOf<typeof ToolcallsStatsByFunctionF
             avgDurationSeconds: 2.5,
             functionName: 'terminal',
             isAgent: false,
+            isSubAgent: false,
             totalCount: 8,
             totalDurationSeconds: 20,
         }),
@@ -437,6 +443,24 @@ const toolcallsStatsByFunctionForFlow: ResultOf<typeof ToolcallsStatsByFunctionF
 
 const flowStatsByFlow: ResultOf<typeof FlowStatsByFlowDocument> = {
     flowStatsByFlow: entity('FlowStats', { totalAssistantsCount: 1, totalSubtasksCount: 3, totalTasksCount: 1 }),
+};
+
+// The queries the Dashboard Overview fires on every flow landing (it is the
+// default tab), shared by every flows cassette. The seeded flows list holds two
+// flows and the pager steps between them without a reload, so every flow that
+// can land on screen gets its own set of answers.
+const dashboardQueries = (flowIds: string[]): NonNullable<Cassette['queries']> => {
+    const perFlow = <T>(data: T) => flowIds.map((flowId) => ({ data, variables: { flowId } }));
+
+    return {
+        flowStatsByFlow: perFlow(flowStatsByFlow),
+        kgDashboardEnabled: [{ data: { kgDashboardEnabled: true } }],
+        toolcallsStatsByFlow: perFlow(toolcallsStatsByFlow),
+        toolcallsStatsByFunctionForFlow: perFlow(toolcallsStatsByFunctionForFlow),
+        usageStatsByAgentTypeForFlow: perFlow(usageStatsByAgentTypeForFlow),
+        usageStatsByFlow: perFlow(usageStatsByFlow),
+        usageStatsByModelAgentsForFlow: perFlow(usageStatsByModelAgentsForFlow),
+    };
 };
 
 /** Text that exists only in a streamed frame, so a panel that ignores its subscription stays blank. */
@@ -626,6 +650,9 @@ export const flowTabsCassette = (override: Cassette = {}): Cassette =>
                 flow: [{ data: flowTabsData, variables: { id: '5' } }],
                 flowFiles: [{ data: flowFiles, variables: { flowId: '5' } }],
                 flowStatsByFlow: [{ data: flowStatsByFlow, variables: { flowId: '5' } }],
+                // The Dashboard tab queries the Graphiti flag even when the
+                // Analytics sub-tab is never opened.
+                kgDashboardEnabled: [{ data: { kgDashboardEnabled: true } }],
                 toolcallsStatsByFlow: [{ data: toolcallsStatsByFlow, variables: { flowId: '5' } }],
                 toolcallsStatsByFunctionForFlow: [
                     { data: toolcallsStatsByFunctionForFlow, variables: { flowId: '5' } },
@@ -645,3 +672,177 @@ export const flowTabsCassette = (override: Cassette = {}): Cassette =>
         }),
         override,
     );
+
+// ─── Knowledge-graph dashboard (Analytics tab) ──────────────────────────
+// The Analytics tab renders a Graphiti-backed attack graph plus the textual
+// metric blocks. The mock serves one entry per view (the app polls
+// flowAttackGraph and reuses the same entry) and the block queries below.
+
+const kgNode = (uuid: string, label: string, name: string, summary: string, createdAt: string) => ({
+    __typename: 'AttackGraphNode',
+    createdAt,
+    labels: [label],
+    name,
+    summary,
+    uuid,
+});
+
+const kgEdge = (uuid: string, type: string, sourceUUID: string, targetUUID: string) => ({
+    __typename: 'AttackGraphEdge',
+    createdAt: T,
+    fact: `${type} relation`,
+    sourceUUID,
+    targetUUID,
+    type,
+    uuid,
+});
+
+const KG_GRAPH_A = [
+    kgNode('kg-host', 'Host', '10.0.0.5', 'target host', '2026-01-15T11:30:00Z'),
+    kgNode('kg-port', 'Port', '80', 'http port', '2026-01-15T11:30:30Z'),
+    kgNode('kg-svc', 'Service', 'http', 'nginx 1.24', '2026-01-15T11:31:00Z'),
+    kgNode('kg-endpoint', 'Endpoint', '/flag', 'POST /flag returns 404', '2026-01-15T11:31:30Z'),
+    kgNode('kg-vuln', 'Vulnerability', 'SQL injection', 'auth bypass on /admin', '2026-01-15T11:32:00Z'),
+    // A sibling port off the same Host: it is NOT on the chain through port 80,
+    // so selecting port 80 must dim it.
+    kgNode('kg-port2', 'Port', '22', 'ssh port', '2026-01-15T11:30:10Z'),
+];
+
+const KG_EDGES_A = [
+    kgEdge('kg-e1', 'HAS_PORT', 'kg-host', 'kg-port'),
+    kgEdge('kg-e2', 'RUNS_SERVICE', 'kg-port', 'kg-svc'),
+    kgEdge('kg-e3', 'HAS_ENDPOINT', 'kg-svc', 'kg-endpoint'),
+    kgEdge('kg-e4', 'HAS_VULNERABILITY', 'kg-endpoint', 'kg-vuln'),
+    kgEdge('kg-e5', 'HAS_PORT', 'kg-host', 'kg-port2'),
+];
+
+const kgGraph = (nodes: unknown[], edges: unknown[]) => ({
+    __typename: 'AttackGraph',
+    edges,
+    nodes,
+    totalEdges: edges.length,
+    totalNodes: nodes.length,
+    truncated: false,
+});
+
+const kgAttackGraphEntries = [
+    {
+        data: { flowAttackGraph: kgGraph(KG_GRAPH_A, KG_EDGES_A) },
+        variables: { flowId: '5', view: AttackGraphView.Main },
+    },
+    {
+        data: { flowAttackGraph: kgGraph(KG_GRAPH_A, KG_EDGES_A) },
+        variables: { flowId: '5', view: AttackGraphView.Action },
+    },
+    {
+        data: { flowAttackGraph: kgGraph(KG_GRAPH_A.slice(0, 3), KG_EDGES_A.slice(0, 2)) },
+        variables: { flowId: '5', view: AttackGraphView.Infra },
+    },
+    {
+        data: { flowAttackGraph: kgGraph([], []) },
+        variables: { flowId: '5', view: AttackGraphView.Privesc },
+    },
+];
+
+export const flowDashboardCassette = (): Cassette =>
+    flowTabsCassette({
+        queries: {
+            flowArtifacts: [
+                {
+                    data: {
+                        flowArtifacts: [
+                            {
+                                __typename: 'ArtifactRow',
+                                artifact: '/work/captures/flag.txt',
+                                producedBy: 'pentester',
+                                summary: '',
+                            },
+                        ],
+                    },
+                },
+            ],
+            flowAttackGraph: kgAttackGraphEntries,
+            flowAttackSurface: [
+                {
+                    data: {
+                        flowAttackSurface: [
+                            {
+                                __typename: 'AttackSurfaceItem',
+                                createdAt: T,
+                                name: '10.0.0.5',
+                                summary: 'target host',
+                                type: 'Host',
+                            },
+                        ],
+                    },
+                },
+            ],
+            flowCredentialsStatus: [
+                {
+                    data: {
+                        flowCredentialsStatus: [
+                            { __typename: 'CredentialStatusRow', count: 1, examples: ['admin'], status: 'Discovered' },
+                        ],
+                    },
+                },
+            ],
+            flowDetectedCVEs: [{ data: { flowDetectedCVEs: [] } }],
+            flowGraphitiTagStats: [
+                {
+                    data: {
+                        flowGraphitiTagStats: [
+                            { __typename: 'GraphitiTagStat', count: 1, tag: 'Host' },
+                            { __typename: 'GraphitiTagStat', count: 1, tag: 'Vulnerability' },
+                        ],
+                    },
+                },
+            ],
+            flowGraphitiToolUsage: [
+                {
+                    data: {
+                        flowGraphitiToolUsage: [{ __typename: 'GraphitiToolUsageRow', executions: 3, tool: 'nmap' }],
+                    },
+                },
+            ],
+            flowGraphNodeProperties: [
+                {
+                    data: {
+                        flowGraphNodeProperties: [
+                            { __typename: 'GraphitiProperty', key: 'method', value: 'POST' },
+                            { __typename: 'GraphitiProperty', key: 'path', value: '/flag' },
+                        ],
+                    },
+                },
+            ],
+            flowInfrastructureMap: [
+                {
+                    data: {
+                        flowInfrastructureMap: [
+                            { __typename: 'InfraMapRow', host: '10.0.0.5', port: '80', service: 'http' },
+                        ],
+                    },
+                },
+            ],
+            flowOpenPorts: [
+                {
+                    data: {
+                        flowOpenPorts: [{ __typename: 'OpenPortRow', host: '10.0.0.5', port: '80', service: 'http' }],
+                    },
+                },
+            ],
+            flowVulnerabilityBreakdown: [
+                {
+                    data: {
+                        flowVulnerabilityBreakdown: [
+                            {
+                                __typename: 'VulnBreakdownRow',
+                                category: 'Critical',
+                                count: 1,
+                                examples: ['SQL injection'],
+                            },
+                        ],
+                    },
+                },
+            ],
+        },
+    });

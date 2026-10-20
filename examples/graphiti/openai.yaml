@@ -1,9 +1,10 @@
 provider: openai
+timeout: 120
 MODEL_NAME:
   model: gpt-5.6-luna
   temperature: 1.0
   max_tokens: 32768
-  json: true
+  structured_output: json_schema
   reasoning:
     effort: low
   verbosity: low
@@ -11,7 +12,7 @@ SMALL_MODEL_NAME:
   model: gpt-5-nano
   temperature: 1.0
   max_tokens: 32768
-  json: true
+  structured_output: json_schema
   reasoning:
     effort: low
   verbosity: low

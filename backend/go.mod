@@ -44,6 +44,7 @@ require (
 	github.com/moby/moby/api v1.55.0
 	github.com/moby/moby/client v0.5.1
 	github.com/muesli/termenv v0.16.0
+	github.com/neo4j/neo4j-go-driver/v5 v5.28.4
 	github.com/ollama/ollama v0.32.5
 	github.com/pgvector/pgvector-go v0.1.1
 	github.com/pressly/goose/v3 v3.19.2

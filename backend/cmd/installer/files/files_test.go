@@ -264,3 +264,38 @@ func TestFiles_List_FiltersEmbeddedFilesByPrefix(t *testing.T) {
 		t.Errorf("List(nonexistent-prefix) = %v, %v; want no files", unknown, err)
 	}
 }
+
+func TestGraphitiAssetsFollowTheOnePointOneConfig(t *testing.T) {
+	filesRequireEmbedded(t)
+
+	for _, name := range []string{"custom.yaml", "openai.yaml", "litellm.yaml", "gemini.yaml"} {
+		content := string(filesEmbedded(t, filepath.Join("graphiti", name)))
+		if !strings.Contains(content, "structured_output: json_schema") {
+			t.Errorf("graphiti/%s does not request json_schema:\n%s", name, content)
+		}
+		if strings.Contains(content, "json: true") {
+			t.Errorf("graphiti/%s still uses the Graphiti 0.9 json flag:\n%s", name, content)
+		}
+		if !strings.Contains(content, "timeout: ") {
+			t.Errorf("graphiti/%s has no provider timeout:\n%s", name, content)
+		}
+	}
+
+	custom := string(filesEmbedded(t, filepath.Join("graphiti", "custom.yaml")))
+	for _, want := range []string{"provider: custom", "timeout: 240", "max_tokens: 16384", "model: qwen38-hyper"} {
+		if !strings.Contains(custom, want) {
+			t.Errorf("graphiti/custom.yaml is missing %q", want)
+		}
+	}
+
+	compose := string(filesEmbedded(t, "docker-compose-graphiti.yml"))
+	for _, want := range []string{
+		"INGEST_TRANSIENT_MAX_RETRIES=",
+		"INGEST_TRANSIENT_RETRY_DELAY_SEC=",
+		"INGEST_RATE_LIMIT_RETRY_DELAY_SEC=",
+	} {
+		if !strings.Contains(compose, want) {
+			t.Errorf("docker-compose-graphiti.yml is missing the %s pass-through", want)
+		}
+	}
+}

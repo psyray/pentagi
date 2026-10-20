@@ -58,6 +58,9 @@ test.describe('responsive', { tag: '@cross' }, () => {
             await page.setViewportSize({ height: 800, width: 1280 });
             await page.goto('/flows');
             await page.getByRole('row', { name: /E2E Alpha/ }).click();
+            // Land on a tab whose panel carries no tab strip of its own: the Dashboard (the default)
+            // renders an inner Overview/Analytics row, which would sit between the two flow rows below.
+            await page.getByRole('tab', { name: 'Automation' }).click();
             await expect(page.getByRole('separator').first()).toBeVisible();
             // Split layout: the central panel and the right rail are two separate tab rows.
             await expect(page.getByRole('tablist')).toHaveCount(2);
