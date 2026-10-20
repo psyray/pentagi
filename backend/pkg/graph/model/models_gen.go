@@ -381,6 +381,7 @@ type MessageLog struct {
 	Result       string         `json:"result"`
 	ResultFormat ResultFormat   `json:"resultFormat"`
 	FlowID       int64          `json:"flowId"`
+	Agent        *AgentType     `json:"agent,omitempty"`
 	TaskID       *int64         `json:"taskId,omitempty"`
 	SubtaskID    *int64         `json:"subtaskId,omitempty"`
 	CreatedAt    time.Time      `json:"createdAt"`
@@ -425,6 +426,22 @@ type ModelUsageStats struct {
 	Model    string      `json:"model"`
 	Provider string      `json:"provider"`
 	Stats    *UsageStats `json:"stats"`
+}
+
+type Msgchain struct {
+	ID              int64     `json:"id"`
+	Type            AgentType `json:"type"`
+	Model           string    `json:"model"`
+	ModelProvider   string    `json:"modelProvider"`
+	UsageIn         int       `json:"usageIn"`
+	UsageOut        int       `json:"usageOut"`
+	UsageCacheIn    int       `json:"usageCacheIn"`
+	UsageCacheOut   int       `json:"usageCacheOut"`
+	DurationSeconds float64   `json:"durationSeconds"`
+	FlowID          int64     `json:"flowId"`
+	TaskID          *int64    `json:"taskId,omitempty"`
+	SubtaskID       *int64    `json:"subtaskId,omitempty"`
+	CreatedAt       time.Time `json:"createdAt"`
 }
 
 type Mutation struct {

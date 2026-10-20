@@ -15,16 +15,16 @@ import { FlowProvider, useFlow } from './flow-provider';
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), info: vi.fn(), success: vi.fn() } }));
 
-const terminalLog = (id: string) => ({
-    __typename: 'TerminalLog',
+const messageLog = (id: string) => ({
+    __typename: 'MessageLog',
+    agent: null,
     createdAt: '2026-01-01T00:00:00Z',
     flowId: '1',
     id,
+    message: `row ${id}`,
     subtaskId: null,
     taskId: null,
-    terminal: 1,
-    text: `row ${id}`,
-    type: 'stdout',
+    type: 'thoughts',
 });
 
 const flowPayload = (logs: string[]) => ({
@@ -40,11 +40,12 @@ const flowPayload = (logs: string[]) => ({
         updatedAt: '2026-01-01T00:00:00Z',
         userId: '1',
     },
-    messageLogs: [],
+    flowLooseMessageLogs: [],
+    messageLogs: logs.map(messageLog),
+    msgchains: [],
     screenshots: [],
     searchLogs: [],
     tasks: [],
-    terminalLogs: logs.map(terminalLog),
     vectorStoreLogs: [],
 });
 
@@ -577,7 +578,7 @@ function Probe() {
 
     return (
         <>
-            <span data-slot="probe-rows">{flowData?.terminalLogs?.length ?? 0}</span>
+            <span data-slot="probe-rows">{flowData?.messageLogs?.length ?? 0}</span>
             <span data-slot="probe-flow-id">{flowId}</span>
             <span data-slot="probe-logs">{assistantLogs.map(({ id }) => id).join(',')}</span>
             <span data-slot="probe-log-text">{assistantLogs.map(({ message }) => message).join('|')}</span>

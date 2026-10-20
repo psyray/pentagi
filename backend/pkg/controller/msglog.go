@@ -6,6 +6,7 @@ import (
 
 	"pentagi/pkg/database"
 	"pentagi/pkg/graph/subscriptions"
+	"pentagi/pkg/tools"
 )
 
 const defaultMaxMessageLength = 2048
@@ -189,6 +190,18 @@ func (mlw *flowMsgLogWorker) UpdateMsgResult(
 	return nil
 }
 
+// msgLogAgentType reports the agent that produced a message so the chat can group
+// messages by agent within a subtask. Messages written outside an agent run (flow,
+// task, subtask level) carry no agent and stay unattributed.
+func msgLogAgentType(ctx context.Context) database.NullMsgchainType {
+	agentCtx, ok := tools.GetAgentContext(ctx)
+	if !ok {
+		return database.NullMsgchainType{}
+	}
+
+	return database.NullMsgchainType{MsgchainType: agentCtx.CurrentAgentType, Valid: true}
+}
+
 func (mlw *flowMsgLogWorker) putMsg(
 	ctx context.Context,
 	msgType database.MsglogType,
@@ -202,6 +215,7 @@ func (mlw *flowMsgLogWorker) putMsg(
 		FlowID:    mlw.flowID,
 		TaskID:    database.Int64ToNullInt64(taskID),
 		SubtaskID: database.Int64ToNullInt64(subtaskID),
+		AgentType: msgLogAgentType(ctx),
 	})
 	if err != nil {
 		return 0, err
@@ -232,6 +246,7 @@ func (mlw *flowMsgLogWorker) putMsgResult(
 		FlowID:       mlw.flowID,
 		TaskID:       database.Int64ToNullInt64(taskID),
 		SubtaskID:    database.Int64ToNullInt64(subtaskID),
+		AgentType:    msgLogAgentType(ctx),
 	})
 	if err != nil {
 		return 0, err

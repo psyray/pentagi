@@ -204,6 +204,12 @@ func ConvertMessageLogs(logs []database.Msglog) []*model.MessageLog {
 }
 
 func ConvertMessageLog(log database.Msglog) *model.MessageLog {
+	var agent *model.AgentType
+	if log.AgentType.Valid {
+		agentType := model.AgentType(log.AgentType.MsgchainType)
+		agent = &agentType
+	}
+
 	return &model.MessageLog{
 		ID:           log.ID,
 		Type:         model.MessageLogType(log.Type),
@@ -212,10 +218,38 @@ func ConvertMessageLog(log database.Msglog) *model.MessageLog {
 		Result:       log.Result,
 		ResultFormat: model.ResultFormat(log.ResultFormat),
 		FlowID:       log.FlowID,
+		Agent:        agent,
 		TaskID:       database.NullInt64ToInt64(log.TaskID),
 		SubtaskID:    database.NullInt64ToInt64(log.SubtaskID),
 		CreatedAt:    log.CreatedAt.Time,
 	}
+}
+
+func ConvertMsgchain(chain database.Msgchain) *model.Msgchain {
+	return &model.Msgchain{
+		ID:              chain.ID,
+		Type:            model.AgentType(chain.Type),
+		Model:           chain.Model,
+		ModelProvider:   chain.ModelProvider,
+		UsageIn:         int(chain.UsageIn),
+		UsageOut:        int(chain.UsageOut),
+		UsageCacheIn:    int(chain.UsageCacheIn),
+		UsageCacheOut:   int(chain.UsageCacheOut),
+		DurationSeconds: chain.DurationSeconds,
+		FlowID:          chain.FlowID,
+		TaskID:          database.NullInt64ToInt64(chain.TaskID),
+		SubtaskID:       database.NullInt64ToInt64(chain.SubtaskID),
+		CreatedAt:       chain.CreatedAt.Time,
+	}
+}
+
+func ConvertMsgchains(chains []database.Msgchain) []*model.Msgchain {
+	gchains := make([]*model.Msgchain, 0, len(chains))
+	for _, chain := range chains {
+		gchains = append(gchains, ConvertMsgchain(chain))
+	}
+
+	return gchains
 }
 
 func ConvertPrompts(prompts []database.Prompt) []*model.UserPrompt {

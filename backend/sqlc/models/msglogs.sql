@@ -34,6 +34,14 @@ INNER JOIN flows f ON t.flow_id = f.id
 WHERE ml.subtask_id = $1 AND f.deleted_at IS NULL
 ORDER BY ml.created_at ASC;
 
+-- name: GetFlowLooseMsgLogs :many
+SELECT
+  ml.*
+FROM msglogs ml
+INNER JOIN flows f ON ml.flow_id = f.id
+WHERE ml.flow_id = $1 AND ml.subtask_id IS NULL AND f.deleted_at IS NULL
+ORDER BY ml.created_at ASC;
+
 -- name: CreateMsgLog :one
 INSERT INTO msglogs (
   type,
@@ -41,10 +49,11 @@ INSERT INTO msglogs (
   thinking,
   flow_id,
   task_id,
-  subtask_id
+  subtask_id,
+  agent_type
 )
 VALUES (
-  $1, $2, $3, $4, $5, $6
+  $1, $2, $3, $4, $5, $6, $7
 )
 RETURNING *;
 
@@ -57,10 +66,11 @@ INSERT INTO msglogs (
   result_format,
   flow_id,
   task_id,
-  subtask_id
+  subtask_id,
+  agent_type
 )
 VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8
+  $1, $2, $3, $4, $5, $6, $7, $8, $9
 )
 RETURNING *;
 
