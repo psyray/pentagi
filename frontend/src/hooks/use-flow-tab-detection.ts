@@ -9,7 +9,16 @@ import { useFlow } from '@/providers/flow-provider';
 // Dashboard first: it is the tab a flow opens on by default.
 export const CENTRAL_TAB_VALUES = ['dashboard', 'automation', 'assistant'];
 
-export const SIDE_TAB_VALUES = ['terminal', 'tasks', 'agents', 'tools', 'vectorStores', 'files', 'screenshots'];
+export const SIDE_TAB_VALUES = [
+    'terminal',
+    'shell',
+    'tasks',
+    'agents',
+    'tools',
+    'vectorStores',
+    'files',
+    'screenshots',
+];
 
 export const FLOW_TAB_VALUES = [...CENTRAL_TAB_VALUES, ...SIDE_TAB_VALUES];
 

@@ -244,6 +244,10 @@ func (d *fakeDockerClient) ContainerExecInspect(context.Context, string) (client
 	return d.inspectResp, nil
 }
 
+func (d *fakeDockerClient) ContainerExecResize(context.Context, string, uint, uint) error {
+	return nil
+}
+
 func (d *fakeDockerClient) ContainerStatPath(context.Context, string, string) (container.PathStat, error) {
 	return container.PathStat{}, nil
 }
