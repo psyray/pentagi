@@ -479,20 +479,25 @@ func (w *worker) plan(ctx context.Context) error {
 		},
 	}}
 
-	start := time.Now()
-	resp, err := w.prv.CallWithTools(ctx, pconfig.OptionsTypeReporter, chain, tools, nil)
-	controlSeconds := time.Since(start).Seconds()
-	if err != nil {
-		if w.stopped.Load() || ctx.Err() != nil {
-			return err
-		}
-		return fmt.Errorf("planner call failed: %w", err)
+	// A single malformed tool payload used to fail the whole report after one
+	// attempt (observed on prod 2026-10-20 with glm-5.3-flash: the model
+	// stringified `sections` with an extra colon). Retry the planner so a
+	// stochastic JSON slip costs one extra control call instead of the report.
+	call := func(ctx context.Context, chain []llms.MessageContent) (*llms.ContentResponse, error) {
+		start := time.Now()
+		resp, err := w.prv.CallWithTools(ctx, pconfig.OptionsTypeReporter, chain, tools, nil)
+		w.recordNodeUsage(true, resp, time.Since(start).Seconds())
+		return resp, err
 	}
-	w.recordNodeUsage(true, resp, controlSeconds)
 
-	var got plan
-	if err := decodePlanCommand(resp, planToolName, &got); err != nil {
+	got, attempts, err := planWithRetry(ctx, call, chain)
+	if err != nil {
 		return err
+	}
+	if attempts > 1 {
+		w.putLog(LogControl, fmt.Sprintf("planner recovered after %d attempts", attempts), map[string]any{
+			"attempts": attempts,
+		})
 	}
 
 	if err := w.applyPlan(ctx, got, sections); err != nil {
@@ -503,6 +508,48 @@ func (w *worker) plan(ctx context.Context) error {
 		w.report.SectionsTotal, got.Estimate), nil)
 
 	return nil
+}
+
+// planDecodeAttempts bounds how many times the planner is called when its tool
+// payload cannot be decoded. Three attempts tolerate a rare malformed JSON slip
+// without letting a model that cannot produce the schema burn the planning
+// budget.
+const planDecodeAttempts = 3
+
+// planCall performs one planner request. Split out so the retry loop is
+// testable without a provider implementation.
+type planCall func(ctx context.Context, chain []llms.MessageContent) (*llms.ContentResponse, error)
+
+// planWithRetry calls the planner until its payload decodes and validates,
+// re-asking with the decode error after a rejected attempt. It returns how many
+// attempts were spent so the caller can log a recovery.
+func planWithRetry(ctx context.Context, call planCall, chain []llms.MessageContent) (plan, int, error) {
+	var got plan
+	var lastErr error
+
+	for attempt := 1; attempt <= planDecodeAttempts; attempt++ {
+		resp, err := call(ctx, chain)
+		if err != nil {
+			return plan{}, attempt, fmt.Errorf("planner call failed: %w", err)
+		}
+
+		lastErr = decodePlanCommand(resp, planToolName, &got)
+		if lastErr == nil {
+			return got, attempt, nil
+		}
+		if attempt == planDecodeAttempts {
+			break
+		}
+
+		// Re-ask on the same system/human chain, naming the defect: the model can
+		// fix its own escaping without the record being rebuilt.
+		chain = append(chain, llms.TextParts(llms.ChatMessageTypeHuman, fmt.Sprintf(
+			"The previous %s call was rejected: %v. Call %s again with one valid JSON object. "+
+				"Escape every string, give each key a single value, and use the tool payload schema exactly.",
+			planToolName, lastErr, planToolName)))
+	}
+
+	return plan{}, planDecodeAttempts, lastErr
 }
 
 // decodePlanCommand extracts the report_plan tool payload from a response.
