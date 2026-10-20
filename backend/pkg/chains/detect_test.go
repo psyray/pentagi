@@ -72,6 +72,40 @@ func TestDetectKerberoastableSPN(t *testing.T) {
 	}
 }
 
+func TestDetectConstrainedDelegation(t *testing.T) {
+	out := "dn: CN=svc,CN=Users,DC=lab,DC=local\nmsDS-AllowedToDelegateTo: CIFS/host.lab.local\n"
+	dets := Detect(out)
+	if len(dets) == 0 || dets[0].ChainID != "constrained-delegation-allowed-to-delegate" {
+		t.Fatalf("expected constrained-delegation-allowed-to-delegate, got %+v", dets)
+	}
+}
+
+func TestDetectConstrainedDelegationFilterIsNotMatched(t *testing.T) {
+	// Le filtre LDAP lui-meme n'est pas une preuve d'attribut renseigne.
+	out := "# filter: (msDS-AllowedToDelegateTo=*)\n"
+	for _, d := range Detect(out) {
+		if d.ChainID == "constrained-delegation-allowed-to-delegate" {
+			t.Fatalf("a bare LDAP filter must not match: %+v", d)
+		}
+	}
+}
+
+func TestDetectUnconstrainedDelegation(t *testing.T) {
+	out := "dn: CN=dc,OU=Domain Controllers,DC=lab,DC=local\nuserAccountControl: 524288\n"
+	dets := Detect(out)
+	if len(dets) == 0 || dets[0].ChainID != "unconstrained-delegation-trusted-for-delegation" {
+		t.Fatalf("expected unconstrained-delegation-trusted-for-delegation, got %+v", dets)
+	}
+}
+
+func TestDetectASREPRoastable(t *testing.T) {
+	out := "dn: CN=svc,CN=Users,DC=lab,DC=local\nuserAccountControl: 4194304\n"
+	dets := Detect(out)
+	if len(dets) == 0 || dets[0].ChainID != "asrep-roastable-account" {
+		t.Fatalf("expected asrep-roastable-account, got %+v", dets)
+	}
+}
+
 func TestDetectAnonymousUserEnumerationNullAuth(t *testing.T) {
 	// netexec prints "(Null Auth:True)" in its SMB info line.
 	out := "SMB  192.168.56.11  445  WINTERFELL  [*] Windows Server ... (domain:north.lab) (signing:True) (SMBv1:None) (Null Auth:True)\n"

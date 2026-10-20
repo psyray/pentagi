@@ -41,6 +41,7 @@
   any_of:
     - "anonymous"
     - "null session"
+    - "null-session"
     - "nt_status_access_denied"
   reason: "SMB share enumeration performed without authentication"
 
@@ -48,7 +49,36 @@
   any_of:
     - "serviceprincipalname:"
     - "serviceprincipalname :"
+    - "serviceprincipalname  name"   # en-tete de table impacket GetUserSPNs
+    - "kerberoasting"
   reason: "an account exposes a Service Principal Name (kerberoast surface)"
+
+- chain: kerberoastable-service-account
+  any_of:
+    - "$krb5tgs$"
+  reason: "a Kerberos TGS hash was captured (kerberoast already executed)"
+
+- chain: asrep-roastable-account
+  any_of:
+    - "dont_require_preauth"
+    - "do not require preauth"
+    - "useraccountcontrol: 4194304"
+    - "$krb5asrep$"
+    - "asreproast"
+  reason: "an account does not require Kerberos pre-authentication (AS-REP roast surface)"
+
+- chain: constrained-delegation-allowed-to-delegate
+  any_of:
+    - "msds-allowedtodelegateto: "   # attribut LDAP avec une valeur
+    - "\"allowedtodelegate\": [\""   # tableau BloodHound non vide
+  reason: "an account is allowed to delegate to another service (constrained delegation)"
+
+- chain: unconstrained-delegation-trusted-for-delegation
+  any_of:
+    - "trusted_for_delegation"
+    - "trustedfordelegation"
+    - "useraccountcontrol: 524288"
+  reason: "an account is trusted for unconstrained delegation (TGT capture surface)"
 
 - chain: smb-anonymous-user-enumeration
   any_of:
