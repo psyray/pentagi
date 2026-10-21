@@ -1,8 +1,6 @@
 import { Copy } from 'lucide-react';
 import { memo, useCallback, useMemo, useState } from 'react';
 
-import type { AssistantLogFragmentFragment, MessageLogFragmentFragment } from '@/graphql/types';
-
 import Markdown from '@/components/shared/markdown';
 import Terminal from '@/components/shared/terminal';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -14,8 +12,19 @@ import { formatDate } from '@/lib/utils/format';
 
 import FlowMessageTypeIcon from './flow-message-type-icon';
 
+// The heavy content (result/thinking) is fetched lazily, so a message may render before it arrives.
+interface FlowMessageLog {
+    createdAt: string;
+    id: string;
+    message: string;
+    result?: string;
+    resultFormat?: ResultFormat;
+    thinking?: null | string;
+    type: MessageLogType;
+}
+
 interface FlowMessageProps {
-    log: AssistantLogFragmentFragment | MessageLogFragmentFragment;
+    log: FlowMessageLog;
     searchValue?: string;
 }
 
@@ -91,7 +100,7 @@ function FlowMessage({ log, searchValue = '' }: FlowMessageProps) {
 
     // Gate by visibility so the (potentially heavy) details subtree isn't in the DOM when collapsed.
     const renderDetailsContent = () => {
-        if (!isDetailsVisible) {
+        if (!isDetailsVisible || !result) {
             return null;
         }
 
@@ -125,7 +134,7 @@ function FlowMessage({ log, searchValue = '' }: FlowMessageProps) {
     };
 
     const renderThinkingContent = () => {
-        if (!shouldShowThinking) {
+        if (!shouldShowThinking || !thinking) {
             return null;
         }
 

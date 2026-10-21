@@ -100,6 +100,7 @@ type Querier interface {
 	GetFlowAssistantLogs(ctx context.Context, arg GetFlowAssistantLogsParams) ([]Assistantlog, error)
 	GetFlowAssistants(ctx context.Context, flowID int64) ([]Assistant, error)
 	GetFlowContainers(ctx context.Context, flowID int64) ([]Container, error)
+	GetFlowLooseMsgLogs(ctx context.Context, flowID int64) ([]Msglog, error)
 	GetFlowMsgChains(ctx context.Context, flowID int64) ([]Msgchain, error)
 	GetFlowMsgLogs(ctx context.Context, flowID int64) ([]Msglog, error)
 	GetFlowPrimaryContainer(ctx context.Context, flowID int64) (Container, error)

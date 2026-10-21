@@ -83,9 +83,30 @@ fragment messageLogFragment on MessageLog {
     id
     type
     message
+    flowId
+    agent
+    taskId
+    subtaskId
+    createdAt
+}
+
+fragment messageLogContentFragment on MessageLog {
+    id
     thinking
     result
     resultFormat
+}
+
+fragment msgchainFragment on Msgchain {
+    id
+    type
+    model
+    modelProvider
+    usageIn
+    usageOut
+    usageCacheIn
+    usageCacheOut
+    durationSeconds
     flowId
     taskId
     subtaskId
@@ -853,19 +874,40 @@ query flow($id: ID!) {
     screenshots(flowId: $id) {
         ...screenshotFragment
     }
-    terminalLogs(flowId: $id) {
-        ...terminalLogFragment
-    }
     messageLogs(flowId: $id) {
         ...messageLogFragment
     }
-    agentLogs(flowId: $id) {
-        ...agentLogFragment
+    msgchains(flowId: $id) {
+        ...msgchainFragment
+    }
+    flowLooseMessageLogs(flowId: $id) {
+        ...messageLogContentFragment
     }
     searchLogs(flowId: $id) {
         ...searchLogFragment
     }
-    vectorStoreLogs(flowId: $id) {
+}
+
+query subtaskMessageLogs($flowId: ID!, $subtaskId: ID!) {
+    subtaskMessageLogs(flowId: $flowId, subtaskId: $subtaskId) {
+        ...messageLogContentFragment
+    }
+}
+
+query flowTerminalLogs($flowId: ID!) {
+    terminalLogs(flowId: $flowId) {
+        ...terminalLogFragment
+    }
+}
+
+query flowAgentLogs($flowId: ID!) {
+    agentLogs(flowId: $flowId) {
+        ...agentLogFragment
+    }
+}
+
+query flowVectorStoreLogs($flowId: ID!) {
+    vectorStoreLogs(flowId: $flowId) {
         ...vectorStoreLogFragment
     }
 }
@@ -1252,12 +1294,14 @@ subscription terminalLogAdded($flowId: ID!) {
 subscription messageLogAdded($flowId: ID!) {
     messageLogAdded(flowId: $flowId) {
         ...messageLogFragment
+        ...messageLogContentFragment
     }
 }
 
 subscription messageLogUpdated($flowId: ID!) {
     messageLogUpdated(flowId: $flowId) {
         ...messageLogFragment
+        ...messageLogContentFragment
     }
 }
 
