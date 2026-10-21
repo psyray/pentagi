@@ -129,6 +129,7 @@ func (dc *dockerClient) probeSandbox(ctx context.Context, cfg *config.Config) (s
 	containerConfig, hostConfig := WorkerSpec(cfg, image)
 	containerConfig.Env = append(containerConfig.Env, "PENTAGI_TEST_IMAGE="+image)
 	dc.applyWorkerDockerAccess(containerConfig, hostConfig)
+	dc.applyWorkerDevices(hostConfig)
 	if hostConfig.PidsLimit == nil {
 		pidsLimit := int64(2048)
 		hostConfig.PidsLimit = &pidsLimit
