@@ -132,6 +132,21 @@ type Config struct {
 	SummarizerMaxQABytes     int  `env:"SUMMARIZER_MAX_QA_BYTES" envDefault:"65536"`
 	SummarizerKeepQASections int  `env:"SUMMARIZER_KEEP_QA_SECTIONS" envDefault:"1"`
 
+	// === Reports (fork extended-version section 6): AI-generated documents ===
+	// Soft agent-time budgets in seconds; 0 disables the cap (report runs to the
+	// end of its templates). Streaming updates are throttled to avoid flooding
+	// the graphql-ws connection; the record digest is capped and compacted
+	// through the same summarizer machinery when it exceeds the byte limit.
+	ReportEnabled              bool `env:"REPORT_ENABLED" envDefault:"true"`
+	ReportControlBudgetSec     int  `env:"REPORT_CONTROL_NODE_BUDGET_SECONDS" envDefault:"900"`
+	ReportContentBudgetSec     int  `env:"REPORT_CONTENT_NODE_BUDGET_SECONDS" envDefault:"3600"`
+	ReportStreamIntervalMs     int  `env:"REPORT_STREAM_INTERVAL_MS" envDefault:"1500"`
+	ReportMaxRecordBytes       int  `env:"REPORT_MAX_RECORD_BYTES" envDefault:"196608"`
+	ReportEvidenceItemBytes    int  `env:"REPORT_EVIDENCE_ITEM_BYTES" envDefault:"4000"`
+	ReportEvidenceMaxItems     int  `env:"REPORT_EVIDENCE_MAX_ITEMS" envDefault:"40"`
+	ReportEvidenceMaxBytes     int  `env:"REPORT_EVIDENCE_MAX_BYTES" envDefault:"48000"`
+	ReportMaxConcurrentPerFlow int  `env:"REPORT_MAX_CONCURRENT_PER_FLOW" envDefault:"3"`
+
 	// === LLM Provider: Custom/Self-Hosted ===
 	LLMServerURL               string `env:"LLM_SERVER_URL"`
 	LLMServerKey               string `env:"LLM_SERVER_KEY"`
@@ -334,6 +349,25 @@ type Config struct {
 	MaxGeneralAgentToolCalls int `env:"MAX_GENERAL_AGENT_TOOL_CALLS" envDefault:"100"`
 	MaxLimitedAgentToolCalls int `env:"MAX_LIMITED_AGENT_TOOL_CALLS" envDefault:"20"`
 
+	// === Agent Closure Enforcement ===
+	// The harness must not obey a closure signal blindly: an adviser close verdict
+	// can be premature, and cutting a subtask that is still making progress (a long
+	// exploitation, a slow web chain, a code audit) hurts more than it helps. So a
+	// close verdict is only a SIGNAL, verified in two stages before the harness
+	// forces the graceful shutdown:
+	//   1. deterministic: is the subtask idle on new evidence (no new tool-output
+	//      fingerprint for CloseVerifyMinIdleCalls calls)? A subtask that keeps
+	//      producing new output is still progressing, so the close is rejected and
+	//      the chain continues.
+	//   2. adversarial: an independent completion critic (the adviser agent with a
+	//      challenge prompt) confirms the objective is genuinely met.
+	// Disabled by CLOSURE_ENFORCEMENT_ENABLED=false. There is NO tool-call cap: a
+	// long subtask is not a blocked subtask.
+	ClosureEnforcementEnabled      bool `env:"CLOSURE_ENFORCEMENT_ENABLED" envDefault:"true"`
+	AdviserCloseVerdictsBeforeStop int  `env:"ADVISER_CLOSE_VERDICTS_BEFORE_STOP" envDefault:"2"`
+	CloseVerifyMinIdleCalls        int  `env:"CLOSE_VERIFY_MIN_IDLE_CALLS" envDefault:"3"`
+	CloseVerifyCritic              bool `env:"CLOSE_VERIFY_CRITIC" envDefault:"true"`
+
 	// === Agent Planning Phase Configuration ===
 	AgentPlanningStepEnabled bool `env:"AGENT_PLANNING_STEP_ENABLED" envDefault:"false"`
 
@@ -354,6 +388,19 @@ type Config struct {
 	CLMBestOfNInterval int    `env:"CLM_BEST_OF_N_INTERVAL" envDefault:"0"`
 	CLMTimeoutSec      int    `env:"CLM_TIMEOUT_SEC" envDefault:"5"`
 	CLMAgents          string `env:"CLM_BEST_OF_N_AGENTS" envDefault:"pentester"`
+
+	// === Flow Shell (interactive terminal into the flow container) ===
+	// FlowShellEnabled exposes the Shell tab: an interactive, user-driven shell
+	// inside a running flow's primary container. FlowShellMaxTerminals caps how
+	// many live shells one flow may hold at once.
+	FlowShellEnabled      bool `env:"FLOW_SHELL_ENABLED" envDefault:"true"`
+	FlowShellMaxTerminals int  `env:"FLOW_SHELL_MAX_TERMINALS" envDefault:"5"`
+
+	// === Exploit-chain Library Configuration (fork extended-version, plan § 8) ===
+	// FlowChainsDir is an optional directory on disk whose *.yaml chains are merged
+	// with the embedded library at load time. Empty (the default) uses the embedded
+	// core only, so an operator can add chains without versioning them.
+	FlowChainsDir string `env:"FLOW_CHAINS_DIR" envDefault:""`
 
 	// === Database Configuration ===
 	DatabaseURL string `env:"DATABASE_URL" envDefault:"postgres://pentagiuser:pentagipass@pgvector:5432/pentagidb?sslmode=disable"`
