@@ -1,0 +1,46 @@
+<clickhouse>
+    <!--
+        Bound the ClickHouse system logs of the observability store.
+
+        Nothing reads these tables (Grafana has no ClickHouse datasource and
+        Jaeger only reads the jaeger.* tables), yet without a TTL they grow
+        without limit: system.text_log reached 9.1 GiB / 257M rows on prod,
+        which fed continuous background merges.
+
+        - trace_log / text_log: the biggest volumes, 3 days
+        - self-monitoring logs (metric_log, asynchronous_metric_log): 3 days
+        - query, part and profiling logs: 7 days
+        - logger warning: stops the multi-million-lines-a-day text_log flood
+          (the tables are pure ClickHouse diagnostics)
+    -->
+    <logger>
+        <level>warning</level>
+    </logger>
+    <trace_log>
+        <ttl>event_date + INTERVAL 3 DAY DELETE</ttl>
+    </trace_log>
+    <text_log>
+        <ttl>event_date + INTERVAL 3 DAY DELETE</ttl>
+    </text_log>
+    <metric_log>
+        <ttl>event_date + INTERVAL 3 DAY DELETE</ttl>
+    </metric_log>
+    <asynchronous_metric_log>
+        <ttl>event_date + INTERVAL 3 DAY DELETE</ttl>
+    </asynchronous_metric_log>
+    <query_log>
+        <ttl>event_date + INTERVAL 7 DAY DELETE</ttl>
+    </query_log>
+    <query_views_log>
+        <ttl>event_date + INTERVAL 7 DAY DELETE</ttl>
+    </query_views_log>
+    <part_log>
+        <ttl>event_date + INTERVAL 7 DAY DELETE</ttl>
+    </part_log>
+    <processors_profile_log>
+        <ttl>event_date + INTERVAL 7 DAY DELETE</ttl>
+    </processors_profile_log>
+    <error_log>
+        <ttl>event_date + INTERVAL 7 DAY DELETE</ttl>
+    </error_log>
+</clickhouse>
