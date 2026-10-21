@@ -1,0 +1,20 @@
+<clickhouse>
+    <!--
+        Write-buffer sizing for background merges (user-level settings, they
+        belong to a profile and not to config.d).
+
+        MergeTreeDataPartWriterWide allocates one output buffer per column,
+        sized by max_compress_block_size. With system.metric_log at ~1102
+        columns in 24.10, the default 1 MiB per column means ~1.1 GiB of
+        buffers per merge. 256 KiB / 64 KiB divide that by 4 for a marginally
+        worse compression ratio.
+
+        See config.d/merge-limits.xml for the matching concurrency limits.
+    -->
+    <profiles>
+        <default>
+            <max_compress_block_size>262144</max_compress_block_size>
+            <min_compress_block_size>65536</min_compress_block_size>
+        </default>
+    </profiles>
+</clickhouse>

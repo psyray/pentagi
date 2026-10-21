@@ -25,8 +25,13 @@ var fsStackFiles = map[ProductStack][]string{
 		"docker-compose.yml",
 		"example.custom.provider.yml", "example.ollama.provider.yml", "example.bedrock.provider.yml",
 	},
-	ProductStackGraphiti:      {"docker-compose-graphiti.yml", "graphiti", "neo4j"},
-	ProductStackLangfuse:      {"docker-compose-langfuse.yml", "langfuse/clickhouse/system-logs.xml"},
+	ProductStackGraphiti: {"docker-compose-graphiti.yml", "graphiti", "neo4j"},
+	ProductStackLangfuse: {
+		"docker-compose-langfuse.yml",
+		"langfuse/clickhouse/system-logs.xml",
+		"langfuse/clickhouse/merge-limits.xml",
+		"langfuse/clickhouse/merge-limits-users.xml",
+	},
 	ProductStackObservability: {"docker-compose-observability.yml", "observability"},
 }
 
@@ -172,6 +177,8 @@ func TestFs_EnsureStackIntegrity_ExtractsEveryFileItsComposeFileMounts(t *testin
 			"./neo4j/metrics", "./neo4j/plugins", "./neo4j/ssl",
 		}},
 		{ProductStackLangfuse, "docker-compose-langfuse.yml", []string{
+			"./langfuse/clickhouse/merge-limits-users.xml",
+			"./langfuse/clickhouse/merge-limits.xml",
 			"./langfuse/clickhouse/system-logs.xml",
 		}},
 		{ProductStackObservability, "docker-compose-observability.yml", []string{
@@ -463,18 +470,20 @@ func TestFs_ValidateYamlFile_RejectsOnlyMalformedYAML(t *testing.T) {
 
 func TestFs_CheckStackIntegrity_ReportsEveryFileOfTheStack(t *testing.T) {
 	statuses := FilesCheckResult{
-		"docker-compose.yml":                  files.FileStatusOK,
-		"docker-compose-graphiti.yml":         files.FileStatusOK,
-		"graphiti/openai.yaml":                files.FileStatusOK,
-		"neo4j/conf/neo4j.conf":               files.FileStatusOK,
-		"neo4j/conf/apoc.conf":                files.FileStatusOK,
-		"neo4j/plugins/apoc-core.jar":         files.FileStatusOK,
-		"docker-compose-langfuse.yml":         files.FileStatusModified,
-		"langfuse/clickhouse/system-logs.xml": files.FileStatusOK,
-		"docker-compose-observability.yml":    files.FileStatusMissing,
-		"observability/config1.yml":           files.FileStatusOK,
-		"observability/config2.yml":           files.FileStatusModified,
-		"observability/subdir/config3.yml":    files.FileStatusMissing,
+		"docker-compose.yml":                         files.FileStatusOK,
+		"docker-compose-graphiti.yml":                files.FileStatusOK,
+		"graphiti/openai.yaml":                       files.FileStatusOK,
+		"neo4j/conf/neo4j.conf":                      files.FileStatusOK,
+		"neo4j/conf/apoc.conf":                       files.FileStatusOK,
+		"neo4j/plugins/apoc-core.jar":                files.FileStatusOK,
+		"docker-compose-langfuse.yml":                files.FileStatusModified,
+		"langfuse/clickhouse/system-logs.xml":        files.FileStatusOK,
+		"langfuse/clickhouse/merge-limits.xml":       files.FileStatusOK,
+		"langfuse/clickhouse/merge-limits-users.xml": files.FileStatusOK,
+		"docker-compose-observability.yml":           files.FileStatusMissing,
+		"observability/config1.yml":                  files.FileStatusOK,
+		"observability/config2.yml":                  files.FileStatusModified,
+		"observability/subdir/config3.yml":           files.FileStatusMissing,
 	}
 	lists := map[string][]string{
 		"graphiti":      {"graphiti/openai.yaml"},
@@ -489,8 +498,10 @@ func TestFs_CheckStackIntegrity_ReportsEveryFileOfTheStack(t *testing.T) {
 	}{
 		{"pentagi reports its compose file", ProductStackPentagi, FilesCheckResult{"docker-compose.yml": files.FileStatusOK}, ""},
 		{"langfuse reports its compose file and clickhouse config", ProductStackLangfuse, FilesCheckResult{
-			"docker-compose-langfuse.yml":         files.FileStatusModified,
-			"langfuse/clickhouse/system-logs.xml": files.FileStatusOK,
+			"docker-compose-langfuse.yml":                files.FileStatusModified,
+			"langfuse/clickhouse/system-logs.xml":        files.FileStatusOK,
+			"langfuse/clickhouse/merge-limits.xml":       files.FileStatusOK,
+			"langfuse/clickhouse/merge-limits-users.xml": files.FileStatusOK,
 		}, ""},
 		{"observability with its directory", ProductStackObservability, FilesCheckResult{
 			"docker-compose-observability.yml": files.FileStatusMissing,

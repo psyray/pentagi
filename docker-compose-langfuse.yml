@@ -166,6 +166,8 @@ services:
       - langfuse-clickhouse-data:/var/lib/clickhouse
       - langfuse-clickhouse-logs:/var/log/clickhouse-server
       - ./langfuse/clickhouse/system-logs.xml:/etc/clickhouse-server/config.d/system-logs.xml:ro
+      - ./langfuse/clickhouse/merge-limits.xml:/etc/clickhouse-server/config.d/merge-limits.xml:ro
+      - ./langfuse/clickhouse/merge-limits-users.xml:/etc/clickhouse-server/users.d/merge-limits-users.xml:ro
     healthcheck:
       test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
       interval: 5s

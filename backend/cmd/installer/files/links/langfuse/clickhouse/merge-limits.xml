@@ -1,0 +1,29 @@
+<clickhouse>
+    <!--
+        Bound the memory used by background merges (server-level settings).
+
+        ClickHouse 24.10 exposes system.metric_log as a flat table of ~1102
+        columns (ProfileEvent_* / CurrentMetric_*). MergeTreeDataPartWriterWide
+        allocates one write buffer per column, sized by max_compress_block_size
+        (1 MiB by default), so a single merge needs ~1.1 GiB. With the default
+        background_pool_size (16) x background_merges_mutations_concurrency_ratio
+        (2) = 8 concurrent merges and a 4 GiB container cap (max_server_memory_usage
+        = 3.6 GiB), every merge fails with Code 241 (MEMORY_LIMIT_EXCEEDED) and
+        the executors hot-retry it forever at ~300-400% CPU.
+
+        - background_pool_size / concurrency ratio: 4 concurrent merges max
+        - the number_of_free_entries_in_pool_* thresholds MUST stay below
+          background_pool_size x ratio, otherwise the server refuses to start
+          (BAD_ARGUMENTS on sanityCheck)
+
+        The write-buffer size itself is a user-level setting, see
+        users.d/merge-limits-users.xml.
+    -->
+    <background_pool_size>4</background_pool_size>
+    <background_merges_mutations_concurrency_ratio>1</background_merges_mutations_concurrency_ratio>
+    <merge_tree>
+        <number_of_free_entries_in_pool_to_execute_mutation>2</number_of_free_entries_in_pool_to_execute_mutation>
+        <number_of_free_entries_in_pool_to_lower_max_size_of_merge>2</number_of_free_entries_in_pool_to_lower_max_size_of_merge>
+        <number_of_free_entries_in_pool_to_execute_optimize_entire_partition>2</number_of_free_entries_in_pool_to_execute_optimize_entire_partition>
+    </merge_tree>
+</clickhouse>

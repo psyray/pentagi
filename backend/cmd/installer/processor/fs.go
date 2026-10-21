@@ -14,13 +14,15 @@ import (
 )
 
 const (
-	observabilityDirectory         = "observability"
-	graphitiConfigsDirectory       = "graphiti"
-	neo4jDirectory                 = "neo4j"
-	langfuseClickhouseConfigFile   = "langfuse/clickhouse/system-logs.xml"
-	pentagiExampleCustomConfigLLM  = "example.custom.provider.yml"
-	pentagiExampleOllamaConfigLLM  = "example.ollama.provider.yml"
-	pentagiExampleBedrockConfigLLM = "example.bedrock.provider.yml"
+	observabilityDirectory                 = "observability"
+	graphitiConfigsDirectory               = "graphiti"
+	neo4jDirectory                         = "neo4j"
+	langfuseClickhouseSystemLogsFile       = "langfuse/clickhouse/system-logs.xml"
+	langfuseClickhouseMergeLimitsFile      = "langfuse/clickhouse/merge-limits.xml"
+	langfuseClickhouseMergeLimitsUsersFile = "langfuse/clickhouse/merge-limits-users.xml"
+	pentagiExampleCustomConfigLLM          = "example.custom.provider.yml"
+	pentagiExampleOllamaConfigLLM          = "example.ollama.provider.yml"
+	pentagiExampleBedrockConfigLLM         = "example.bedrock.provider.yml"
 )
 
 // pentagiExampleConfigs are the default sources of the provider config mounts in
@@ -98,8 +100,10 @@ func (fs *fileSystemOperationsImpl) ensureStackIntegrity(ctx context.Context, st
 
 	case ProductStackLangfuse:
 		errCompose := fs.ensureFileFromEmbed(composeFileLangfuse, state)
-		errConfig := fs.ensureFileFromEmbed(langfuseClickhouseConfigFile, state)
-		return errors.Join(errCompose, errConfig)
+		errSystemLogs := fs.ensureFileFromEmbed(langfuseClickhouseSystemLogsFile, state)
+		errMergeLimits := fs.ensureFileFromEmbed(langfuseClickhouseMergeLimitsFile, state)
+		errMergeLimitsUsers := fs.ensureFileFromEmbed(langfuseClickhouseMergeLimitsUsersFile, state)
+		return errors.Join(errCompose, errSystemLogs, errMergeLimits, errMergeLimitsUsers)
 
 	case ProductStackObservability:
 		errCompose := fs.ensureFileFromEmbed(composeFileObservability, state)
@@ -145,7 +149,13 @@ func (fs *fileSystemOperationsImpl) verifyStackIntegrity(ctx context.Context, st
 		if err := fs.verifyFileIntegrity(composeFileLangfuse, state); err != nil {
 			return err
 		}
-		return fs.verifyFileIntegrity(langfuseClickhouseConfigFile, state)
+		if err := fs.verifyFileIntegrity(langfuseClickhouseSystemLogsFile, state); err != nil {
+			return err
+		}
+		if err := fs.verifyFileIntegrity(langfuseClickhouseMergeLimitsFile, state); err != nil {
+			return err
+		}
+		return fs.verifyFileIntegrity(langfuseClickhouseMergeLimitsUsersFile, state)
 
 	case ProductStackObservability:
 		if err := fs.verifyFileIntegrity(composeFileObservability, state); err != nil {
@@ -191,7 +201,9 @@ func (fs *fileSystemOperationsImpl) checkStackIntegrity(ctx context.Context, sta
 
 	case ProductStackLangfuse:
 		result[composeFileLangfuse] = fs.checkFileIntegrity(composeFileLangfuse)
-		result[langfuseClickhouseConfigFile] = fs.checkFileIntegrity(langfuseClickhouseConfigFile)
+		result[langfuseClickhouseSystemLogsFile] = fs.checkFileIntegrity(langfuseClickhouseSystemLogsFile)
+		result[langfuseClickhouseMergeLimitsFile] = fs.checkFileIntegrity(langfuseClickhouseMergeLimitsFile)
+		result[langfuseClickhouseMergeLimitsUsersFile] = fs.checkFileIntegrity(langfuseClickhouseMergeLimitsUsersFile)
 
 	case ProductStackObservability:
 		result[composeFileObservability] = fs.checkFileIntegrity(composeFileObservability)
@@ -239,7 +251,9 @@ func (fs *fileSystemOperationsImpl) cleanupStackFiles(ctx context.Context, stack
 
 	case ProductStackLangfuse:
 		filesToRemove = append(filesToRemove, filepath.Join(workingDir, composeFileLangfuse))
-		filesToRemove = append(filesToRemove, filepath.Join(workingDir, langfuseClickhouseConfigFile))
+		filesToRemove = append(filesToRemove, filepath.Join(workingDir, langfuseClickhouseSystemLogsFile))
+		filesToRemove = append(filesToRemove, filepath.Join(workingDir, langfuseClickhouseMergeLimitsFile))
+		filesToRemove = append(filesToRemove, filepath.Join(workingDir, langfuseClickhouseMergeLimitsUsersFile))
 
 	case ProductStackObservability:
 		filesToRemove = append(filesToRemove, filepath.Join(workingDir, composeFileObservability))
