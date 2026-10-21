@@ -33,6 +33,11 @@ func (e stateGuardError) Unwrap() error        { return e.error }
 // errors.Is(err, ErrFlowStateGuard) further up the call stack.
 func stateGuard(err error) error { return stateGuardError{err} }
 
+// StateGuard exposes the same wrapper to callers outside this package: a tool
+// handler in another package can mark a refusal as a flow-state guard so the
+// caller skips argument-fixing retries that cannot change the state.
+func StateGuard(err error) error { return stateGuard(err) }
+
 // flowStatusTool implements get_flow_status — reads flow/task/subtask state from DB.
 type flowStatusTool struct {
 	flowID     int64

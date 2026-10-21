@@ -180,6 +180,7 @@ type finishFakeQuerier struct {
 	flowStatus         []database.UpdateFlowStatusParams
 	taskStatus         []database.UpdateTaskStatusParams
 	subtaskStatus      []database.UpdateSubtaskStatusParams
+	subtaskFailed      []database.UpdateSubtaskFailedResultParams
 	assistantStatus    []database.UpdateAssistantStatusParams
 	assistantStatusErr error
 }
@@ -254,6 +255,25 @@ func (f *finishFakeQuerier) UpdateSubtaskStatus(
 	}
 
 	return database.Subtask{ID: arg.ID, Status: arg.Status}, nil
+}
+
+func (f *finishFakeQuerier) UpdateSubtaskFailedResult(
+	ctx context.Context, arg database.UpdateSubtaskFailedResultParams,
+) (database.Subtask, error) {
+	if err := ctx.Err(); err != nil {
+		return database.Subtask{}, err
+	}
+	f.subtaskFailed = append(f.subtaskFailed, arg)
+	for _, subtasks := range f.subtasks {
+		for i := range subtasks {
+			if subtasks[i].ID == arg.ID {
+				subtasks[i].Status = database.SubtaskStatusFailed
+				subtasks[i].Result = arg.Result
+			}
+		}
+	}
+
+	return database.Subtask{ID: arg.ID, Status: database.SubtaskStatusFailed, Result: arg.Result}, nil
 }
 
 func (f *finishFakeQuerier) GetFlowContainers(ctx context.Context, _ int64) ([]database.Container, error) {

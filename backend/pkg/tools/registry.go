@@ -420,7 +420,7 @@ var registryDefinitions = map[string]llms.FunctionDefinition{
 	},
 	FinalyToolName: {
 		Name:        FinalyToolName,
-		Description: "If you need to finish the task with success or failure, use this tool",
+		Description: "Finish the CURRENT SUBTASK (the current agent chain) with success or failure. This does not finish the whole task or flow: the harness then starts the next planned subtask.",
 		Parameters:  reflector.Reflect(&Done{}),
 	},
 	GetFlowStatusToolName: {

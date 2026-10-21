@@ -60,15 +60,18 @@ func TestFlowFinish_FinishUnloadedFlow_ClosesTheFlowAndWhatItLeftOpen(t *testing
 		assert.Equal(t, finished, q.flowStatus)
 		assert.Equal(t, []database.UpdateTaskStatusParams{{Status: database.TaskStatusFinished, ID: 11}}, q.taskStatus,
 			"a closed task is not rewritten")
-		assert.Equal(t, []database.UpdateSubtaskStatusParams{
-			{Status: database.SubtaskStatusFinished, ID: 21},
-			{Status: database.SubtaskStatusFinished, ID: 23},
-		}, q.subtaskStatus)
+		assert.Equal(t, []database.UpdateSubtaskFailedResultParams{
+			{Result: notCompletedSubtaskResult, ID: 21},
+			{Result: notCompletedSubtaskResult, ID: 23},
+		}, q.subtaskFailed, "running subtasks without a result did not complete")
+		assert.Empty(t, q.subtaskStatus, "an interrupted subtask must not be reported as finished")
 		require.Equal(t, []database.Task{
 			{ID: 11, Status: database.TaskStatusFinished},
 			{ID: 13, Status: database.TaskStatusFinished},
 		}, pub.taskUpdated, "an open tab keeps a subtask running until it hears about it; a task with nothing closed is not republished")
-		assert.Equal(t, []database.Subtask{{ID: 23, Status: database.SubtaskStatusFinished}}, pub.taskSubtasks[1])
+		assert.Equal(t, []database.Subtask{
+			{ID: 23, Status: database.SubtaskStatusFailed, Result: notCompletedSubtaskResult},
+		}, pub.taskSubtasks[1])
 		assert.Equal(t, []database.UpdateAssistantStatusParams{{Status: database.AssistantStatusFinished, ID: 31}},
 			q.assistantStatus, "only the unfinished assistant is closed")
 		require.Len(t, pub.assistantUpdated, 1)
@@ -76,6 +79,29 @@ func TestFlowFinish_FinishUnloadedFlow_ClosesTheFlowAndWhatItLeftOpen(t *testing
 		assert.Equal(t, []string{"cid-41"}, dkr.removed, "an already deleted container is not purged again")
 		require.Len(t, pub.flowUpdated, 1, "the client learns the flow is finished")
 		assert.Equal(t, database.FlowStatusFinished, pub.flowUpdated[0].Status)
+	})
+
+	t.Run("a planned subtask that never started is failed, not reported as finished", func(t *testing.T) {
+		t.Parallel()
+
+		q := newQuerier()
+		q.subtasks[11] = append(q.subtasks[11], database.Subtask{ID: 22, Status: database.SubtaskStatusCreated})
+
+		pub, _, err := finish(q, nil)
+
+		require.NoError(t, err)
+		assert.Equal(t, []database.UpdateSubtaskFailedResultParams{
+			{Result: notCompletedSubtaskResult, ID: 21},
+			{Result: notExecutedSubtaskResult, ID: 22},
+			{Result: notCompletedSubtaskResult, ID: 23},
+		}, q.subtaskFailed, "a running subtask and an unexecuted planned subtask must both carry an explicit reason")
+		assert.Empty(t, q.subtaskStatus)
+
+		require.Len(t, pub.taskSubtasks, 2)
+		assert.Equal(t, []database.Subtask{
+			{ID: 21, Status: database.SubtaskStatusFailed, Result: notCompletedSubtaskResult},
+			{ID: 22, Status: database.SubtaskStatusFailed, Result: notExecutedSubtaskResult},
+		}, pub.taskSubtasks[0])
 	})
 
 	t.Run("a container query that fails once is read again for the event", func(t *testing.T) {

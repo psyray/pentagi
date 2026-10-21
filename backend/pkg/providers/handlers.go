@@ -593,6 +593,43 @@ func (fp *flowProvider) GetMemoristHandler(ctx context.Context, taskID, subtaskI
 	}, nil
 }
 
+// findCrossSubtaskReference reports a planned or active subtask, other than the
+// current one, that the delegation question names by its numeric ID. The
+// primary agent executes one subtask at a time; delegating the next subtask
+// from inside the current chain is scope creep and prevents the controller from
+// starting the planned subtask with its own execution context.
+func findCrossSubtaskReference(question string, currentSubtaskID int64, subtasks []database.Subtask) *database.Subtask {
+	normalized := strings.ToLower(question)
+
+	for i := range subtasks {
+		subtask := &subtasks[i]
+		if subtask.ID == currentSubtaskID {
+			continue
+		}
+
+		switch subtask.Status {
+		case database.SubtaskStatusCreated, database.SubtaskStatusRunning, database.SubtaskStatusWaiting:
+		default:
+			continue
+		}
+
+		id := fmt.Sprintf("%d", subtask.ID)
+		for _, marker := range []string{
+			"subtask " + id,
+			"subtask #" + id,
+			"subtask: " + id,
+			"sub-task " + id,
+			"sub-task #" + id,
+		} {
+			if strings.Contains(normalized, marker) {
+				return subtask
+			}
+		}
+	}
+
+	return nil
+}
+
 func (fp *flowProvider) GetPentesterHandler(ctx context.Context, taskID, subtaskID *int64) (tools.ExecutorHandler, error) {
 	ptrTask, ptrSubtask, err := fp.getTaskAndSubtask(ctx, taskID, subtaskID)
 	if err != nil {
@@ -605,6 +642,19 @@ func (fp *flowProvider) GetPentesterHandler(ctx context.Context, taskID, subtask
 	}
 
 	pentesterHandler := func(ctx context.Context, action tools.PentesterAction) (string, error) {
+		if ptrTask != nil && ptrSubtask != nil {
+			if subtasks, err := fp.db.GetTaskSubtasks(ctx, ptrTask.ID); err == nil {
+				if other := findCrossSubtaskReference(action.Question, ptrSubtask.ID, subtasks); other != nil {
+					return "", tools.StateGuard(fmt.Errorf(
+						"you are executing subtask %d (%q); this delegation targets another subtask %d (%q). "+
+							"Do not execute planned subtasks inside the current chain. Call `%s` for the current subtask first; "+
+							"the harness will start the next planned subtask.",
+						ptrSubtask.ID, ptrSubtask.Title, other.ID, other.Title, tools.FinalyToolName,
+					))
+				}
+			}
+		}
+
 		pentesterContext := map[string]map[string]any{
 			"user": {
 				"Question": action.Question,
