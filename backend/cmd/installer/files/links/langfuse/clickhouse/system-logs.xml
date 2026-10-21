@@ -1,0 +1,32 @@
+<clickhouse>
+    <!--
+        Bound retention for ClickHouse system logs.
+        Without TTL, system.trace_log grows unbounded (observed: 7.66 GB in ~3 days)
+        and its constant big merges exhaust the file descriptor limit, making the
+        background executors hot-retry failed merges at ~100% CPU.
+    -->
+    <logger>
+        <level>warning</level>
+    </logger>
+    <trace_log>
+        <ttl>event_date + INTERVAL 3 DAY DELETE</ttl>
+    </trace_log>
+    <text_log>
+        <ttl>event_date + INTERVAL 3 DAY DELETE</ttl>
+    </text_log>
+    <metric_log>
+        <ttl>event_date + INTERVAL 7 DAY DELETE</ttl>
+    </metric_log>
+    <query_log>
+        <ttl>event_date + INTERVAL 7 DAY DELETE</ttl>
+    </query_log>
+    <part_log>
+        <ttl>event_date + INTERVAL 7 DAY DELETE</ttl>
+    </part_log>
+    <processors_profile_log>
+        <ttl>event_date + INTERVAL 7 DAY DELETE</ttl>
+    </processors_profile_log>
+    <asynchronous_metric_log>
+        <ttl>event_date + INTERVAL 7 DAY DELETE</ttl>
+    </asynchronous_metric_log>
+</clickhouse>
