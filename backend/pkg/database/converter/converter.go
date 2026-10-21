@@ -106,7 +106,7 @@ func ConvertTask(task database.Task, subtasks []database.Subtask) *model.Task {
 }
 
 func ConvertSubtask(subtask database.Subtask) *model.Subtask {
-	return &model.Subtask{
+	subtaskModel := &model.Subtask{
 		ID:          subtask.ID,
 		Status:      model.StatusType(subtask.Status),
 		Title:       subtask.Title,
@@ -115,7 +115,18 @@ func ConvertSubtask(subtask database.Subtask) *model.Subtask {
 		TaskID:      subtask.TaskID,
 		CreatedAt:   subtask.CreatedAt.Time,
 		UpdatedAt:   subtask.UpdatedAt.Time,
+		Evidence:    subtask.Evidence,
 	}
+
+	if subtask.Type.Valid {
+		subtaskModel.Type = &subtask.Type.String
+	}
+	if subtask.BudgetSeconds.Valid {
+		budgetSeconds := int(subtask.BudgetSeconds.Int32)
+		subtaskModel.BudgetSeconds = &budgetSeconds
+	}
+
+	return subtaskModel
 }
 
 func ConvertFlowAssistant(flow database.Flow, containers []database.Container, assistant database.Assistant) *model.FlowAssistant {

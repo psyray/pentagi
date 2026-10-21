@@ -75,7 +75,9 @@ func (q *Queries) GetFlowsForPeriod(ctx context.Context, arg GetFlowsForPeriodPa
 }
 
 const getMsgchainsForFlow = `-- name: GetMsgchainsForFlow :many
-SELECT id, type, flow_id, task_id, subtask_id, duration_seconds, created_at, updated_at
+SELECT id, type, flow_id, task_id, subtask_id, duration_seconds,
+       usage_in, usage_out, usage_cache_in, usage_cache_out, usage_cost_in, usage_cost_out,
+       created_at, updated_at
 FROM msgchains
 WHERE flow_id = $1
 ORDER BY created_at ASC
@@ -88,6 +90,12 @@ type GetMsgchainsForFlowRow struct {
 	TaskID          sql.NullInt64 `json:"task_id"`
 	SubtaskID       sql.NullInt64 `json:"subtask_id"`
 	DurationSeconds float64       `json:"duration_seconds"`
+	UsageIn         int64         `json:"usage_in"`
+	UsageOut        int64         `json:"usage_out"`
+	UsageCacheIn    int64         `json:"usage_cache_in"`
+	UsageCacheOut   int64         `json:"usage_cache_out"`
+	UsageCostIn     float64       `json:"usage_cost_in"`
+	UsageCostOut    float64       `json:"usage_cost_out"`
 	CreatedAt       sql.NullTime  `json:"created_at"`
 	UpdatedAt       sql.NullTime  `json:"updated_at"`
 }
@@ -109,6 +117,12 @@ func (q *Queries) GetMsgchainsForFlow(ctx context.Context, flowID int64) ([]GetM
 			&i.TaskID,
 			&i.SubtaskID,
 			&i.DurationSeconds,
+			&i.UsageIn,
+			&i.UsageOut,
+			&i.UsageCacheIn,
+			&i.UsageCacheOut,
+			&i.UsageCostIn,
+			&i.UsageCostOut,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {

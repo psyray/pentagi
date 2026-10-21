@@ -1065,15 +1065,18 @@ type Searchlog struct {
 }
 
 type Subtask struct {
-	ID          int64         `json:"id"`
-	Status      SubtaskStatus `json:"status"`
-	Title       string        `json:"title"`
-	Description string        `json:"description"`
-	Result      string        `json:"result"`
-	TaskID      int64         `json:"task_id"`
-	CreatedAt   sql.NullTime  `json:"created_at"`
-	UpdatedAt   sql.NullTime  `json:"updated_at"`
-	Context     string        `json:"context"`
+	ID            int64          `json:"id"`
+	Status        SubtaskStatus  `json:"status"`
+	Title         string         `json:"title"`
+	Description   string         `json:"description"`
+	Result        string         `json:"result"`
+	TaskID        int64          `json:"task_id"`
+	CreatedAt     sql.NullTime   `json:"created_at"`
+	UpdatedAt     sql.NullTime   `json:"updated_at"`
+	Context       string         `json:"context"`
+	Type          sql.NullString `json:"type"`
+	Evidence      []string       `json:"evidence"`
+	BudgetSeconds sql.NullInt32  `json:"budget_seconds"`
 }
 
 type Task struct {
