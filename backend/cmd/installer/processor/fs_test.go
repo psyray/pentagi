@@ -174,6 +174,7 @@ func TestFs_EnsureStackIntegrity_ExtractsEveryFileItsComposeFileMounts(t *testin
 		{ProductStackLangfuse, "docker-compose-langfuse.yml", nil},
 		{ProductStackObservability, "docker-compose-observability.yml", []string{
 			"./observability/clickhouse/prometheus.xml",
+			"./observability/clickhouse/system-logs.xml",
 			"./observability/grafana/config", "./observability/grafana/dashboards",
 			"./observability/jaeger", "./observability/loki/config.yml", "./observability/otel",
 		}},
