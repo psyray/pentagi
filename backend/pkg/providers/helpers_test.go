@@ -735,3 +735,106 @@ func TestFailureDetectorEscalationThreshold(t *testing.T) {
 	assert.True(t, detector.directivesInjected >= maxDirectivesBeforeAbort,
 		"directivesInjected %d should reach abort threshold %d", detector.directivesInjected, maxDirectivesBeforeAbort)
 }
+
+func TestParseAdviserVerdict(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		answer string
+		want   adviserVerdict
+	}{
+		{name: "markdown header close", answer: "## Verdict: CLOSE — objective met", want: adviserVerdictClose},
+		{name: "bold plan", answer: "**Verdict: PLAN** — keep going", want: adviserVerdictPlan},
+		{name: "exec state", answer: "Verdict: EXEC - the scan is running", want: adviserVerdictExec},
+		{name: "lowercase", answer: "verdict: close", want: adviserVerdictClose},
+		{name: "completion lag counts as close", answer: "This is a completion lag, not a rabbit hole.", want: adviserVerdictClose},
+		{name: "the last verdict wins", answer: "Verdict: PLAN first\n\n## Verdict: CLOSE now", want: adviserVerdictClose},
+		{name: "prose close without a verdict line does not flip", answer: "## Technical Analysis\nYou are close, but not done.", want: adviserVerdictUnknown},
+		{name: "empty answer", answer: "", want: adviserVerdictUnknown},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tt.want, parseAdviserVerdict(tt.answer))
+		})
+	}
+}
+
+func TestClosureDetector_CloseSignalRequiresIdleEvidence(t *testing.T) {
+	t.Parallel()
+
+	// Critic disabled: the deterministic gate decides alone.
+	cd := &closureDetector{enabled: true, closeThreshold: 2, minIdleCalls: 2}
+
+	cd.observeVerdict("## Verdict: CLOSE")
+	cd.observeVerdict("## Verdict: CLOSE")
+	assert.Equal(t, closureContinue, cd.evaluate(), "two close verdicts are not enough while the subtask is progressing")
+
+	// The subtask keeps producing new output: the close signal is not honoured.
+	cd.observeResult("first new evidence")
+	cd.observeResult("second new evidence")
+	assert.Equal(t, closureContinue, cd.evaluate(), "fresh evidence must keep the subtask running")
+
+	// Now the subtask goes idle on identical output: the first repeat resets the
+	// idle count, the following ones count towards the threshold.
+	cd.observeResult("steady")
+	cd.observeResult("steady")
+	cd.observeResult("steady")
+	assert.Equal(t, closureForce, cd.evaluate(), "idle on evidence plus close verdicts must force")
+
+	// A PLAN resets the close counter.
+	cd.observeVerdict("## Verdict: PLAN")
+	assert.Equal(t, closureContinue, cd.evaluate())
+}
+
+func TestClosureDetector_CriticGate(t *testing.T) {
+	t.Parallel()
+
+	cd := &closureDetector{enabled: true, closeThreshold: 1, minIdleCalls: 0, criticEnabled: true}
+	cd.observeVerdict("Verdict: CLOSE")
+	assert.Equal(t, closureVerify, cd.evaluate(), "with the critic on, a close signal must be verified first")
+
+	cd.reject()
+	assert.Equal(t, closureContinue, cd.evaluate(), "a rejected close keeps the subtask working")
+
+	cd.observeVerdict("Verdict: CLOSE")
+	assert.Equal(t, closureVerify, cd.evaluate())
+	cd.confirm()
+	assert.Equal(t, closureForce, cd.evaluate(), "a confirmed close forces the stop")
+}
+
+func TestClosureDetector_DisabledNeverForces(t *testing.T) {
+	t.Parallel()
+
+	cd := &closureDetector{enabled: false, closeThreshold: 1, minIdleCalls: 0}
+	cd.observeVerdict("Verdict: CLOSE")
+	cd.observeResult("x")
+	assert.Equal(t, closureContinue, cd.evaluate(), "disabled enforcement must never force")
+}
+
+func TestParseCompletionVerdict(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		answer string
+		want   completionVerdict
+	}{
+		{name: "complete", answer: "Looks done.\nCompletion: COMPLETE", want: completionComplete},
+		{name: "incomplete wins over the embedded complete", answer: "Gaps remain.\nCompletion: INCOMPLETE", want: completionIncomplete},
+		{name: "bold incomplete", answer: "**Completion: INCOMPLETE**", want: completionIncomplete},
+		{name: "a missing line is unknown", answer: "I think it is probably fine.", want: completionUnknown},
+		{name: "empty", answer: "", want: completionUnknown},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tt.want, parseCompletionVerdict(tt.answer))
+		})
+	}
+}

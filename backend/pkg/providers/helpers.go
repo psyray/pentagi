@@ -289,6 +289,206 @@ func (emd *executionMonitor) reset() {
 	emd.lastToolName = ""
 }
 
+// adviserVerdict is the state the adviser (mentor) emitted for a consultation.
+type adviserVerdict int
+
+const (
+	adviserVerdictUnknown adviserVerdict = iota
+	adviserVerdictPlan
+	adviserVerdictExec
+	adviserVerdictClose
+)
+
+// parseAdviserVerdict extracts the state the adviser emitted. The adviser is
+// instructed (verdict_state_machine prompt block) to emit one state per
+// consultation, in practice as "## Verdict: CLOSE" or "**Verdict: PLAN**". It
+// takes the LAST "Verdict: ..." occurrence (the final decision), and treats an
+// explicit completion-lag verdict as a close request. Returns unknown when no
+// state is present, so the caller never forces a close on a bare analysis.
+func parseAdviserVerdict(answer string) adviserVerdict {
+	lower := strings.ToLower(answer)
+	if lower == "" {
+		return adviserVerdictUnknown
+	}
+
+	last := adviserVerdictUnknown
+	parts := strings.Split(lower, "verdict")
+	for i := 1; i < len(parts); i++ {
+		head := strings.TrimLeft(parts[i], " :-*\t\r\n")
+		switch {
+		case strings.HasPrefix(head, "close"):
+			last = adviserVerdictClose
+		case strings.HasPrefix(head, "exec"):
+			last = adviserVerdictExec
+		case strings.HasPrefix(head, "plan"):
+			last = adviserVerdictPlan
+		}
+	}
+	if last != adviserVerdictUnknown {
+		return last
+	}
+	if strings.Contains(lower, "completion lag") || strings.Contains(lower, "completion_lag") {
+		return adviserVerdictClose
+	}
+
+	return adviserVerdictUnknown
+}
+
+// closureDecision is the outcome of a closure-detector evaluation.
+type closureDecision int
+
+const (
+	closureContinue closureDecision = iota // keep running normally
+	closureVerify                          // a close signal is idle-confirmed: ask the completion critic
+	closureForce                           // verified: enter the graceful shutdown phase now
+)
+
+// closureDetector turns an adviser close verdict into a VERIFIED decision instead
+// of a blind order. Two stages gate the forced closure so a subtask that is still
+// making progress (a long exploitation, a slow web chain, a code audit) is never
+// cut:
+//
+//  1. deterministic: a close verdict only counts once the subtask is idle on new
+//     evidence, i.e. no new tool-output fingerprint for minIdleCalls calls. A
+//     subtask that keeps producing distinct output is still progressing, so the
+//     close signal is ignored (the counter is not incremented).
+//  2. adversarial: the caller asks an independent completion critic to confirm
+//     the objective is genuinely met before forcing.
+//
+// A PLAN or EXEC verdict resets the close counter. There is no tool-call cap: a
+// long subtask is not a blocked subtask.
+type closureDetector struct {
+	enabled        bool
+	closeThreshold int  // consecutive close verdicts required
+	minIdleCalls   int  // idle tool calls (no new output fingerprint) required
+	criticEnabled  bool // require the stage-2 completion critic before forcing
+
+	closeSignals    int
+	lastFingerprint string
+	idleCalls       int
+	criticConfirmed bool
+}
+
+// observeResult records a tool output. A new distinct fingerprint means the
+// subtask is still producing new evidence (progress), which resets the idle
+// count; an identical or empty output counts as idle.
+func (cd *closureDetector) observeResult(result string) {
+	fp := outputFingerprint(result)
+	if fp != "" && fp != cd.lastFingerprint {
+		cd.lastFingerprint = fp
+		cd.idleCalls = 0
+
+		return
+	}
+	cd.idleCalls++
+}
+
+// observeVerdict records an adviser (mentor) answer. A close verdict (CLOSE or
+// completion lag) increments the consecutive counter; an explicit PLAN or EXEC
+// resets it, so only a persisting close request is ever considered. An answer
+// with no state (bare analysis) leaves the counter untouched.
+func (cd *closureDetector) observeVerdict(adviserAnswer string) {
+	switch parseAdviserVerdict(adviserAnswer) {
+	case adviserVerdictClose:
+		cd.closeSignals++
+	case adviserVerdictPlan, adviserVerdictExec:
+		cd.closeSignals = 0
+		cd.criticConfirmed = false
+	}
+}
+
+// evaluate reports what the harness must do before the next model call.
+func (cd *closureDetector) evaluate() closureDecision {
+	if !cd.enabled {
+		return closureContinue
+	}
+	if cd.criticConfirmed {
+		return closureForce
+	}
+	if cd.closeSignals >= cd.closeThreshold && cd.idleCalls >= cd.minIdleCalls {
+		if cd.criticEnabled {
+			return closureVerify
+		}
+
+		return closureForce
+	}
+
+	return closureContinue
+}
+
+// confirm records that the completion critic agreed the objective is met.
+func (cd *closureDetector) confirm() { cd.criticConfirmed = true }
+
+// reject records that the close signal was not honoured (fresh evidence, or the
+// completion critic found the objective is not met yet). The counter is reset so
+// the chain keeps working until a new close signal is raised.
+func (cd *closureDetector) reject() {
+	cd.closeSignals = 0
+	cd.criticConfirmed = false
+}
+
+// outputFingerprint hashes a tool output for the idle-on-evidence check. The raw
+// trimmed output is hashed as-is: volatile digits or spacing only ever make the
+// fingerprint differ, which resets the idle count and keeps the subtask running
+// (the safe direction), never the opposite. Returns "" for empty output.
+func outputFingerprint(result string) string {
+	s := strings.TrimSpace(result)
+	if s == "" {
+		return ""
+	}
+	h := fnv.New64a()
+	h.Write([]byte(s))
+
+	return fmt.Sprintf("%016x", h.Sum64())
+}
+
+// completionVerdict is the critic's answer to the adversarial completion check.
+type completionVerdict int
+
+const (
+	completionUnknown completionVerdict = iota
+	completionIncomplete
+	completionComplete
+)
+
+// parseCompletionVerdict extracts the completion critic's verdict. The critic
+// prompt mandates a final line "Completion: COMPLETE" or "Completion:
+// INCOMPLETE"; INCOMPLETE is matched first because it embeds COMPLETE. A missing
+// line yields unknown, so the caller keeps working (never force on a doubt).
+func parseCompletionVerdict(answer string) completionVerdict {
+	lower := strings.ToLower(answer)
+	verdict := completionUnknown
+	parts := strings.Split(lower, "completion")
+	for i := 1; i < len(parts); i++ {
+		head := strings.TrimLeft(parts[i], " :-*\t\r\n")
+		switch {
+		case strings.HasPrefix(head, "incomplete"):
+			verdict = completionIncomplete
+		case strings.HasPrefix(head, "complete"):
+			verdict = completionComplete
+		}
+	}
+
+	return verdict
+}
+
+// closureRejectionMessage is what the harness injects when a close signal was
+// not honoured (fresh evidence, or the completion critic found gaps). It names
+// the reason so the agent knows why it keeps working instead of closing.
+func closureRejectionMessage(reason string) llms.MessageContent {
+	if reason == "" {
+		reason = "the objective is not met yet"
+	}
+
+	return llms.MessageContent{
+		Role: llms.ChatMessageTypeHuman,
+		Parts: []llms.ContentPart{
+			llms.TextContent{Text: "[harness: closure-verification] A close was requested for this subtask but the harness did not honour it: " +
+				reason + ". Keep working toward the objective and close only once it is genuinely met."},
+		},
+	}
+}
+
 func (fp *flowProvider) getTasksInfo(ctx context.Context, taskID int64) (*tasksInfo, error) {
 	var (
 		err  error

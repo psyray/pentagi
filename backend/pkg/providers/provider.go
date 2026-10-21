@@ -172,7 +172,16 @@ type flowProvider struct {
 
 	maxGACallsLimit int
 	maxLACallsLimit int
-	buildMonitor    executionMonitorBuilder
+
+	// Closure enforcement: a close verdict is only a signal, verified in two
+	// stages (a deterministic idle-on-evidence check, then an adversarial
+	// completion critic) before the harness forces the graceful shutdown. There
+	// is no tool-call cap: a long subtask is not a blocked subtask.
+	closureEnabled     bool
+	adviserCloseLimit  int
+	closeVerifyMinIdle int
+	closeVerifyCritic  bool
+	buildMonitor       executionMonitorBuilder
 
 	clm *clmVerifier // nil unless CLM_VERIFIER_ENABLED; see clm_verifier.go
 
