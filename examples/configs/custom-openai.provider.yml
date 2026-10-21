@@ -114,7 +114,7 @@ installer:
   temperature: 0.2
   top_p: 0.1
   n: 1
-  max_tokens: 6000
+  max_tokens: 4096
   price:
     input: 2.0
     output: 8.0

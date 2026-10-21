@@ -23,7 +23,7 @@ simple:
   presence_penalty: 1.5
   repetition_penalty: 1.0
   n: 1
-  max_tokens: 32768
+  max_tokens: 8192
   extra_body:
     chat_template_kwargs:
       enable_thinking: false
@@ -37,7 +37,7 @@ simple_json:
   presence_penalty: 1.5
   repetition_penalty: 1.0
   n: 1
-  max_tokens: 32768
+  max_tokens: 8192
   json: true
   extra_body:
     chat_template_kwargs:
@@ -63,7 +63,7 @@ assistant:
   presence_penalty: 1.5
   repetition_penalty: 1.0
   n: 1
-  max_tokens: 32768
+  max_tokens: 16384
 
 generator:
   model: "Qwen/Qwen3.6-27B-FP8"
@@ -85,7 +85,7 @@ refiner:
   presence_penalty: 1.5
   repetition_penalty: 1.0
   n: 1
-  max_tokens: 32768
+  max_tokens: 16384
 
 adviser:
   model: "Qwen/Qwen3.6-27B-FP8"
@@ -96,7 +96,7 @@ adviser:
   presence_penalty: 1.5
   repetition_penalty: 1.0
   n: 1
-  max_tokens: 32768
+  max_tokens: 8192
 
 reflector:
   model: "Qwen/Qwen3.6-27B-FP8"
@@ -121,7 +121,7 @@ searcher:
   presence_penalty: 1.5
   repetition_penalty: 1.0
   n: 1
-  max_tokens: 32768
+  max_tokens: 8192
   extra_body:
     chat_template_kwargs:
       enable_thinking: false
@@ -135,7 +135,7 @@ enricher:
   presence_penalty: 1.5
   repetition_penalty: 1.0
   n: 1
-  max_tokens: 32768
+  max_tokens: 8192
   extra_body:
     chat_template_kwargs:
       enable_thinking: false
@@ -149,7 +149,7 @@ coder:
   presence_penalty: 0.0
   repetition_penalty: 1.0
   n: 1
-  max_tokens: 32768
+  max_tokens: 16384
 
 installer:
   model: "Qwen/Qwen3.6-27B-FP8"
@@ -160,7 +160,7 @@ installer:
   presence_penalty: 0.0
   repetition_penalty: 1.0
   n: 1
-  max_tokens: 32768
+  max_tokens: 4096
 
 pentester:
   model: "Qwen/Qwen3.6-27B-FP8"
@@ -171,4 +171,4 @@ pentester:
   presence_penalty: 0.0
   repetition_penalty: 1.0
   n: 1
-  max_tokens: 32768
+  max_tokens: 24576
