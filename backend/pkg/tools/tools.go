@@ -651,6 +651,8 @@ func (fte *flowToolsExecutor) findMissingInContainer(ctx context.Context, entrie
 		Cmd:          cmd,
 		AttachStdout: true,
 		AttachStderr: true,
+		// The output is read as a raw stream below, so it must not be multiplexed.
+		TTY: true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create file-check exec: %w", err)
