@@ -100,6 +100,26 @@ func (s *flowSubscriber) MessageLogUpdated(ctx context.Context) (<-chan *model.M
 	return s.ctrl.messageLogUpdated.Subscribe(ctx, s.flowID), nil
 }
 
+func (s *flowSubscriber) ReportCreated(ctx context.Context) (<-chan *model.Report, error) {
+	return s.ctrl.reportCreated.Subscribe(ctx, s.flowID), nil
+}
+
+func (s *flowSubscriber) ReportUpdated(ctx context.Context) (<-chan *model.Report, error) {
+	return s.ctrl.reportUpdated.Subscribe(ctx, s.flowID), nil
+}
+
+func (s *flowSubscriber) ReportDeleted(ctx context.Context) (<-chan *model.Report, error) {
+	return s.ctrl.reportDeleted.Subscribe(ctx, s.flowID), nil
+}
+
+func (s *flowSubscriber) ReportSectionUpdated(ctx context.Context) (<-chan *model.ReportSection, error) {
+	return s.ctrl.reportSectionUpdated.Subscribe(ctx, s.flowID), nil
+}
+
+func (s *flowSubscriber) ReportLogAdded(ctx context.Context) (<-chan *model.ReportLog, error) {
+	return s.ctrl.reportLogAdded.Subscribe(ctx, s.flowID), nil
+}
+
 func (s *flowSubscriber) AgentLogAdded(ctx context.Context) (<-chan *model.AgentLog, error) {
 	return s.ctrl.agentLogAdded.Subscribe(ctx, s.flowID), nil
 }

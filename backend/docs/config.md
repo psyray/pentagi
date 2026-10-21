@@ -87,6 +87,7 @@ This document serves as a comprehensive guide to the configuration system in Pen
     - [Client Lifecycle and Failure Behavior](#client-lifecycle-and-failure-behavior)
     - [Data Flow, Search, and Tenancy](#data-flow-search-and-tenancy)
     - [Deployment Ownership](#deployment-ownership)
+  - [Reports (AI documents)](#reports-ai-documents)
   - [Agent Supervision Settings](#agent-supervision-settings)
     - [Usage Details](#usage-details-12)
     - [Supervision System Integration](#supervision-system-integration)
@@ -1999,6 +2000,38 @@ The bundled stack is separate from `docker-compose.yml`. The installer distingui
 Installer assets include `docker-compose-graphiti.yml` and the `graphiti` preset directory sourced from `examples/graphiti`. The target directory is checked, repaired, and removed with the Graphiti stack. Compose mounts it through `GRAPHITI_CONFIG_PATH` and `GRAPHITI_CONFIG_DIR`; the fallback target `configs` prevents a newer compose file paired with an older `.env` from masking the image's built-in `llm_configs` with an empty host directory.
 
 Models and call parameters belong to the provider YAML presets, selected by `GRAPHITI_LLM_CLIENT_TYPE`; they are not fields in the PentAGI Go configuration. `GRAPHITI_MODEL_NAME` is obsolete. Refer operators to the README instead of duplicating the sidecar's tuning reference here.
+
+## Reports (AI documents)
+
+The Reports feature writes an engagement document from what the flow recorded,
+section by section, and can bundle the evidence its findings cite. A report runs
+for minutes; it is started from a flow's Reports tab and watched from the
+Reporting console.
+
+| Option                     | Environment Variable                 | Default   | Description                                                                                   |
+| -------------------------- | ------------------------------------ | --------- | --------------------------------------------------------------------------------------------- |
+| ReportEnabled              | `REPORT_ENABLED`                     | `true`    | Expose the Reports surface; also surfaced as `settings.reportsEnabled`.                       |
+| ReportControlBudgetSec     | `REPORT_CONTROL_NODE_BUDGET_SECONDS` | `900`     | Soft ceiling on the planner/curator agent time, in seconds (0 = unlimited).                   |
+| ReportContentBudgetSec     | `REPORT_CONTENT_NODE_BUDGET_SECONDS` | `3600`    | Soft ceiling on the writers' agent time, in seconds. At exhaustion the remaining sections are not written and the run still completes. |
+| ReportStreamIntervalMs     | `REPORT_STREAM_INTERVAL_MS`          | `1500`    | How often the section being written is pushed to the UI, in milliseconds.                     |
+| ReportMaxRecordBytes       | `REPORT_MAX_RECORD_BYTES`            | `196608`  | Cap on the assembled engagement record handed to the planner and writers, in bytes.          |
+| ReportMaxConcurrentPerFlow | `REPORT_MAX_CONCURRENT_PER_FLOW`     | `3`       | Cap on report runs a single flow may have in flight.                                          |
+| ReportEvidenceItemBytes    | `REPORT_EVIDENCE_ITEM_BYTES`         | `4000`    | Cap on one evidence candidate (a toolcall's output, a terminal excerpt), in bytes.           |
+| ReportEvidenceMaxItems     | `REPORT_EVIDENCE_MAX_ITEMS`          | `40`      | Cap on evidence candidates handed to one section.                                             |
+| ReportEvidenceMaxBytes     | `REPORT_EVIDENCE_MAX_BYTES`          | `48000`   | Cap on the whole evidence pack of one section, in bytes.                                      |
+
+Evidence and screenshots: a finding is handed a numbered evidence pack (its
+subtask's toolcalls, terminal output and screenshots) and must quote the relevant
+items in an `### Evidence` subsection. When the report's model can read images
+(the `reportVision` probe tests it at creation), the cited screenshots are
+attached to the writer call as images; otherwise they are referenced by name.
+The `Archive (ZIP)` download bundles the document with the container files and
+screenshots the sections cited (`annexes/MISSING.txt` lists any it could not
+resolve). A section handed evidence but producing no `### Evidence` subsection is
+flagged in the control log and carries a section warning.
+
+Note: the compose stack passes these variables through `docker-compose.yml`;
+setting one only in `.env` without the matching compose line has no effect.
 
 ## Agent Supervision Settings
 

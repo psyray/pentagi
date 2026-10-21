@@ -1,0 +1,1755 @@
+package report
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"sort"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"pentagi/pkg/config"
+	"pentagi/pkg/database"
+	"pentagi/pkg/database/converter"
+	"pentagi/pkg/graph/subscriptions"
+	obs "pentagi/pkg/observability"
+	"pentagi/pkg/providers"
+	"pentagi/pkg/providers/pconfig"
+	"pentagi/pkg/providers/provider"
+	"pentagi/pkg/templates"
+
+	"github.com/invopop/jsonschema"
+	"github.com/sirupsen/logrus"
+	"github.com/sqlc-dev/pqtype"
+	"github.com/vxcontrol/langchaingo/llms"
+	"github.com/vxcontrol/langchaingo/llms/streaming"
+)
+
+// planToolName is the single tool the planner node must call to emit the plan.
+const planToolName = "report_plan"
+
+// Node timeouts: a planner or writer that hangs must not pin the run forever.
+const (
+	planningTimeout = 15 * time.Minute
+	writingTimeout  = 30 * time.Minute
+)
+
+const (
+	planActionInclude = "include"
+	planActionSkip    = "skip"
+)
+
+var reflector = &jsonschema.Reflector{
+	DoNotReference: true,
+	ExpandedStruct: true,
+}
+
+// plan is the payload of the single planner tool. Labels carries the planner's
+// translation of the fixed composed-section label set into the report language
+// (plan § 6.11); keys it omits keep their English default.
+type plan struct {
+	Title    string            `json:"title"`
+	Estimate int               `json:"sections_estimate"`
+	Sections []planSection     `json:"sections"`
+	Labels   map[string]string `json:"labels,omitempty"`
+}
+
+// UnmarshalJSON accepts the model's two known shapes for the sections field:
+// the plain array and the (once seen) array stringified inside a JSON string.
+func (p *plan) UnmarshalJSON(blob []byte) error {
+	type alias struct {
+		Title    string          `json:"title"`
+		Estimate int             `json:"sections_estimate"`
+		Sections json.RawMessage `json:"sections"`
+		Labels   json.RawMessage `json:"labels"`
+	}
+
+	parsed := alias{}
+	if err := json.Unmarshal(blob, &parsed); err != nil {
+		return err
+	}
+
+	p.Title = parsed.Title
+	p.Estimate = parsed.Estimate
+	p.Sections = nil
+	p.Labels = decodeLabels(parsed.Labels)
+
+	payload := parsed.Sections
+	if len(payload) > 0 && payload[0] == '"' {
+		var asText string
+		if err := json.Unmarshal(payload, &asText); err != nil {
+			return fmt.Errorf("plan sections string payload: %w", err)
+		}
+		payload = []byte(asText)
+	}
+	if len(payload) > 0 && payload[0] != '[' && payload[0] != 'n' {
+		return fmt.Errorf("plan sections neither array nor null")
+	}
+	if err := json.Unmarshal(payload, &p.Sections); err != nil {
+		return fmt.Errorf("plan sections payload: %w", err)
+	}
+	return nil
+}
+
+type planSection struct {
+	Key string `json:"key"`
+	// Title is the section's title translated into the report language; empty
+	// keeps the template title (plan § 6.11).
+	Title    string      `json:"title,omitempty"`
+	Action   string      `json:"action"`
+	Children []planChild `json:"children,omitempty"`
+}
+
+type planChild struct {
+	Key              string  `json:"key,omitempty"`
+	Title            string  `json:"title"`
+	Action           string  `json:"action,omitempty"`
+	Summary          string  `json:"summary,omitempty"`
+	Warning          string  `json:"warning,omitempty"`
+	Instructions     string  `json:"instructions,omitempty"`
+	Length           string  `json:"length,omitempty"`
+	SourceSubtaskIDs []int64 `json:"source_subtask_ids,omitempty"`
+}
+
+func (p *plan) Validate() error {
+	seen := make(map[string]struct{}, len(p.Sections))
+	for _, section := range p.Sections {
+		if section.Key == "" {
+			return fmt.Errorf("plan section with an empty key")
+		}
+		if section.Action != planActionInclude && section.Action != planActionSkip {
+			return fmt.Errorf("plan section %q: unknown action %q", section.Key, section.Action)
+		}
+		if _, dup := seen[section.Key]; dup {
+			return fmt.Errorf("plan section %q duplicated", section.Key)
+		}
+		seen[section.Key] = struct{}{}
+		for _, child := range section.Children {
+			if strings.TrimSpace(child.Title) == "" {
+				return fmt.Errorf("plan child of %q with an empty title", section.Key)
+			}
+		}
+	}
+	return nil
+}
+
+// renderOutline renders the document skeleton as plain text. The planner sees
+// statuses plus one-line instructions; a writer sees only keys and titles so
+// it does not read its neighbours as history.
+func renderOutline(sections []database.ReportSection, withStatus bool) string {
+	b := &strings.Builder{}
+
+	var walk func(parentID sql.NullInt64, depth int)
+	walk = func(parentID sql.NullInt64, depth int) {
+		for _, st := range orderedSections(sections, parentID) {
+			indent := strings.Repeat("  ", depth)
+			fmt.Fprintf(b, "%s- key: %s\n", indent, st.Key)
+			fmt.Fprintf(b, "%s  kind: %s\n", indent, st.Kind)
+			fmt.Fprintf(b, "%s  title: %q\n", indent, st.Title)
+			if withStatus {
+				fmt.Fprintf(b, "%s  status: %s\n", indent, st.Status)
+				if st.ParentID.Valid && st.Instructions.Valid && st.Instructions.String != "" {
+					fmt.Fprintf(b, "%s  one_line: %s\n", indent, outlineOneLine(st.Instructions.String))
+				}
+			}
+			walk(int64Null(st.ID), depth+1)
+		}
+	}
+	walk(sql.NullInt64{}, 0)
+
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func outlineOneLine(text string) string {
+	one := strings.Join(strings.Fields(text), " ")
+	if len(one) > 160 {
+		one = one[:160] + "..."
+	}
+	return one
+}
+
+// orderedSections returns the children of one parent (or the top level when
+// parentID is null) in document order (position, then id).
+func orderedSections(sections []database.ReportSection, parentID sql.NullInt64) []database.ReportSection {
+	out := make([]database.ReportSection, 0, len(sections)/2)
+	for _, st := range sections {
+		if !sameParent(st.ParentID, parentID) {
+			continue
+		}
+		out = append(out, st)
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].Position != out[j].Position {
+			return out[i].Position < out[j].Position
+		}
+		return out[i].ID < out[j].ID
+	})
+	return out
+}
+
+func sameParent(value, parent sql.NullInt64) bool {
+	return value.Valid == parent.Valid && value.Int64 == parent.Int64
+}
+
+func int64Null(id int64) sql.NullInt64 {
+	return sql.NullInt64{Valid: true, Int64: id}
+}
+
+// writeOrder returns the flat write order: each top-level section in document
+// order followed by its whole subtree. Deferred nodes (Executive Summary) are
+// reported separately so they are written after the body exists. Walking the
+// subtree (not only aggregate children) means a hand-added subsection under any
+// parent is written too.
+func writeOrder(sections []database.ReportSection, tpl *Template) (body, deferred []database.ReportSection) {
+	byParent := make(map[int64][]database.ReportSection)
+	for _, st := range sections {
+		if st.ParentID.Valid {
+			byParent[st.ParentID.Int64] = append(byParent[st.ParentID.Int64], st)
+		}
+	}
+	for parent := range byParent {
+		list := byParent[parent]
+		sort.SliceStable(list, func(i, j int) bool {
+			if list[i].Position != list[j].Position {
+				return list[i].Position < list[j].Position
+			}
+			return list[i].ID < list[j].ID
+		})
+	}
+
+	var walk func(st database.ReportSection, into *[]database.ReportSection)
+	walk = func(st database.ReportSection, into *[]database.ReportSection) {
+		*into = append(*into, st)
+		for _, child := range byParent[st.ID] {
+			walk(child, into)
+		}
+	}
+
+	for _, st := range orderedSections(sections, sql.NullInt64{}) {
+		if st.ParentID.Valid {
+			continue
+		}
+		node := outlineNodeOf(tpl, st)
+		switch st.Kind {
+		case KindAggregate, KindComposed:
+			walk(st, &body)
+		default:
+			if node != nil && node.Defer {
+				walk(st, &deferred)
+				continue
+			}
+			walk(st, &body)
+		}
+	}
+
+	return body, deferred
+}
+
+func outlineNodeOf(tpl *Template, st database.ReportSection) *SectionNode {
+	for i := range tpl.Sections {
+		if tpl.Sections[i].Key == st.Key {
+			return &tpl.Sections[i]
+		}
+	}
+	return nil
+}
+
+// Deps is everything a report worker needs; the controller owns one instance.
+type Deps struct {
+	DB       database.Querier
+	Cfg      *config.Config
+	Provs    providers.ProviderController
+	Prompter templates.Prompter
+	Subs     subscriptions.SubscriptionsController
+}
+
+// worker runs one report: planner (unless already instantiated), then the
+// write loop over the derived order, then finish. All state lives in the
+// database; a server restart resumes from rows (LoadReports).
+type worker struct {
+	deps        Deps
+	report      database.Report
+	flowRow     database.Flow
+	pub         subscriptions.FlowPublisher
+	prv         provider.Provider
+	tpl         *Template
+	ctx         context.Context // run context: cancelled by Stop, bound to the LLM calls
+	stateCtx    context.Context // surviving context for state writes (WithoutCancel)
+	cancel      context.CancelFunc
+	stopped     atomic.Bool
+	digest      string
+	controlUsed float64
+	contentUsed float64
+	tokensIn    int64
+	tokensOut   int64
+	doneCount   int32
+	mx          sync.Mutex
+	visionOnce  sync.Once
+	vision      bool
+	logger      *logrus.Entry
+	// Msgchain ids the run emits usage into (backlog v2, L8): control carries the
+	// planner and vision probe, content carries the writers.
+	controlChainID int64
+	contentChainID int64
+	// onDone is called once the run goroutine ends, so the controller can drop
+	// the worker from its map (a finished worker is not a live run).
+	onDone func()
+}
+
+func newWorker(deps Deps, report database.Report) (*worker, error) {
+	prvname := provider.ProviderName(report.ProviderName)
+	prv, err := deps.Provs.GetProvider(context.Background(), prvname, report.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve provider %q for report %d: %w", prvname, report.ID, err)
+	}
+
+	tpl, err := ResolveTemplate(context.Background(), deps.DB, report.UserID, report.TemplateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load template %q: %w", report.TemplateKey, err)
+	}
+
+	flow, err := deps.DB.GetFlow(context.Background(), report.FlowID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load flow %d for report %d: %w", report.FlowID, report.ID, err)
+	}
+
+	w := &worker{
+		deps:    deps,
+		report:  report,
+		flowRow: flow,
+		pub:     deps.Subs.NewFlowPublisher(report.UserID, report.FlowID),
+		prv:     prv,
+		tpl:     tpl,
+		ctx:     context.Background(),
+		cancel:  func() {},
+		logger: logrus.WithFields(logrus.Fields{
+			"report_id": report.ID,
+			"flow_id":   report.FlowID,
+			"component": "report-worker",
+		}),
+	}
+	// On resume the report row already carries the earlier session's
+	// counters; the done count and token totals come from the rows so the
+	// next refresh persists the whole run, not just its new slice.
+	w.controlUsed = report.ControlUsedSeconds
+	w.contentUsed = report.ContentUsedSeconds
+	w.tokensIn = 0
+	w.tokensOut = 0
+	w.doneCount = 0
+	if report.SectionsTotal > 0 {
+		sections, err := deps.DB.GetReportSections(context.Background(), report.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load report %d sections: %w", report.ID, err)
+		}
+		for _, st := range sections {
+			if st.Status == SectionDone {
+				w.doneCount++
+			}
+			w.tokensIn += st.TokensIn
+			w.tokensOut += st.TokensOut
+		}
+	}
+
+	return w, nil
+}
+
+// start wires the cancellable context and launches the full run goroutine.
+// Called once per worker lifecycle; LoadReports also goes through it.
+func (w *worker) start() {
+	w.launch(nil)
+}
+
+// runSections launches a run scoped to the given section ids (nil = the whole
+// report, planner included). Backs the resume and single-section entrypoints:
+// the planner is skipped and only the listed sections are (re)written.
+func (w *worker) runSections(ids []int64) {
+	w.launch(ids)
+}
+
+func (w *worker) launch(ids []int64) {
+	ctx, cancel := context.WithCancel(context.Background())
+	w.ctx = ctx
+	w.stateCtx = context.WithoutCancel(ctx)
+	w.cancel = cancel
+
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				w.logger.Errorf("report worker panic: %v", r)
+				w.finish(StatusFailed, fmt.Sprintf("report worker panic: %v", r))
+			}
+			if w.onDone != nil {
+				w.onDone()
+			}
+		}()
+
+		w.putLog(LogStatus, "report run started", nil)
+
+		// Stamp the run start so the panel's Took is the run duration, not the
+		// report's whole lifetime (a report can be resumed much later).
+		if _, err := w.deps.DB.SetReportStartedAt(w.stateCtx, w.report.ID); err != nil {
+			w.logger.WithError(err).Warn("failed to stamp the report run start")
+		}
+
+		// Open (or reopen on a resume) the two msgchains the run reports usage into
+		// (backlog v2, L8), before the first planner/writer call.
+		w.ensureMsgChains(w.stateCtx)
+
+		if ids == nil && w.report.SectionsTotal == 0 {
+			if err := w.plan(ctx); err != nil {
+				w.finish(StatusFailed, err.Error())
+				return
+			}
+		}
+
+		if err := w.writeAll(ctx, ids); err != nil {
+			if w.stopped.Load() || ctx.Err() != nil {
+				w.setStopState()
+				return
+			}
+			w.finish(StatusFailed, err.Error())
+			return
+		}
+
+		if w.stopped.Load() || ctx.Err() != nil {
+			w.setStopState()
+			return
+		}
+
+		w.finish(StatusCompleted, "")
+	}()
+}
+
+// plan runs the planner node and applies the returned outline actions.
+func (w *worker) plan(ctx context.Context) error {
+	_, span := obs.Observer.NewSpan(ctx, obs.SpanKindInternal, "report.plan")
+	defer span.End()
+
+	if _, err := w.deps.DB.UpdateReportStatus(ctx, database.UpdateReportStatusParams{
+		ID: w.report.ID, Status: StatusPlanning,
+	}); err != nil {
+		return fmt.Errorf("failed to persist planning status: %w", err)
+	}
+	w.publishRun()
+
+	ctx, cancel := context.WithTimeout(ctx, planningTimeout)
+	defer cancel()
+
+	digest, stats, err := buildDigest(ctx, w.deps.DB, w.deps.Cfg.ReportMaxRecordBytes, w.report.FlowID)
+	if err != nil {
+		return err
+	}
+	w.digest = digest
+	w.putLog(LogControl, fmt.Sprintf(
+		"engagement record ready: %d tasks, %d subtasks, %d reporter notes, %d screenshots, %d bytes",
+		stats.Tasks, stats.Subtasks, stats.ReporterLogs, stats.Screenshots, stats.Bytes), nil)
+
+	sections, err := w.loadSections()
+	if err != nil {
+		return fmt.Errorf("failed to load report sections: %w", err)
+	}
+
+	system, err := w.deps.Prompter.RenderTemplate(templates.PromptTypeReportPlanner, map[string]any{
+		"Outline":                renderOutline(sections, true),
+		"Record":                 w.digest,
+		"Language":               w.report.Language,
+		"Title":                  w.report.Title,
+		"AdditionalInstructions": nullableText(w.report.AdditionalInstructions),
+		"Notes":                  w.loadNotes(),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to render report planner prompt: %w", err)
+	}
+
+	chain := []llms.MessageContent{
+		llms.TextParts(llms.ChatMessageTypeSystem, system),
+		llms.TextParts(llms.ChatMessageTypeHuman,
+			"Produce the report plan through the "+planToolName+" tool now."),
+	}
+	tools := []llms.Tool{{
+		Type: "function",
+		Function: &llms.FunctionDefinition{
+			Name:        planToolName,
+			Description: "Emit the instantiated report outline for this engagement",
+			Parameters:  reflector.Reflect(&plan{}),
+			Strict:      true,
+		},
+	}}
+
+	// A single malformed tool payload used to fail the whole report after one
+	// attempt (observed on prod 2026-10-20 with glm-5.3-flash: the model
+	// stringified `sections` with an extra colon). Retry the planner so a
+	// stochastic JSON slip costs one extra control call instead of the report.
+	call := func(ctx context.Context, chain []llms.MessageContent) (*llms.ContentResponse, error) {
+		start := time.Now()
+		resp, err := w.prv.CallWithTools(ctx, pconfig.OptionsTypeReporter, chain, tools, nil)
+		w.recordNodeUsage(true, resp, time.Since(start).Seconds())
+		return resp, err
+	}
+
+	got, attempts, err := planWithRetry(ctx, call, chain)
+	if err != nil {
+		return err
+	}
+	if attempts > 1 {
+		w.putLog(LogControl, fmt.Sprintf("planner recovered after %d attempts", attempts), map[string]any{
+			"attempts": attempts,
+		})
+	}
+
+	if err := w.applyPlan(ctx, got, sections); err != nil {
+		return fmt.Errorf("failed to apply plan: %w", err)
+	}
+
+	w.putLog(LogControl, fmt.Sprintf("plan applied: outline carries %d sections (planner estimate %d)",
+		w.report.SectionsTotal, got.Estimate), nil)
+
+	return nil
+}
+
+// planDecodeAttempts bounds how many times the planner is called when its tool
+// payload cannot be decoded. Three attempts tolerate a rare malformed JSON slip
+// without letting a model that cannot produce the schema burn the planning
+// budget.
+const planDecodeAttempts = 3
+
+// planCall performs one planner request. Split out so the retry loop is
+// testable without a provider implementation.
+type planCall func(ctx context.Context, chain []llms.MessageContent) (*llms.ContentResponse, error)
+
+// planWithRetry calls the planner until its payload decodes and validates,
+// re-asking with the decode error after a rejected attempt. It returns how many
+// attempts were spent so the caller can log a recovery.
+func planWithRetry(ctx context.Context, call planCall, chain []llms.MessageContent) (plan, int, error) {
+	var got plan
+	var lastErr error
+
+	for attempt := 1; attempt <= planDecodeAttempts; attempt++ {
+		resp, err := call(ctx, chain)
+		if err != nil {
+			return plan{}, attempt, fmt.Errorf("planner call failed: %w", err)
+		}
+
+		lastErr = decodePlanCommand(resp, planToolName, &got)
+		if lastErr == nil {
+			return got, attempt, nil
+		}
+		if attempt == planDecodeAttempts {
+			break
+		}
+
+		// Re-ask on the same system/human chain, naming the defect: the model can
+		// fix its own escaping without the record being rebuilt.
+		chain = append(chain, llms.TextParts(llms.ChatMessageTypeHuman, fmt.Sprintf(
+			"The previous %s call was rejected: %v. Call %s again with one valid JSON object. "+
+				"Escape every string, give each key a single value, and use the tool payload schema exactly.",
+			planToolName, lastErr, planToolName)))
+	}
+
+	return plan{}, planDecodeAttempts, lastErr
+}
+
+// decodePlanCommand extracts the report_plan tool payload from a response.
+func decodePlanCommand(resp *llms.ContentResponse, toolName string, into *plan) error {
+	if resp == nil || len(resp.Choices) < 1 {
+		return fmt.Errorf("empty planner response")
+	}
+	raw := ""
+	for _, call := range resp.Choices[0].ToolCalls {
+		if call.FunctionCall == nil || call.FunctionCall.Name != toolName {
+			continue
+		}
+		raw = call.FunctionCall.Arguments
+		break
+	}
+	if strings.TrimSpace(raw) == "" {
+		return fmt.Errorf("planner returned no %s tool call", toolName)
+	}
+	if err := json.Unmarshal([]byte(raw), into); err != nil {
+		return fmt.Errorf("failed to decode planner payload: %w", err)
+	}
+	return into.Validate()
+}
+
+// applyPlan persists the planner decisions. The skeleton carries only template
+// sections and their alternatives; the planner includes/skips what is there or
+// attaches dynamic children under aggregates. A child whose key matches an
+// existing sibling row (a template alternative) is included/skipped instead of
+// inserted twice.
+func (w *worker) applyPlan(ctx context.Context, got plan, sections []database.ReportSection) error {
+	decision := make(map[string]*planSection, len(got.Sections))
+	for i := range got.Sections {
+		decision[got.Sections[i].Key] = &got.Sections[i]
+	}
+
+	// Dynamic children first: insert under each aggregate, then push the
+	// template alternatives behind them (or mark them when the planner picked
+	// one as the empty-state section).
+	for i := range sections {
+		st := &sections[i]
+		if st.Kind != KindAggregate {
+			continue
+		}
+		children := []planChild(nil)
+		if entry, ok := decision[st.Key]; ok {
+			children = entry.Children
+		}
+
+		alternatives := orderedSections(sections, int64Null(st.ID))
+		var inserted int
+		for _, child := range children {
+			if _, exists := childByKey(alternatives, child.Key); exists {
+				continue // alternatives are resolved by key below
+			}
+			if strings.TrimSpace(child.Key) == "" {
+				child.Key = "child-" + outlineSlug(child.Title)
+			}
+			created, err := w.deps.DB.CreateReportSection(ctx, database.CreateReportSectionParams{
+				ReportID:     w.report.ID,
+				ParentID:     database.Int64ToNullInt64(&st.ID),
+				Position:     int32(inserted + 1),
+				Key:          child.Key,
+				Kind:         KindLLM,
+				Title:        child.Title,
+				Instructions: nullInstructionText(planChildInstructions(child)),
+			})
+			if err != nil {
+				return fmt.Errorf("failed to insert child %q under %s: %w", child.Title, st.Key, err)
+			}
+			if err := w.setSectionSources(ctx, created.ID, child.SourceSubtaskIDs); err != nil {
+				return fmt.Errorf("failed to record sources for child %q: %w", child.Title, err)
+			}
+			inserted++
+		}
+
+		// Alternatives sit behind the dynamic children when they exist.
+		if inserted > 0 {
+			for ri, alt := range alternatives {
+				if _, err := w.deps.DB.SetReportSectionPosition(ctx, database.SetReportSectionPositionParams{
+					ID:       alt.ID,
+					Position: int32(inserted + 1 + ri),
+				}); err != nil {
+					return fmt.Errorf("failed to reposition alternative %s: %w", alt.Key, err)
+				}
+			}
+		}
+
+		// Alternatives: skip when dynamic children exist or a different
+		// alternative was chosen; include the one the planner picked (key
+		// match) and default to the first one when the record supports no
+		// children at all and the planner stayed silent.
+		for ai, alt := range alternatives {
+			skip := inserted > 0
+			for _, child := range children {
+				if child.Key == alt.Key && !skip {
+					skip = child.Action == planActionSkip
+				}
+			}
+			if !skip && len(children) == 0 && ai == 0 && len(alternatives) > 1 {
+				// No planner opinion on alternatives: keep the first, skip the rest.
+				continue
+			}
+			if !skip && len(children) == 0 && ai > 0 {
+				skip = true
+			}
+			// The planner may skip one alternative explicitly by title/action.
+			for _, child := range children {
+				if child.Key == alt.Key && child.Action == planActionSkip {
+					skip = true
+				}
+			}
+			status := SectionSkipped
+			if !skip {
+				status = SectionQueued
+			}
+			if _, err := w.deps.DB.SetReportSectionStatus(ctx, database.SetReportSectionStatusParams{
+				ID: alt.ID, Status: status,
+			}); err != nil {
+				return fmt.Errorf("failed to resolve alternative %q: %w", alt.Key, err)
+			}
+			if !skip {
+				if err := w.setSectionSources(ctx, alt.ID, childSources(children, alt.Key)); err != nil {
+					return fmt.Errorf("failed to record sources for alternative %q: %w", alt.Key, err)
+				}
+			}
+		}
+	}
+
+	// Top-level decisions: skip what the planner drops and localize the title of
+	// what it keeps into the report language (plan § 6.11).
+	for i := range sections {
+		st := &sections[i]
+		if st.ParentID.Valid {
+			continue
+		}
+		entry, ok := decision[st.Key]
+		if !ok {
+			continue
+		}
+		if entry.Action == planActionSkip {
+			if _, err := w.deps.DB.SetReportSectionStatus(ctx, database.SetReportSectionStatusParams{
+				ID: st.ID, Status: SectionSkipped,
+			}); err != nil {
+				return fmt.Errorf("failed to skip section %q: %w", st.Key, err)
+			}
+
+			continue
+		}
+		if title := strings.TrimSpace(entry.Title); title != "" && title != st.Title {
+			if _, err := w.deps.DB.SetReportSectionTitle(ctx, database.SetReportSectionTitleParams{
+				ID: st.ID, Title: title,
+			}); err != nil {
+				return fmt.Errorf("failed to localize section %q: %w", st.Key, err)
+			}
+		}
+	}
+
+	sections, err := w.loadSections()
+	if err != nil {
+		return fmt.Errorf("failed to reload report sections: %w", err)
+	}
+	kept := 0
+	for _, st := range sections {
+		if st.Status != SectionSkipped {
+			kept++
+		}
+	}
+
+	estimate := got.Estimate
+	if estimate <= 0 {
+		estimate = kept
+	}
+
+	title := strings.TrimSpace(got.Title)
+	params := database.SetReportPlanParams{
+		ID:               w.report.ID,
+		Status:           StatusGenerating,
+		SectionsEstimate: int32(estimate),
+		SectionsTotal:    int32(kept),
+	}
+	if title != "" && title != w.report.Title {
+		params.Title = title
+	} else {
+		params.Title = w.report.Title
+	}
+
+	report, err := w.deps.DB.SetReportPlan(ctx, params)
+	if err != nil {
+		return fmt.Errorf("failed to persist the plan: %w", err)
+	}
+	// The planner's translated label set drives the composed sections; an
+	// omitted or empty map keeps the English wording (plan § 6.11).
+	if len(got.Labels) > 0 {
+		if blob, err := json.Marshal(got.Labels); err == nil {
+			if withLabels, err := w.deps.DB.SetReportLabels(ctx, database.SetReportLabelsParams{
+				ID:     w.report.ID,
+				Labels: pqtype.NullRawMessage{RawMessage: blob, Valid: true},
+			}); err == nil {
+				report = withLabels
+			}
+		}
+	}
+	w.report = report
+	w.doneCount = 0
+
+	w.refreshProgress(ctx)
+	w.publishRun()
+	return nil
+}
+
+func childByKey(sections []database.ReportSection, key string) (database.ReportSection, bool) {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return database.ReportSection{}, false
+	}
+	for _, st := range sections {
+		if st.Key == key {
+			return st, true
+		}
+	}
+	return database.ReportSection{}, false
+}
+
+func outlineSlug(title string) string {
+	slug := strings.Builder{}
+	for _, r := range strings.ToLower(strings.TrimSpace(title)) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			slug.WriteRune(r)
+		case r == ' ', r == '-', r == '.':
+			slug.WriteRune('-')
+		}
+		if slug.Len() >= 32 {
+			break
+		}
+	}
+	return strings.Trim(slug.String(), "-")
+}
+
+func childSources(children []planChild, key string) []int64 {
+	for _, child := range children {
+		if child.Key == key {
+			return child.SourceSubtaskIDs
+		}
+	}
+	return nil
+}
+
+// setSectionSources records the finding-to-subtask mapping the curator uses to
+// assemble the section's evidence pack.
+func (w *worker) setSectionSources(ctx context.Context, sectionID int64, sources []int64) error {
+	if len(sources) == 0 {
+		return nil
+	}
+	if _, err := w.deps.DB.SetReportSectionSources(ctx, database.SetReportSectionSourcesParams{
+		ID: sectionID, SourceSubtaskIds: sources,
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func planChildInstructions(child planChild) string {
+	parts := make([]string, 0, 3)
+	if strings.TrimSpace(child.Length) != "" {
+		parts = append(parts, "Length: "+strings.TrimSpace(child.Length))
+	}
+	if strings.TrimSpace(child.Summary) != "" {
+		parts = append(parts, "Record summary: "+strings.TrimSpace(child.Summary))
+	}
+	if strings.TrimSpace(child.Instructions) != "" {
+		parts = append(parts, strings.TrimSpace(child.Instructions))
+	}
+	return strings.Join(parts, "\n")
+}
+
+func (w *worker) loadSections() ([]database.ReportSection, error) {
+	return w.deps.DB.GetReportSections(w.stateCtx, w.report.ID)
+}
+
+// loadNotes returns the operator notes as one text block for the prompts.
+func (w *worker) loadNotes() string {
+	logs, err := w.deps.DB.GetReportLogs(w.ctx, database.GetReportLogsParams{
+		ReportID: w.report.ID, Limit: 200,
+	})
+	if err != nil {
+		w.logger.WithError(err).Warn("failed to load report notes")
+		return ""
+	}
+
+	var b strings.Builder
+	for _, log := range logs {
+		if log.Kind != LogNote {
+			continue
+		}
+		fmt.Fprintf(&b, "- %s\n", strings.TrimSpace(log.Message))
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+// writeAll walks the derived write order (body phase, then deferred) and
+// produces the not-yet-written sections; budget exhaustion marks the rest. A
+// non-nil ids restricts the run to those sections (resume / single-section).
+func (w *worker) writeAll(ctx context.Context, ids []int64) error {
+	if _, err := w.deps.DB.UpdateReportStatus(ctx, database.UpdateReportStatusParams{
+		ID: w.report.ID, Status: StatusGenerating,
+	}); err != nil {
+		return fmt.Errorf("failed to persist generating status: %w", err)
+	}
+	w.publishRun()
+
+	sections, err := w.loadSections()
+	if err != nil {
+		return fmt.Errorf("failed to load report sections: %w", err)
+	}
+	var body, deferred []database.ReportSection
+	if ids != nil {
+		// A scoped run writes exactly the ids it was given, regardless of where
+		// they sit in the tree (the tree walk only yields top-level headings).
+		body = filterSectionsByID(sections, ids)
+	} else {
+		body, deferred = writeOrder(sections, w.tpl)
+	}
+
+	if err := w.writeList(ctx, body); err != nil {
+		return err
+	}
+	if w.stopped.Load() || ctx.Err() != nil || w.contentBudgetExhausted() {
+		return nil
+	}
+	if err := w.writeList(ctx, deferred); err != nil {
+		return err
+	}
+
+	// Regeneration queue: sections an operator edited while the run was live are
+	// flagged by the resolver; drain them so one run reflects the edits. A scoped
+	// run (resume / single section) does not drain: it only writes its target.
+	if ids == nil {
+		if err := w.drainRegen(ctx); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// filterSectionsByID keeps the sections whose id is in ids, preserving order.
+func filterSectionsByID(sections []database.ReportSection, ids []int64) []database.ReportSection {
+	wanted := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		wanted[id] = struct{}{}
+	}
+	out := make([]database.ReportSection, 0, len(ids))
+	for i := range sections {
+		if _, ok := wanted[sections[i].ID]; ok {
+			out = append(out, sections[i])
+		}
+	}
+	return out
+}
+
+// maxRegenRounds bounds the drain loop so a section repeatedly edited during its
+// own write cannot loop forever.
+const maxRegenRounds = 100
+
+// drainRegen rewrites the sections an operator flagged while the run was live
+// (regen_requested). Each round re-reads the rows, so an edit made during a
+// rewrite is picked up by the next round.
+func (w *worker) drainRegen(ctx context.Context) error {
+	for round := 0; round < maxRegenRounds; round++ {
+		if w.stopped.Load() || ctx.Err() != nil {
+			return nil
+		}
+
+		sections, err := w.loadSections()
+		if err != nil {
+			return fmt.Errorf("failed to load report sections for regen: %w", err)
+		}
+
+		pending := make([]database.ReportSection, 0)
+		for i := range sections {
+			if !sections[i].RegenRequested || sections[i].Hidden {
+				continue
+			}
+			if _, err := w.deps.DB.SetReportSectionRegenRequested(w.stateCtx, database.SetReportSectionRegenRequestedParams{
+				ID: sections[i].ID, RegenRequested: false,
+			}); err != nil {
+				return fmt.Errorf("failed to clear regen flag on section %d: %w", sections[i].ID, err)
+			}
+			if _, err := w.deps.DB.SetReportSectionStatus(w.stateCtx, database.SetReportSectionStatusParams{
+				ID: sections[i].ID, Status: SectionQueued,
+			}); err != nil {
+				return fmt.Errorf("failed to requeue section %d: %w", sections[i].ID, err)
+			}
+			row := sections[i]
+			row.Status = SectionQueued
+			row.RegenRequested = false
+			pending = append(pending, row)
+		}
+		if len(pending) == 0 {
+			return nil
+		}
+
+		w.putLog(LogControl, fmt.Sprintf("regeneration queue: rewriting %d edited section(s)", len(pending)), nil)
+		if err := w.writeList(ctx, pending); err != nil {
+			return err
+		}
+		if w.stopped.Load() || ctx.Err() != nil {
+			return nil
+		}
+		if w.contentBudgetExhausted() {
+			w.putLog(LogControl, "content node budget exhausted during the regeneration queue", nil)
+			return nil
+		}
+	}
+
+	w.logger.Warn("regeneration drain reached its round cap")
+	return nil
+}
+
+// writeList writes one batch of sections in document order. Composed sections
+// are done as their bodies are computed at export; aggregate parents resolve
+// as headings over their children.
+func (w *worker) writeList(ctx context.Context, list []database.ReportSection) error {
+	for i := range list {
+		st := list[i]
+		if st.Hidden || st.Status == SectionDone || st.Status == SectionSkipped ||
+			st.Status == SectionNotWritten || st.Status == SectionFailed {
+			continue
+		}
+
+		switch st.Kind {
+		case KindComposed, KindAggregate:
+			if _, err := w.deps.DB.SetReportSectionStatus(ctx, database.SetReportSectionStatusParams{
+				ID: st.ID, Status: SectionDone,
+			}); err != nil {
+				return fmt.Errorf("failed to mark section %d done: %w", st.ID, err)
+			}
+			w.bumpDone()
+			w.publishRun()
+			w.publishSection(st.ID)
+
+		default:
+			if w.contentBudgetExhausted() {
+				if err := w.markNotWritten(ctx, list[i:]); err != nil {
+					return err
+				}
+				w.putLog(LogControl, "content node budget exhausted: remaining sections are not written", nil)
+				return nil
+			}
+			if err := w.writeSection(ctx, st); err != nil {
+				if w.stopped.Load() || ctx.Err() != nil {
+					return nil
+				}
+				w.putLog(LogError, fmt.Sprintf("section %q failed: %v", st.Title, err),
+					map[string]any{"section_id": st.ID, "key": st.Key})
+				if _, setErr := w.deps.DB.SetReportSectionStatus(ctx, database.SetReportSectionStatusParams{
+					ID: st.ID, Status: SectionFailed,
+				}); setErr != nil {
+					return fmt.Errorf("failed to mark section %d failed: %w", st.ID, setErr)
+				}
+				w.publishSection(st.ID)
+				// One failed section does not sink the report.
+				continue
+			}
+		}
+
+		if w.stopped.Load() || ctx.Err() != nil {
+			return nil
+		}
+	}
+	return nil
+}
+
+// markNotWritten closes the batch: everything not written yet (and not already
+// resolved) becomes not_written, the run completes partially.
+func (w *worker) markNotWritten(ctx context.Context, remaining []database.ReportSection) error {
+	for i := range remaining {
+		st := remaining[i]
+		if st.Hidden || st.Status == SectionDone || st.Status == SectionSkipped ||
+			st.Status == SectionNotWritten || st.Status == SectionFailed || st.Kind == KindComposed {
+			continue
+		}
+		status := SectionNotWritten
+		if st.Kind == KindAggregate {
+			status = SectionDone // heading over nothing keeps the outline stable
+		}
+		if _, err := w.deps.DB.SetReportSectionStatus(ctx, database.SetReportSectionStatusParams{
+			ID: st.ID, Status: status,
+		}); err != nil {
+			return fmt.Errorf("failed to mark section %d not written: %w", st.ID, err)
+		}
+		if st.Kind == KindAggregate {
+			w.publishSection(st.ID)
+		}
+	}
+	w.publishRun()
+	return nil
+}
+
+// writeSection streams one section body, throttling persistence and live
+// updates every REPORT_STREAM_INTERVAL_MS; the final snapshot marks it done.
+func (w *worker) writeSection(ctx context.Context, st database.ReportSection) error {
+	node := w.sectionNode(st)
+	if node == nil {
+		return fmt.Errorf("section %s has no template node", st.Key)
+	}
+
+	sectionContext := w.sectionContext(st)
+	evidenceText, evidenceCandidates := w.evidenceFor(ctx, st)
+	shots := screenshotCandidates(evidenceCandidates)
+	attachScreenshots := len(shots) > 0 && w.visionCapable(ctx)
+
+	if w.digest == "" {
+		digest, _, err := buildDigest(ctx, w.deps.DB, w.deps.Cfg.ReportMaxRecordBytes, w.report.FlowID)
+		if err != nil {
+			return fmt.Errorf("failed to build record for %s: %w", st.Key, err)
+		}
+		w.digest = digest
+	}
+
+	system, err := w.deps.Prompter.RenderTemplate(templates.PromptTypeReportWriter, map[string]any{
+		"Language":               w.report.Language,
+		"LengthHint":             node.LengthHint(w.tpl, st.ParentID.Valid),
+		"AdditionalInstructions": nullableText(w.report.AdditionalInstructions),
+		"Notes":                  w.loadNotes(),
+		"Outline":                w.outlineText(),
+		"Record":                 w.digest,
+		"SectionContext":         sectionContext,
+		"Evidence":               evidenceText,
+		"ScreenshotsAttached":    attachScreenshots,
+		"SectionKey":             st.Key,
+		"SectionTitle":           st.Title,
+		"SectionInstructions":    node.Instructions,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to render writer prompt for %s: %w", st.Key, err)
+	}
+
+	if _, err := w.deps.DB.SetReportSectionStatus(ctx, database.SetReportSectionStatusParams{
+		ID: st.ID, Status: SectionWriting,
+	}); err != nil {
+		return fmt.Errorf("failed to mark section %d writing: %w", st.ID, err)
+	}
+	// The writer clears the regeneration flag at the start: an edit made while
+	// this write runs sets it again and the drain picks it up next round.
+	if _, err := w.deps.DB.SetReportSectionRegenRequested(ctx, database.SetReportSectionRegenRequestedParams{
+		ID: st.ID, RegenRequested: false,
+	}); err != nil {
+		w.logger.WithError(err).Warn("failed to clear the section regen flag")
+	}
+	w.putLog(LogSection, fmt.Sprintf("Writing section %q", st.Title), map[string]any{
+		"section_id": st.ID, "key": st.Key, "title": st.Title,
+	})
+	w.publishSection(st.ID)
+
+	humanParts := []llms.ContentPart{
+		llms.TextContent{Text: fmt.Sprintf("Write the body of the section %q now, then stop.", st.Title)},
+	}
+	if attachScreenshots {
+		attached := 0
+		for _, ref := range shots {
+			if attached >= maxScreenshotsPerSection {
+				break
+			}
+			if url := screenshotDataURL(w.deps.Cfg.DataDir, w.report.FlowID, ref.ScreenshotName); url != "" {
+				humanParts = append(humanParts, llms.ImageURLContent{URL: url})
+				attached++
+			}
+		}
+		if attached > 0 {
+			w.putLog(LogControl, fmt.Sprintf("attached %d screenshot(s) to section %q", attached, st.Title), map[string]any{
+				"section_id": st.ID, "key": st.Key, "screenshots": attached,
+			})
+		}
+	}
+
+	chain := []llms.MessageContent{
+		{Role: llms.ChatMessageTypeSystem, Parts: []llms.ContentPart{llms.TextContent{Text: system}}},
+		{Role: llms.ChatMessageTypeHuman, Parts: humanParts},
+	}
+
+	var (
+		mx    sync.Mutex // guards snap and the run counters read by flush
+		snap  strings.Builder
+		start = time.Now()
+	)
+	flush := func(force bool) {
+		mx.Lock()
+		content := snap.String()
+		mx.Unlock()
+		if !force && strings.TrimSpace(content) == "" {
+			return
+		}
+		row, err := w.deps.DB.UpdateReportSectionContent(w.stateCtx, database.UpdateReportSectionContentParams{
+			ID:              st.ID,
+			Content:         content,
+			Status:          SectionWriting,
+			TokensIn:        w.tokensIn,
+			TokensOut:       w.tokensOut,
+			DurationSeconds: time.Since(start).Seconds(),
+		})
+		if err != nil {
+			w.logger.WithError(err).Warn("failed to persist section progress")
+			return
+		}
+		_ = row
+		w.publishSection(st.ID)
+	}
+	interval := time.Duration(w.deps.Cfg.ReportStreamIntervalMs) * time.Millisecond
+	if interval <= 0 {
+		interval = 1500 * time.Millisecond
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, writingTimeout)
+	defer cancel()
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	flushDone := make(chan struct{})
+	var flushWG sync.WaitGroup
+	flushWG.Add(1)
+	go func() {
+		defer flushWG.Done()
+		for {
+			select {
+			case <-ticker.C:
+				flush(false)
+			case <-flushDone:
+				return
+			}
+		}
+	}()
+
+	streamCb := func(_ context.Context, chunk streaming.Chunk) error {
+		if chunk.Type == streaming.ChunkTypeText {
+			mx.Lock()
+			snap.WriteString(chunk.Content)
+			mx.Unlock()
+		}
+		return nil
+	}
+
+	prevIn, prevOut := w.tokensIn, w.tokensOut
+	resp, err := w.prv.CallEx(ctx, pconfig.OptionsTypeReporter, chain, streamCb)
+	close(flushDone)
+	contentSeconds := time.Since(start).Seconds()
+
+	if err != nil {
+		flush(true)
+		if w.stopped.Load() || ctx.Err() != nil {
+			return err
+		}
+		return fmt.Errorf("writer call failed: %w", err)
+	}
+	w.recordNodeUsage(false, resp, contentSeconds)
+
+	if resp == nil || len(resp.Choices) < 1 {
+		return fmt.Errorf("empty writer response")
+	}
+	content := resp.Choices[0].Content
+
+	row, err := w.deps.DB.UpdateReportSectionContent(ctx, database.UpdateReportSectionContentParams{
+		ID:              st.ID,
+		Content:         content,
+		Status:          SectionDone,
+		TokensIn:        w.tokensIn - prevIn,
+		TokensOut:       w.tokensOut - prevOut,
+		DurationSeconds: contentSeconds,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to persist final section content: %w", err)
+	}
+	_ = row
+	w.persistEvidence(st, content, evidenceCandidates)
+	w.evidenceGate(st, content, evidenceCandidates)
+	w.bumpDone()
+	w.putLog(LogSection, fmt.Sprintf("Section %q written (%s)", st.Title,
+		humanDuration(contentSeconds)), map[string]any{
+		"section_id": st.ID, "key": st.Key, "status": SectionDone,
+	})
+	w.publishSection(st.ID)
+	w.publishRun()
+
+	return nil
+}
+
+// sectionNode resolves the writer configuration for a section: either its
+// template node or (for children) a synthesized node borrowing the parent's
+// child instructions.
+func (w *worker) sectionNode(st database.ReportSection) *SectionNode {
+	if node := outlineNodeOf(w.tpl, st); node != nil && !st.ParentID.Valid {
+		return node
+	}
+
+	sections, err := w.loadSections()
+	if err != nil {
+		return nil
+	}
+
+	if st.ParentID.Valid {
+		for i := range sections {
+			parent := &sections[i]
+			if parent.ID != st.ParentID.Int64 {
+				continue
+			}
+			parentNode := outlineNodeOf(w.tpl, *parent)
+			base := fmt.Sprintf("Write the subsection %q from the engagement record (part of the %q section).",
+				st.Title, parent.Title)
+			if parentNode != nil {
+				base = stringsOr(parentNode.ChildInstructions,
+					fmt.Sprintf("Write the section %q from the engagement record (part of the %q chapter).",
+						st.Title, parent.Title))
+			}
+
+			child := &SectionNode{
+				Key:          st.Key,
+				Kind:         KindLLM,
+				Title:        st.Title,
+				Instructions: base,
+			}
+			if length := w.plannedLength(st); length != "" {
+				child.ChildLength = length
+			}
+			if st.Instructions.Valid && st.Instructions.String != "" {
+				child.Instructions = strings.Join([]string{
+					strings.TrimSpace(child.Instructions), strings.TrimSpace(st.Instructions.String),
+				}, "\n")
+			}
+			return child
+		}
+		// The parent row is gone; fall through to a synthetic node.
+	}
+
+	// Manually added sections without a template node (top-level or an orphan or
+	// hand-added subsection): the writer still gets a usable node.
+	return &SectionNode{
+		Key:   st.Key,
+		Kind:  KindLLM,
+		Title: st.Title,
+		Instructions: stringsOr(nullableText(st.Instructions),
+			fmt.Sprintf("Write the section %q from the engagement record.", st.Title)),
+		Length: w.plannedLength(st),
+	}
+}
+
+// plannedLength reads the planner length hint from the section instructions
+// ("Length: ..." line written by planChildInstructions).
+func (w *worker) plannedLength(st database.ReportSection) string {
+	if !st.Instructions.Valid {
+		return ""
+	}
+	for _, line := range strings.Split(st.Instructions.String, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "Length: ") {
+			return strings.TrimPrefix(line, "Length: ")
+		}
+	}
+	return ""
+}
+
+func (w *worker) outlineText() string {
+	sections, err := w.loadSections()
+	if err != nil {
+		return ""
+	}
+	return renderOutline(sections, false)
+}
+
+// visionCapable probes the report's provider once and caches the answer, so the
+// writers know whether to attach screenshot images (plan § 6.10, P7.4).
+func (w *worker) visionCapable(ctx context.Context) bool {
+	w.visionOnce.Do(func() {
+		start := time.Now()
+		ok, resp, err := probeVision(ctx, w.prv)
+		probeSeconds := time.Since(start).Seconds()
+		if err != nil {
+			w.logger.WithError(err).Info("vision probe: the model did not answer with an image")
+		}
+		w.vision = ok
+		// The probe is a control-plane call: its usage lands in the control
+		// msgchain (L8, Q5).
+		if resp != nil {
+			w.recordNodeUsage(true, resp, probeSeconds)
+		}
+		state := "will not"
+		if ok {
+			state = "will"
+		}
+		w.putLog(LogControl, fmt.Sprintf("vision probe: screenshots %s be analysed", state), map[string]any{
+			"vision": ok,
+		})
+	})
+
+	return w.vision
+}
+
+// screenshotCandidates keeps the screenshot evidence a section can attach.
+func screenshotCandidates(refs []EvidenceRef) []EvidenceRef {
+	out := make([]EvidenceRef, 0, len(refs))
+	for _, ref := range refs {
+		if ref.Kind == EvidenceKindScreenshot && ref.ScreenshotName != "" {
+			out = append(out, ref)
+		}
+	}
+	return out
+}
+
+// evidenceFor assembles the section's evidence pack from the subtasks the
+// planner mapped it to. It returns the prompt text and the candidate list used
+// later to resolve the writer's citations into the archive manifest.
+func (w *worker) evidenceFor(ctx context.Context, st database.ReportSection) (string, []EvidenceRef) {
+	if len(st.SourceSubtaskIds) == 0 {
+		return "", nil
+	}
+	pack, candidates, err := buildEvidencePack(ctx, w.deps.DB, st.SourceSubtaskIds, w.evidenceCaps())
+	if err != nil {
+		w.logger.WithError(err).Warn("failed to build the evidence pack")
+		return "", nil
+	}
+	if pack != "" {
+		w.putLog(LogControl, fmt.Sprintf("evidence pack for %q (%d candidates)", st.Title, len(candidates)), map[string]any{
+			"section_id": st.ID, "key": st.Key, "candidates": len(candidates), "bytes": len(pack),
+		})
+	}
+	return pack, candidates
+}
+
+func (w *worker) evidenceCaps() EvidenceCaps {
+	caps := EvidenceCaps{}
+	if w.deps.Cfg != nil {
+		caps.ItemBytes = w.deps.Cfg.ReportEvidenceItemBytes
+		caps.MaxItems = w.deps.Cfg.ReportEvidenceMaxItems
+		caps.PackBytes = w.deps.Cfg.ReportEvidenceMaxBytes
+	}
+	return caps
+}
+
+// evidenceGate warns when a section that was given evidence candidates produced
+// no "### Evidence" subsection (plan § 6.10, P7.5), so an operator can spot a run
+// that ignored them.
+func (w *worker) evidenceGate(st database.ReportSection, content string, candidates []EvidenceRef) {
+	if len(candidates) == 0 || hasEvidenceSection(content) {
+		return
+	}
+
+	w.putLog(LogSection, fmt.Sprintf("Section %q has no ### Evidence subsection despite %d candidate(s)", st.Title, len(candidates)), map[string]any{
+		"section_id": st.ID, "key": st.Key, "status": SectionDone, "candidates": len(candidates),
+	})
+	if _, err := w.deps.DB.AppendReportSectionWarning(w.stateCtx, database.AppendReportSectionWarningParams{
+		ID: st.ID, ArrayAppend: "no Evidence subsection despite available evidence",
+	}); err != nil {
+		w.logger.WithError(err).Warn("failed to record the evidence warning")
+	}
+}
+
+// hasEvidenceSection reports whether the writer produced the mandatory Evidence
+// subsection (the heading level is not fixed, the words are).
+func hasEvidenceSection(content string) bool {
+	return strings.Contains(strings.ToLower(content), "### evidence")
+}
+
+// persistEvidence resolves the writer's [Ex] citations into the manifest the
+// archive bundles; a section that cited nothing keeps an empty manifest.
+func (w *worker) persistEvidence(st database.ReportSection, content string, candidates []EvidenceRef) {
+	if len(candidates) == 0 {
+		return
+	}
+	refs := resolveCitations(content, candidates)
+	blob, err := encodeEvidenceRefs(refs)
+	if err != nil {
+		w.logger.WithError(err).Warn("failed to encode the evidence manifest")
+		return
+	}
+	if _, err := w.deps.DB.SetReportSectionEvidence(w.stateCtx, database.SetReportSectionEvidenceParams{
+		ID: st.ID, EvidenceRefs: blob,
+	}); err != nil {
+		w.logger.WithError(err).Warn("failed to persist the evidence manifest")
+		return
+	}
+	if len(refs) > 0 {
+		w.putLog(LogSection, fmt.Sprintf("Section %q cites %d evidence items", st.Title, len(refs)), map[string]any{
+			"section_id": st.ID, "key": st.Key, "cited": len(refs),
+		})
+	}
+}
+
+// sectionContext is the per-section extra context (v1 keeps it empty for
+// template nodes: the record plus instructions carry everything; planner
+// children carry their summary in the instructions).
+func (w *worker) sectionContext(st database.ReportSection) string {
+	if st.ParentID.Valid {
+		return ""
+	}
+	return ""
+}
+
+// recordNodeUsage accumulates one node's usage into the run counters and
+// persists the progress row. It also feeds the node's msgchain (L8) so the
+// usage/cost views see reports like any other agent.
+func (w *worker) recordNodeUsage(control bool, resp *llms.ContentResponse, seconds float64) {
+	if resp == nil {
+		return
+	}
+
+	usage := pconfig.NewCallUsage(nil)
+	if len(resp.Choices) > 0 {
+		usage = w.prv.GetUsage(resp.Choices[0].GenerationInfo)
+	}
+	for _, choice := range resp.Choices[1:] {
+		usage.Merge(w.prv.GetUsage(choice.GenerationInfo))
+	}
+
+	w.mx.Lock()
+	if control {
+		w.controlUsed += seconds
+	} else {
+		w.contentUsed += seconds
+	}
+	w.tokensIn += usage.Input
+	w.tokensOut += usage.Output
+	w.mx.Unlock()
+
+	w.updateChainUsage(control, usage, seconds)
+	w.refreshProgress(w.ctx)
+}
+
+// ensureMsgChains opens the run's two msgchains or reopens the ones a previous
+// run persisted, so a resume accumulates into the same rows instead of
+// duplicating them (plan Q2). The ids are written back on the report row; a
+// chain-creation failure degrades to no emission, never a failed run.
+func (w *worker) ensureMsgChains(ctx context.Context) {
+	if w.report.MsgchainControlID.Valid && w.report.MsgchainContentID.Valid {
+		w.controlChainID = w.report.MsgchainControlID.Int64
+		w.contentChainID = w.report.MsgchainContentID.Int64
+		return
+	}
+
+	control, err := w.createMsgChain(ctx, database.MsgchainTypeReportControl)
+	if err != nil {
+		w.logger.WithError(err).Warn("failed to create the report control msgchain")
+		return
+	}
+	content, err := w.createMsgChain(ctx, database.MsgchainTypeReportContent)
+	if err != nil {
+		w.logger.WithError(err).Warn("failed to create the report content msgchain")
+		return
+	}
+
+	w.controlChainID = control.ID
+	w.contentChainID = content.ID
+
+	if _, err := w.deps.DB.SetReportMsgChainIDs(ctx, database.SetReportMsgChainIDsParams{
+		ID:                w.report.ID,
+		MsgchainControlID: database.Int64ToNullInt64(&control.ID),
+		MsgchainContentID: database.Int64ToNullInt64(&content.ID),
+	}); err != nil {
+		w.logger.WithError(err).Warn("failed to persist the report msgchain ids")
+	}
+}
+
+func (w *worker) createMsgChain(ctx context.Context, chainType database.MsgchainType) (database.Msgchain, error) {
+	model, providerName := "", ""
+	if w.prv != nil {
+		model = w.prv.Model(pconfig.OptionsTypeReporter)
+		providerName = string(w.prv.Type())
+	}
+
+	return w.deps.DB.CreateMsgChain(ctx, database.CreateMsgChainParams{
+		Type:          chainType,
+		Model:         model,
+		ModelProvider: providerName,
+		Chain:         json.RawMessage("[]"),
+		FlowID:        w.report.FlowID,
+	})
+}
+
+// updateChainUsage accumulates one call's usage into the node's msgchain. The
+// duration travels here (and not through UpdateMsgChain) so it is never counted
+// twice; the cost is derived from the provider's price for the simple agent.
+func (w *worker) updateChainUsage(control bool, usage pconfig.CallUsage, seconds float64) {
+	chainID := w.contentChainID
+	if control {
+		chainID = w.controlChainID
+	}
+	if chainID == 0 {
+		return
+	}
+
+	if w.prv != nil {
+		if price := w.prv.GetPriceInfo(pconfig.OptionsTypeReporter); price != nil {
+			usage.UpdateCost(price)
+		}
+	}
+
+	if _, err := w.deps.DB.UpdateMsgChainUsage(w.stateCtx, database.UpdateMsgChainUsageParams{
+		UsageIn:         usage.Input,
+		UsageOut:        usage.Output,
+		UsageCacheIn:    usage.CacheRead,
+		UsageCacheOut:   usage.CacheWrite,
+		UsageCostIn:     usage.CostInput,
+		UsageCostOut:    usage.CostOutput,
+		DurationSeconds: seconds,
+		ID:              chainID,
+	}); err != nil {
+		w.logger.WithError(err).Warn("failed to update the report msgchain usage")
+	}
+}
+
+func (w *worker) bumpDone() {
+	w.doneCount++
+}
+
+// refreshProgress persists the running counters (done, tokens, agent time).
+func (w *worker) refreshProgress(ctx context.Context) {
+	w.mx.Lock()
+	params := database.UpdateReportProgressParams{
+		ID:                 w.report.ID,
+		SectionsDone:       w.doneCount,
+		TokensIn:           w.tokensIn,
+		TokensOut:          w.tokensOut,
+		ControlUsedSeconds: w.controlUsed,
+		ContentUsedSeconds: w.contentUsed,
+	}
+	w.mx.Unlock()
+
+	if _, err := w.deps.DB.UpdateReportProgress(w.stateCtx, params); err != nil {
+		w.logger.WithError(err).Warn("failed to persist report progress")
+	}
+
+	// Keep the section counters honest with the rows: a hand-added or removed
+	// section changes the total, which the in-memory done count cannot express.
+	reportID := w.report.ID
+	if _, err := w.deps.DB.SyncReportSectionCounts(w.stateCtx, database.Int64ToNullInt64(&reportID)); err != nil {
+		w.logger.WithError(err).Warn("failed to sync report section counts")
+	}
+}
+
+func (w *worker) contentBudgetExhausted() bool {
+	// The effective budget was fixed at creation (report row), not at boot:
+	// the env default only fills the blanks the creation request leaves.
+	return w.report.ContentBudgetSeconds > 0 && w.contentUsed >= float64(w.report.ContentBudgetSeconds)
+}
+
+func (w *worker) controlBudgetExhausted() bool {
+	return w.report.ControlBudgetSeconds > 0 && w.controlUsed >= float64(w.report.ControlBudgetSeconds)
+}
+
+// finish closes the run: final status persist + logs + live events.
+func (w *worker) finish(status string, errText string) {
+	if status == StatusCompleted {
+		sections, err := w.loadSections()
+		if err == nil {
+			for i := range sections {
+				st := &sections[i]
+				if st.Status == SectionQueued || st.Status == SectionWriting {
+					next := SectionNotWritten
+					if st.Kind == KindAggregate || st.Kind == KindComposed {
+						next = SectionDone
+					}
+					if _, err := w.deps.DB.SetReportSectionStatus(w.ctx, database.SetReportSectionStatusParams{
+						ID: st.ID, Status: next,
+					}); err != nil {
+						w.logger.WithError(err).Warn("failed to resolve leftover section")
+					}
+				}
+			}
+		}
+	}
+
+	report, err := w.deps.DB.FinishReport(w.stateCtx, database.FinishReportParams{
+		ID: w.report.ID, Status: status, Error: nullString(errText),
+	})
+	if err != nil {
+		w.logger.WithError(err).Error("failed to persist final report status")
+		return
+	}
+	w.report = report
+
+	message := fmt.Sprintf("report finished: %s", status)
+	if errText != "" {
+		message += fmt.Sprintf(" (%s)", errText)
+	}
+	w.putLog(LogStatus, message, map[string]any{
+		"status": status, "error": errText,
+		"tokens_in": w.tokensIn, "tokens_out": w.tokensOut,
+		"control_seconds": w.controlUsed, "content_seconds": w.contentUsed,
+		"sections_done": report.SectionsDone, "sections_total": report.SectionsTotal,
+	})
+	w.refreshProgress(w.ctx)
+	w.publishRun()
+}
+
+// setStopState closes a stopped run: a writing section keeps its partial
+// content as failed, everything still queued is not written.
+func (w *worker) setStopState() {
+	sections, err := w.loadSections()
+	if err == nil {
+		for i := range sections {
+			st := &sections[i]
+			next := ""
+			switch st.Status {
+			case SectionWriting:
+				next = SectionFailed
+			case SectionQueued, "":
+				next = SectionNotWritten
+			}
+			if next == "" {
+				continue
+			}
+			if _, err := w.deps.DB.SetReportSectionStatus(w.stateCtx, database.SetReportSectionStatusParams{
+				ID: st.ID, Status: next,
+			}); err != nil {
+				w.logger.WithError(err).Warn("failed to set stop state on section")
+			}
+			w.publishSection(st.ID)
+		}
+	}
+
+	w.finish(StatusCanceled, "stopped by operator")
+}
+
+// Stop cancels the run; the write loop observes it and finalizes.
+func (w *worker) Stop() {
+	w.stopped.Store(true)
+	w.cancel()
+}
+
+func (w *worker) putLog(kind string, message string, payload map[string]any) {
+	row, err := w.deps.DB.CreateReportLog(w.stateCtx, database.CreateReportLogParams{
+		ReportID: w.report.ID,
+		Kind:     kind,
+		Message:  message,
+		Payload:  payloadToNullJSON(payload),
+	})
+	if err != nil {
+		w.logger.WithError(err).Warn("failed to persist report log")
+		return
+	}
+	if w.pub == nil {
+		return
+	}
+
+	converted, err := converter.ConvertReportLog(row)
+	if err != nil {
+		return
+	}
+	w.pub.ReportLogAdded(w.ctx, converted)
+}
+
+// stringsOr returns the first non-empty string of the pair.
+func stringsOr(value, fallback string) string {
+	if strings.TrimSpace(value) != "" {
+		return value
+	}
+	return fallback
+}
+
+func humanDuration(seconds float64) string {
+	d := time.Duration(seconds * float64(time.Second)).Round(time.Second)
+	return d.String()
+}
+
+// publishRun emits the fresh report row to the flow subscribers.
+func (w *worker) publishRun() {
+	if w.pub == nil {
+		return
+	}
+	row, err := w.deps.DB.GetReport(w.stateCtx, database.GetReportParams{
+		ID: w.report.ID, UserID: w.report.UserID,
+	})
+	if err != nil {
+		w.logger.WithError(err).Warn("failed to reload report for publish")
+		return
+	}
+	w.pub.ReportUpdated(w.stateCtx, converter.ConvertReport(row))
+}
+
+// publishSection emits one fresh section row (writing progress or final).
+func (w *worker) publishSection(sectionID int64) {
+	if w.pub == nil {
+		return
+	}
+	row, err := w.deps.DB.GetReportSection(w.stateCtx, database.GetReportSectionParams{
+		ID: sectionID, ReportID: w.report.ID,
+	})
+	if err != nil {
+		w.logger.WithError(err).Warn("failed to reload section for publish")
+		return
+	}
+
+	// Operator attachments travel with the frame: a nil list would violate the
+	// non-null `[ReportAttachment!]!` field (backlog v2, L6).
+	section := converter.ConvertReportSection(row)
+	if attachments, err := w.deps.DB.GetReportSectionAttachmentsBySection(w.stateCtx, database.GetReportSectionAttachmentsBySectionParams{
+		ReportID: w.report.ID, SectionID: sectionID,
+	}); err == nil {
+		section.Attachments = converter.ConvertReportAttachments(attachments)
+	} else {
+		section.Attachments = converter.ConvertReportAttachments(nil)
+	}
+	w.pub.ReportSectionUpdated(w.stateCtx, section)
+}

@@ -68,6 +68,7 @@ var frontendRoutes = []string{
 	"/templates",
 	"/resources",
 	"/knowledges",
+	"/reports",
 	"/dashboard",
 }
 
@@ -120,6 +121,7 @@ func NewRouter(
 	cfg *config.Config,
 	providers providers.ProviderController,
 	controller controller.FlowController,
+	reports controller.ReportController,
 	subscriptions subscriptions.SubscriptionsController,
 	dockerClient docker.DockerClient,
 	updates *update.Service,
@@ -236,6 +238,7 @@ func NewRouter(
 	settingsService := services.NewSettingsService(cfg)
 	flowService := services.NewFlowService(orm, db, providers, controller, subscriptions)
 	flowFileService := services.NewFlowFileService(orm, cfg.DataDir, cfg.TenantPrefix(), dockerClient, subscriptions)
+	reportArchiveService := services.NewReportArchiveService(cfg.DataDir, cfg.TenantPrefix(), dockerClient, reports)
 	shellManager := shell.NewManager(dockerClient, cfg.FlowShellMaxTerminals, logrus.StandardLogger())
 	flowShellService := services.NewFlowShellService(
 		orm, cfg.TenantPrefix(), dockerClient, shellManager, cfg.CorsOrigins, cfg.FlowShellEnabled)
@@ -259,7 +262,7 @@ func NewRouter(
 	knowledgeService := services.NewKnowledgeService(orm, knowledgeStore)
 	anonymizerService := services.NewAnonymizerService(textReplacer)
 	graphqlService := services.NewGraphqlService(
-		db, cfg, baseURL, cfg.CorsOrigins, tokenCache, providers, controller, subscriptions, knowledgeStore, textReplacer,
+		db, cfg, baseURL, cfg.CorsOrigins, tokenCache, providers, controller, reports, subscriptions, knowledgeStore, textReplacer,
 		updates, timezones, kgDashboard,
 	)
 
@@ -343,32 +346,33 @@ func NewRouter(
 	privateUserGroup.Use(authMiddleware.AuthUserRequired)
 
 	registerPrivateRoutes(privateGroup, privateUserGroup, privateServices{
-		agentlog:     agentlogService,
-		analytics:    analyticsService,
-		anonymizer:   anonymizerService,
-		assistant:    assistantService,
-		assistantlog: assistantlogService,
-		container:    containerService,
-		flow:         flowService,
-		flowFile:     flowFileService,
-		flowShell:    flowShellService,
-		graphql:      graphqlService,
-		knowledge:    knowledgeService,
-		msglog:       msglogService,
-		prompt:       promptService,
-		provider:     providerService,
-		resource:     resourceService,
-		role:         roleService,
-		screenshot:   screenshotService,
-		searchlog:    searchlogService,
-		settings:     settingsService,
-		subtask:      subtaskService,
-		task:         taskService,
-		termlog:      termlogService,
-		token:        tokenService,
-		toolcall:     toolcallService,
-		user:         userService,
-		vecstorelog:  vecstorelogService,
+		agentlog:      agentlogService,
+		analytics:     analyticsService,
+		anonymizer:    anonymizerService,
+		assistant:     assistantService,
+		assistantlog:  assistantlogService,
+		container:     containerService,
+		flow:          flowService,
+		flowFile:      flowFileService,
+		flowShell:     flowShellService,
+		graphql:       graphqlService,
+		knowledge:     knowledgeService,
+		msglog:        msglogService,
+		prompt:        promptService,
+		provider:      providerService,
+		resource:      resourceService,
+		reportArchive: reportArchiveService,
+		role:          roleService,
+		screenshot:    screenshotService,
+		searchlog:     searchlogService,
+		settings:      settingsService,
+		subtask:       subtaskService,
+		task:          taskService,
+		termlog:       termlogService,
+		token:         tokenService,
+		toolcall:      toolcallService,
+		user:          userService,
+		vecstorelog:   vecstorelogService,
 	})
 
 	if cfg.StaticURL != nil && cfg.StaticURL.Scheme != "" && cfg.StaticURL.Host != "" {
@@ -478,32 +482,33 @@ func setSettingsGroup(parent *gin.RouterGroup, svc *services.SettingsService) {
 }
 
 type privateServices struct {
-	agentlog     *services.AgentlogService
-	analytics    *services.AnalyticsService
-	anonymizer   *services.AnonymizerService
-	assistant    *services.AssistantService
-	assistantlog *services.AssistantlogService
-	container    *services.ContainerService
-	flow         *services.FlowService
-	flowFile     *services.FlowFileService
-	flowShell    *services.FlowShellService
-	graphql      *services.GraphqlService
-	knowledge    *services.KnowledgeService
-	msglog       *services.MsglogService
-	prompt       *services.PromptService
-	provider     *services.ProviderService
-	resource     *services.ResourceService
-	role         *services.RoleService
-	screenshot   *services.ScreenshotService
-	searchlog    *services.SearchlogService
-	settings     *services.SettingsService
-	subtask      *services.SubtaskService
-	task         *services.TaskService
-	termlog      *services.TermlogService
-	token        *services.TokenService
-	toolcall     *services.ToolcallService
-	user         *services.UserService
-	vecstorelog  *services.VecstorelogService
+	agentlog      *services.AgentlogService
+	analytics     *services.AnalyticsService
+	anonymizer    *services.AnonymizerService
+	assistant     *services.AssistantService
+	assistantlog  *services.AssistantlogService
+	container     *services.ContainerService
+	flow          *services.FlowService
+	flowFile      *services.FlowFileService
+	flowShell     *services.FlowShellService
+	graphql       *services.GraphqlService
+	knowledge     *services.KnowledgeService
+	msglog        *services.MsglogService
+	prompt        *services.PromptService
+	provider      *services.ProviderService
+	resource      *services.ResourceService
+	reportArchive *services.ReportArchiveService
+	role          *services.RoleService
+	screenshot    *services.ScreenshotService
+	searchlog     *services.SearchlogService
+	settings      *services.SettingsService
+	subtask       *services.SubtaskService
+	task          *services.TaskService
+	termlog       *services.TermlogService
+	token         *services.TokenService
+	toolcall      *services.ToolcallService
+	user          *services.UserService
+	vecstorelog   *services.VecstorelogService
 }
 
 func registerAuthRoutes(authGroup *gin.RouterGroup, authService *services.AuthService) {
@@ -527,6 +532,7 @@ func registerPrivateRoutes(tokenTier, userTier *gin.RouterGroup, svc privateServ
 	setFlowFilesGroup(tokenTier, svc.flowFile)
 	setFlowShellGroup(tokenTier, svc.flowShell)
 	setResourcesGroup(tokenTier, svc.resource)
+	setReportArchiveGroup(tokenTier, svc.reportArchive)
 	setTasksGroup(tokenTier, svc.task)
 	setSubtasksGroup(tokenTier, svc.subtask)
 	setContainersGroup(tokenTier, svc.container)
@@ -624,6 +630,20 @@ func setFlowShellGroup(parent *gin.RouterGroup, svc *services.FlowShellService) 
 		flowShellGroup.POST("/", svc.CreateFlowShell)
 		flowShellGroup.DELETE("/:terminalID", svc.DeleteFlowShell)
 		flowShellGroup.GET("/:terminalID/ws", svc.AttachFlowShell)
+	}
+}
+
+func setReportArchiveGroup(parent *gin.RouterGroup, svc *services.ReportArchiveService) {
+	reportGroup := parent.Group("/flows/:flowID/reports")
+	{
+		reportGroup.GET("/:reportID/archive", svc.ArchiveReport)
+		reportGroup.GET("/:reportID/branding/logo", svc.ReportBrandingLogo)
+	}
+	// Report templates are user-scoped, not flow-scoped: the Settings editor reads
+	// a template's stored logo here (backlog v2, L3).
+	templateGroup := parent.Group("/report-templates")
+	{
+		templateGroup.GET("/:templateID/branding/logo", svc.ReportTemplateBrandingLogo)
 	}
 }
 

@@ -24,6 +24,9 @@ const (
 	MsgchainTypeSummarizer    MsgchainType = "summarizer"
 	MsgchainTypeToolCallFixer MsgchainType = "tool_call_fixer"
 	MsgchainTypeAssistant     MsgchainType = "assistant"
+	// Report engine chains (fork extended-version, backlog v2 L8).
+	MsgchainTypeReportControl MsgchainType = "report_control"
+	MsgchainTypeReportContent MsgchainType = "report_content"
 )
 
 func (e *MsgchainType) Scan(src interface{}) error {
@@ -52,7 +55,8 @@ func (ml MsgchainType) Valid() error {
 		MsgchainTypeMemorist, MsgchainTypeSearcher,
 		MsgchainTypeInstaller, MsgchainTypePentester,
 		MsgchainTypeSummarizer, MsgchainTypeToolCallFixer,
-		MsgchainTypeAssistant:
+		MsgchainTypeAssistant, MsgchainTypeReportControl,
+		MsgchainTypeReportContent:
 		return nil
 	default:
 		return fmt.Errorf("invalid MsgchainType: %s", ml)

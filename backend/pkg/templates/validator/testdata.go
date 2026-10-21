@@ -334,6 +334,21 @@ func CreateDummyTemplateData() map[string]any {
 		"OriginalRequest": "Test original request for task assignment",
 		"ExecutionPlan":   "1. First step\n2. Second step\n3. Third step",
 		"InitiatorAgent":  database.MsgchainTypePentester,
+
+		// Report prompts (fork extended-version section 6)
+		"Title":                  "Test report title",
+		"Language":               "English",
+		"Outline":                "1. Executive Summary\n2. Detailed Findings",
+		"Record":                 "Test engagement record",
+		"AdditionalInstructions": "Test additional report instructions",
+		"Notes":                  "Test operator note",
+		"SectionKey":             "executive-summary",
+		"SectionTitle":           "Executive Summary",
+		"SectionInstructions":    "Write the summary from the record.",
+		"LengthHint":             "150-300 words",
+		"SectionContext":         "Test per-section context",
+		"Evidence":               "[E1] toolcall \"nmap\"\n22/tcp open ssh",
+		"ScreenshotsAttached":    true,
 	}
 }
 

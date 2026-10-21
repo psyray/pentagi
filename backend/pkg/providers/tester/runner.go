@@ -448,6 +448,7 @@ func groupResults(responses []testResponse) ProviderTestResults {
 		Coder:        AgentTestResults(resultMap[pconfig.OptionsTypeCoder]),
 		Installer:    AgentTestResults(resultMap[pconfig.OptionsTypeInstaller]),
 		Pentester:    AgentTestResults(resultMap[pconfig.OptionsTypePentester]),
+		Reporter:     AgentTestResults(resultMap[pconfig.OptionsTypeReporter]),
 	}
 }
 

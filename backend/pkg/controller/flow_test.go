@@ -144,22 +144,22 @@ func startScriptedFlowWorker(t *testing.T, tc TaskController) (*flowWorker, *cre
 	return fw, q
 }
 
-type report struct {
+type reportMessage struct {
 	message string
 	result  string
 	taskID  sql.NullInt64
 }
 
-func reports(q *createFakeQuerier) []report {
-	var found []report
+func reports(q *createFakeQuerier) []reportMessage {
+	var found []reportMessage
 	for _, msg := range q.recordedMessages() {
 		if msg.Type == database.MsglogTypeReport {
-			found = append(found, report{message: msg.Message, taskID: msg.TaskID})
+			found = append(found, reportMessage{message: msg.Message, taskID: msg.TaskID})
 		}
 	}
 	for _, msg := range q.recordedResults() {
 		if msg.Type == database.MsglogTypeReport {
-			found = append(found, report{message: msg.Message, result: msg.Result, taskID: msg.TaskID})
+			found = append(found, reportMessage{message: msg.Message, result: msg.Result, taskID: msg.TaskID})
 		}
 	}
 

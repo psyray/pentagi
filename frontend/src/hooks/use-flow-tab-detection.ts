@@ -6,8 +6,9 @@ import { type FlowTabSlot, recallTab, rememberTab } from '@/lib/flow-tab-memory'
 import { getLatestSearchParams } from '@/lib/url-params';
 import { useFlow } from '@/providers/flow-provider';
 
-// Dashboard first: it is the tab a flow opens on by default.
-export const CENTRAL_TAB_VALUES = ['dashboard', 'automation', 'assistant'];
+// Dashboard first: it is the tab a flow opens on by default. Reporting follows
+// Assistant, the report console reading the run it belongs to.
+export const CENTRAL_TAB_VALUES = ['dashboard', 'automation', 'assistant', 'reporting'];
 
 export const SIDE_TAB_VALUES = [
     'terminal',
@@ -16,6 +17,7 @@ export const SIDE_TAB_VALUES = [
     'agents',
     'tools',
     'vectorStores',
+    'reports',
     'files',
     'screenshots',
 ];

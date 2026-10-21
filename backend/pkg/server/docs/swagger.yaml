@@ -3916,6 +3916,86 @@ paths:
       summary: Retrieve msglogs list by flow id
       tags:
       - Msglogs
+  /flows/{flowID}/reports/{reportID}/archive:
+    get:
+      description: Bundles the assembled document with the container files and screenshots
+        its sections cited.
+      parameters:
+      - description: flow id
+        in: path
+        minimum: 0
+        name: flowID
+        required: true
+        type: integer
+      - description: report id
+        in: path
+        minimum: 0
+        name: reportID
+        required: true
+        type: integer
+      produces:
+      - application/zip
+      - application/json
+      responses:
+        "200":
+          description: report archive (ZIP)
+          schema:
+            type: file
+        "403":
+          description: downloading the report archive not permitted
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: report not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: internal error on building the report archive
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Download a report document with its evidence
+      tags:
+      - Reports
+  /flows/{flowID}/reports/{reportID}/branding/logo:
+    get:
+      description: Streams the png/jpeg logo attached to a report's export branding.
+      parameters:
+      - description: flow id
+        in: path
+        minimum: 0
+        name: flowID
+        required: true
+        type: integer
+      - description: report id
+        in: path
+        minimum: 0
+        name: reportID
+        required: true
+        type: integer
+      produces:
+      - image/png
+      - image/jpeg
+      - application/json
+      responses:
+        "200":
+          description: report branding logo
+          schema:
+            type: file
+        "403":
+          description: reading the report not permitted
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: report or logo not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Download the report branding logo
+      tags:
+      - Reports
   /flows/{flowID}/screenshots/:
     get:
       parameters:
@@ -5711,6 +5791,39 @@ paths:
       summary: Retrieve providers list
       tags:
       - Providers
+  /report-templates/{templateID}/branding/logo:
+    get:
+      description: Streams the png/jpeg logo attached to a report template's export
+        branding.
+      parameters:
+      - description: template id
+        in: path
+        minimum: 0
+        name: templateID
+        required: true
+        type: integer
+      produces:
+      - image/png
+      - image/jpeg
+      - application/json
+      responses:
+        "200":
+          description: report template branding logo
+          schema:
+            type: file
+        "403":
+          description: reading report templates not permitted
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: template or logo not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Download a report template's branding logo
+      tags:
+      - Reports
   /resources/:
     delete:
       parameters:
