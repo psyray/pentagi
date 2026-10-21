@@ -1,0 +1,33 @@
+id: java-deserialization-dns-callback
+name: Java native deserialization reaching an out-of-band lookup
+description: >
+  An endpoint that deserializes a client-supplied Java object stream without a
+  type filter lets an attacker drive a gadget chain. Verification uses a DNS-only
+  gadget that performs an out-of-band lookup and executes no code.
+cves: []
+product: Java application accepting serialized objects
+affected: Endpoints reading application/x-java-serialized-object, or base64 blobs
+cvss: 9.8
+severity: critical
+tags: [web, deserialization, java, rce, cwe-502]
+references:
+  - https://cwe.mitre.org/data/definitions/502.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/Deserialization_Cheat_Sheet.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Insecure%20Deserialization
+  - https://github.com/frohoff/ysoserial
+fingerprint:
+  paths: ["/api", "/invoker", "/remoting", "/jmx"]
+  signals:
+    - A request body that is a Java serialized stream, or its base64 form
+  notes: The URLDNS gadget only resolves a hostname; it runs no command.
+links:
+  - name: URLDNS gadget resolves a host you control
+    cve: ""
+    enables: remote code execution through a full gadget chain once deserialization is confirmed
+    verify: >
+      Generate a ysoserial URLDNS payload pointing at a host you control and send
+      it as the serialized body. A DNS resolution of that host proves the stream
+      was deserialized. Do NOT use a command-execution gadget on a live target.
+remediation: >
+  Never deserialize untrusted input; use a strict type allow-list, prefer
+  data-only formats, and isolate any deserialization behind a sandbox.

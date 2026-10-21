@@ -41,6 +41,7 @@ const (
 	SearchCodeToolName         = "search_code"
 	StoreCodeToolName          = "store_code"
 	GraphitiSearchToolName     = "graphiti_search"
+	SearchExploitChainToolName = "search_exploit_chain"
 	ReportResultToolName       = "report_result"
 	SubtaskListToolName        = "subtask_list"
 	SubtaskPatchToolName       = "subtask_patch"
@@ -128,6 +129,7 @@ var toolsTypeMapping = map[string]ToolType{
 	SearchCodeToolName:         SearchVectorDbToolType,
 	StoreCodeToolName:          StoreVectorDbToolType,
 	GraphitiSearchToolName:     SearchVectorDbToolType,
+	SearchExploitChainToolName: SearchVectorDbToolType,
 	ReportResultToolName:       StoreAgentResultToolType,
 	SubtaskListToolName:        StoreAgentResultToolType,
 	SubtaskPatchToolName:       StoreAgentResultToolType,
@@ -355,6 +357,16 @@ var registryDefinitions = map[string]llms.FunctionDefinition{
 			"and build on previous findings within the same penetration testing engagement.",
 		Parameters: reflector.Reflect(&GraphitiSearchAction{}),
 	},
+	SearchExploitChainToolName: {
+		Name: SearchExploitChainToolName,
+		Description: "Look up a curated, deterministic exploit-chain playbook by CVE, product, tag or free text. " +
+			"Returns a fingerprint (non-intrusive signals), the exploitability steps, and for each step a SAFE verification " +
+			"procedure (out-of-band callback, read-only probe, header inspection) that proves reachability WITHOUT a " +
+			"destructive payload, plus remediation advice. Prefer this over improvising a proof-of-concept when you know a " +
+			"CVE, a product/version, or a vulnerability class (for example jwt, traversal, redirect, rce). " +
+			"Provide at least one of id, cve, product, tag or query; selectors are technical-channel English.",
+		Parameters: reflector.Reflect(&SearchExploitChainAction{}),
+	},
 	MemoristToolName: {
 		Name:        MemoristToolName,
 		Description: "Call to Archivist team member who remember all the information about the past work and made tasks and can answer your question about it",
@@ -467,7 +479,8 @@ func getMessageType(name string) database.MsglogType {
 		return database.MsglogTypeBrowser
 	case MemoristToolName, SearchToolName, GoogleToolName, DuckDuckGoToolName, TavilyToolName, FirecrawlToolName,
 		TraversaalToolName, PerplexityToolName, SearxngToolName, SploitusToolName, WebSearchToolName,
-		SearchGuideToolName, SearchAnswerToolName, SearchCodeToolName, SearchInMemoryToolName, GraphitiSearchToolName:
+		SearchGuideToolName, SearchAnswerToolName, SearchCodeToolName, SearchInMemoryToolName, GraphitiSearchToolName,
+		SearchExploitChainToolName:
 		return database.MsglogTypeSearch
 	case AdviceToolName:
 		return database.MsglogTypeAdvice

@@ -1,0 +1,38 @@
+id: smb-share-null-session
+name: SMB shares exposed to a null or guest session
+description: >
+  A server that allows an unauthenticated or guest SMB session lets an attacker list
+  shares and sometimes read files. Verification opens one anonymous session and lists
+  the shares only; it does not read file contents.
+cves: []
+product: Microsoft Windows SMB server
+affected: Servers that accept a null session or map the guest account to shares
+cvss: 5.3
+severity: medium
+tags: [ad, smb, enumeration, null-session, cwe-287]
+references:
+  - https://cwe.mitre.org/data/definitions/287.html
+  - https://www.thehacker.recipes/
+  - https://github.com/fortra/impacket
+fingerprint:
+  paths: []
+  signals:
+    - A server replying to a share enumeration with no credentials
+  notes: List shares only; do not read file contents and stay within scope.
+links:
+  - name: Share list available without credentials
+    cve: ""
+    enables: discovery of shared data and, if readable, of credentials or configuration files
+    verify: >
+      Open a null or guest session and list the shares, for example with smbclient -L
+      or a null-session script. A returned share list is the proof; do NOT recurse into
+      file contents.
+  - name: A share readable anonymously
+    cve: ""
+    enables: disclosure of the files inside that share
+    verify: >
+      List the root of one non-administrative share only and report whether the listing
+      is allowed. Do not download files; a directory listing is sufficient.
+remediation: >
+  Disable anonymous and guest SMB access, restrict share permissions to named
+  principals, enable SMB signing, and audit shares for exposed sensitive material.

@@ -1,0 +1,40 @@
+id: adcs-esc4-template-write-control
+name: ADCS template writable by a low-privileged principal
+description: >
+  If an unprivileged principal holds write access to a template object, they can add a
+  permissive EKU or enrollment right and turn an otherwise safe template into an
+  escalation path. Verification reads the template access rights only and never edits
+  the template.
+cves: []
+product: Microsoft Active Directory Certificate Services
+affected: Templates whose access control grants write to a broad or unprivileged principal
+cvss: 8.1
+severity: high
+tags: [ad, adcs, pki, privesc, cwe-269]
+references:
+  - https://cwe.mitre.org/data/definitions/269.html
+  - https://www.thehacker.recipes/
+  - https://github.com/ly4k/Certipy
+fingerprint:
+  paths: []
+  signals:
+    - A template access control granting WriteProperty or WriteDacl to an unprivileged principal
+  notes: Reading access rights is read-only; never modify a template.
+links:
+  - name: Template object writable by your account
+    cve: ""
+    enables: turning the template into an authentication bypass for the domain
+    verify: >
+      Enumerate the template access rights read-only and check whether your principal
+      holds write rights such as WriteProperty or WriteDacl. The access control entry is
+      the proof; do NOT modify the template.
+  - name: Same principal can also enroll
+    cve: ""
+    enables: immediate abuse of the two rights together
+    verify: >
+      Check the enrollment permission of the same template for your principal,
+      read-only. The combination confirms the path; still make no change.
+remediation: >
+  Tighten template access control to the CA and PKI administrators only, review
+  delegation of template objects, enable auditing on template changes, and re-run the
+  review after any PKI change.

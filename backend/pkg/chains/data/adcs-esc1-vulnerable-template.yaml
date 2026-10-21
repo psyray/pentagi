@@ -1,0 +1,34 @@
+id: adcs-esc1-vulnerable-template
+name: ADCS certificate template vulnerable to ESC1
+description: >
+  A certificate template that lets the requester supply the subject allows any
+  enrolled user to request a certificate for another identity, which can be used
+  for domain privilege escalation. Verification is read-only: it inspects the
+  template's flags and enrolment rights.
+cves: []
+product: Microsoft Active Directory Certificate Services
+affected: Templates with ENROLLEE_SUPPLIES_SUBJECT and weak enrolment rights
+cvss: 8.8
+severity: high
+tags: [ad, adcs, certificates, privesc, cwe-269]
+references:
+  - https://cwe.mitre.org/data/definitions/269.html
+  - https://www.thehacker.recipes/
+  - https://github.com/ly4k/Certipy
+fingerprint:
+  paths: []
+  signals:
+    - A template whose flags include ENROLLEE_SUPPLIES_SUBJECT and that a low-privileged group may enrol in
+  notes: Inspecting templates is read-only; do not request a certificate for a privileged identity.
+links:
+  - name: Template allows an attacker-supplied subject
+    cve: ""
+    enables: issuing a certificate for a privileged identity and authenticating as it
+    verify: >
+      Enumerate templates read-only (Certipy find) and check the vulnerable
+      combination: ENROLLEE_SUPPLIES_SUBJECT set, no manager approval required, and
+      an enrolment right held by a group you are in. That combination in the output
+      is the proof; do NOT request a certificate for a privileged account.
+remediation: >
+  Remove ENROLLEE_SUPPLIES_SUBJECT where it is not needed, require manager
+  approval, restrict enrolment rights, and enable certificate-request auditing.

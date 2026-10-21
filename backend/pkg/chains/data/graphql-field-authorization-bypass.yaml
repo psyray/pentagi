@@ -1,0 +1,42 @@
+id: graphql-field-authorization-bypass
+name: GraphQL field-level authorization missing on a reachable object
+description: >
+  A GraphQL API may authorize access to a resolver node but not to every field
+  behind it, so a low-privileged caller can read or mutate fields meant for another
+  role. Verification uses object identifiers you own and checks whether a restricted
+  field is returned, rather than touching other users' data.
+cves: []
+product: GraphQL API
+affected: Schemas where authorization sits on the query root but not on each field
+cvss: 6.5
+severity: medium
+tags: [web, graphql, authorization, idor, cwe-863]
+references:
+  - https://cwe.mitre.org/data/definitions/863.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/GraphQL_Cheat_Sheet.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/GraphQL%20Injection
+fingerprint:
+  paths: ["/graphql", "/api/graphql", "/v1/graphql"]
+  signals:
+    - A schema whose node authorization does not cover each sensitive field
+  notes: Query only objects your own account owns.
+links:
+  - name: Restricted field readable through a permitted node
+    cve: ""
+    enables: disclosure of data belonging to other privilege levels
+    verify: >
+      Using your own token, request an object you own with a field usually reserved
+      for an admin role, for example the owner email or an internal flag. If the field
+      is returned instead of an authorization error, field-level checks are missing.
+      Never target an object you do not own.
+  - name: Mutation accepted that the role should not allow
+    cve: ""
+    enables: unauthorized state change such as role escalation
+    verify: >
+      Send a mutation limited to a higher role against an object you own and check
+      whether it succeeds. A success with your own object is the proof; revert any
+      change afterwards and do not touch other accounts.
+remediation: >
+  Enforce authorization at the field and mutation level, not only on query roots,
+  deny by default, and add regression tests that call each sensitive field with a
+  low-privilege identity.

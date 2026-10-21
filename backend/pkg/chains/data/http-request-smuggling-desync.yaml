@@ -1,0 +1,47 @@
+id: http-request-smuggling-desync
+name: Front-end and back-end disagree on request framing
+description: >
+  When a front-end proxy and a back-end server parse the Transfer-Encoding and
+  Content-Length headers differently, an ambiguous request can be split so that part of
+  it is treated as the start of the next request. On a shared back-end this can affect
+  other users, so verification stays non-intrusive: it only detects the disagreement, and
+  any timing probe is bounded and run against a single connection you own.
+cves: []
+product: HTTP front-end proxy in front of an application server
+affected: Stacks that accept both Transfer-Encoding and Content-Length, or obfuscated headers
+cvss: 8.1
+severity: high
+tags: [web, request-smuggling, desync, http, cwe-444]
+references:
+  - https://cwe.mitre.org/data/definitions/444.html
+  - https://portswigger.net/web-security/request-smuggling
+  - https://github.com/swisskyrepo/PayloadsAllTheThings
+fingerprint:
+  paths: ["/", "/api", "/admin"]
+  signals:
+    - A response or timing difference when a request carries both Transfer-Encoding and Content-Length
+    - A front-end that forwards an obfuscated Transfer-Encoding header unchanged
+  notes: Lab or single-user target only; never probe a shared production back-end.
+links:
+  - name: Front-end and back-end framing disagree
+    cve: ""
+    enables: bypassing access controls or poisoning the connection of another request
+    verify: >
+      Detection is header-level only: send a request that pairs Transfer-Encoding with
+      Content-Length, or an obfuscated Transfer-Encoding value, and compare the response
+      and status with a well-formed request. A disagreement in handling is the first
+      signal. Restrict this to a lab or a single-user target; never do it on a shared
+      production host.
+  - name: Timing probe on a single connection you own
+    cve: ""
+    enables: confirming the desync before any impact assessment
+    verify: >
+      Only on a lab or single-user target, open one connection you control and send a
+      single ambiguous request whose smuggled prefix would block the back-end, then
+      measure the delay with a bounded timeout of at most 10 seconds. One attempt, one
+      connection. Stop immediately if the target is shared or if other sessions could be
+      affected.
+remediation: >
+  Normalize request framing at the edge, reject requests carrying both Transfer-Encoding
+  and Content-Length, disable back-end connection reuse across users, and keep the
+  front-end and back-end on the same parsing rules.

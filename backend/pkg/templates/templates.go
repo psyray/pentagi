@@ -128,6 +128,7 @@ var PromptVariables = map[PromptType][]string{
 		"HackResultToolName",
 		"WebSearchToolName",
 		"SearchGuideToolName",
+		"SearchExploitChainToolName",
 		"StoreGuideToolName",
 		"GraphitiEnabled",
 		"GraphitiSearchToolName",

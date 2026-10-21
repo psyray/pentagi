@@ -1,0 +1,34 @@
+id: nosql-injection-auth-bypass
+name: NoSQL injection bypassing authentication
+description: >
+  An endpoint that passes request objects straight into a NoSQL query lets an
+  attacker supply a query operator instead of a value, which can bypass a login
+  check. Verification only ever targets an account you own.
+cves: []
+product: Web application backed by a NoSQL store
+affected: MongoDB/Mongoose and similar login or filter endpoints
+cvss: 9.8
+severity: critical
+tags: [web, nosql, mongodb, auth, cwe-943]
+references:
+  - https://cwe.mitre.org/data/definitions/943.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/NoSQL%20Injection
+fingerprint:
+  paths: ["/login", "/api/auth", "/api/*"]
+  signals:
+    - JSON login or filter bodies whose fields reach the database as-is
+  notes: Only ever test the credential pair of an account you are authorised to use.
+links:
+  - name: Query operator accepted from the client
+    cve: ""
+    enables: authentication as an arbitrary user without the password
+    verify: >
+      Submit the login body with an operator object instead of a string (for
+      example {"password": {"$ne": null}} or {"$gt": ""}) for the username you
+      own, and check whether authentication succeeds. A successful login for
+      YOUR OWN account proves the operator was accepted. Never target another
+      user's account.
+remediation: >
+  Cast and validate every field to its expected scalar type before it reaches the
+  query, reject objects where a string is expected, and use an ODM that strips
+  operators.

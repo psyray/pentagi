@@ -1,0 +1,32 @@
+id: ldap-injection-auth-bypass
+name: LDAP injection bypassing a lookup or login
+description: >
+  A directory lookup built by string concatenation lets an injected filter change
+  the query, bypassing a check or changing which entry matches. Verification uses
+  a benign filter character against an account you own.
+cves: []
+product: Web application querying an LDAP directory
+affected: Login and user-search endpoints backed by LDAP or Active Directory
+cvss: 9.8
+severity: critical
+tags: [web, ldap, injection, auth, cwe-90]
+references:
+  - https://cwe.mitre.org/data/definitions/90.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/LDAP%20Injection
+fingerprint:
+  paths: ["/login", "/search", "/api/users"]
+  signals:
+    - A field that reaches an LDAP filter such as (uid=...) or (cn=...)
+  notes: Only probe the credential or the account you are authorised to use.
+links:
+  - name: Filter structure changes with user input
+    cve: ""
+    enables: authentication bypass or disclosure of directory entries
+    verify: >
+      Submit a benign filter metacharacter (for example * or )(uid=*)) in a field
+      you own and check whether the result set changes or a filter error appears.
+      A change you can attribute to the injected character proves the injection.
+      Never target another user's entry.
+remediation: >
+  Escape every value interpolated into an LDAP filter (RFC 4515), or bind with a
+  fixed filter and pass values as parameters.

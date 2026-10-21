@@ -1,0 +1,40 @@
+id: smb-signing-disabled
+name: SMB signing not required on a server
+description: >
+  When SMB signing is not required, a relay attack can authenticate an attacker to
+  the host on behalf of another machine or user. Verification only reads the
+  negotiated signing flag during a single session setup; it does not relay any
+  credential.
+cves: []
+product: Microsoft Windows SMB server
+affected: Servers whose SMB2 signing is not required
+cvss: 7.5
+severity: high
+tags: [ad, smb, ntlm, relay, cwe-294]
+references:
+  - https://cwe.mitre.org/data/definitions/294.html
+  - https://www.thehacker.recipes/
+  - https://github.com/fortra/impacket
+fingerprint:
+  paths: []
+  signals:
+    - An SMB service whose negotiate response reports signing not required
+  notes: Reading the signing flag is passive; no authentication is relayed.
+links:
+  - name: Server does not require SMB signing
+    cve: ""
+    enables: NTLM relay of a coerced authentication to this host
+    verify: >
+      Start an SMB negotiation, for example with nmap smb2-security-mode, and read
+      whether signing is required. The flag alone is the proof; do NOT capture or
+      relay any credential, and do not pair this with a coercion primitive.
+  - name: LDAP or HTTP signing also absent
+    cve: ""
+    enables: relaying the same authentication to the directory service
+    verify: >
+      Check the LDAP server signing requirement and any HTTP authentication endpoint
+      read-only. Absence is confirmed by configuration, not by performing a relay.
+remediation: >
+  Require SMB signing and encryption on all servers and domain controllers, disable
+  NTLM where possible, enforce LDAP signing and channel binding, and remove coercion
+  primitives from unprivileged paths.

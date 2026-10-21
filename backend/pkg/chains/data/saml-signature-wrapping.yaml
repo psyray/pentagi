@@ -1,0 +1,44 @@
+id: saml-signature-wrapping
+name: SAML response accepted despite signature wrapping
+description: >
+  Many SAML service providers verify the XML signature but then resolve the
+  assertion by a different node than the one that was signed. Moving the signed
+  element elsewhere (signature wrapping) lets an attacker change the subject while
+  the signature still validates. Verification replays a response you already
+  received for your own session with a benign, altered attribute.
+cves: []
+product: SAML service provider
+affected: Providers that use XPath or a by-name lookup instead of signing the whole response
+cvss: 8.1
+severity: high
+tags: [web, saml, sso, authentication, cwe-347]
+references:
+  - https://cwe.mitre.org/data/definitions/347.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/SAML_Security_Cheat_Sheet.html
+  - https://github.com/swisskyrepo/PayloadsAllTheThings/tree/master/SAML%20Injection
+fingerprint:
+  paths: ["/saml", "/sso", "/SAML2/SSO", "/auth/saml"]
+  signals:
+    - A SAMLResponse base64 body posted to an assertion consumer service
+  notes: Test only with your own captured assertion; never tamper another user's session.
+links:
+  - name: Signature covers a different node than the asserted subject
+    cve: ""
+    enables: authentication as an arbitrary user and then privilege escalation in the provider
+    verify: >
+      Capture your own SAMLResponse, duplicate the signed assertion, and move the
+      signature so it validates over the copy while the provider reads the original.
+      Change only a benign attribute such as a display name and re-submit. If the
+      provider authenticates you with the altered value, wrapping is possible. Do not
+      target another account.
+  - name: Signature validation skipped on a debug or alternate endpoint
+    cve: ""
+    enables: the same forgery with no key material at all
+    verify: >
+      Submit an unsigned response with the same structure and observe whether the
+      provider accepts it. An acceptance is the proof; do not reuse any real user's
+      identity.
+remediation: >
+  Sign the whole response, validate against the canonical signed node only, pin the
+  identity-provider certificate, reject unsigned or wrapped assertions, and disable
+  XML external entities and XPath fallbacks.
