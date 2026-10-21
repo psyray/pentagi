@@ -90,10 +90,19 @@ func (s *searxng) search(ctx context.Context, query string, maxResults int) (str
 	params := url.Values{}
 	params.Add("q", query)
 	params.Add("format", "json")
-	params.Add("language", s.language())
-	params.Add("categories", s.categories())
-	params.Add("safesearch", s.safeSearch())
 
+	// Optional filters are sent only when set: SearXNG rejects an empty value
+	// (for example an empty "language" makes it answer HTTP 400 "Empty language
+	// parameter"), which would fail every search.
+	if language := s.language(); language != "" {
+		params.Add("language", language)
+	}
+	if categories := s.categories(); categories != "" {
+		params.Add("categories", categories)
+	}
+	if safeSearch := s.safeSearch(); safeSearch != "" {
+		params.Add("safesearch", safeSearch)
+	}
 	if timeRange := s.timeRange(); timeRange != "" {
 		params.Add("time_range", timeRange)
 	}

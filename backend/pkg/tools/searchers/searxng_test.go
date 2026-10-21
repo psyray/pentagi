@@ -36,11 +36,10 @@ func TestSearxng_Handle_SendsTheConfiguredQueryAndReturnsItsOutcome(t *testing.T
 			},
 		},
 		{
-			name:   "no limit asks for ten",
+			name:   "unset filters are omitted and no limit asks for ten",
 			status: http.StatusOK,
 			wantQuery: url.Values{
-				"q": {"test query"}, "format": {"json"}, "language": {""}, "categories": {""},
-				"safesearch": {""}, "limit": {"10"},
+				"q": {"test query"}, "format": {"json"}, "limit": {"10"},
 			},
 		},
 		{
@@ -49,8 +48,7 @@ func TestSearxng_Handle_SendsTheConfiguredQueryAndReturnsItsOutcome(t *testing.T
 			maxResults: 5,
 			status:     http.StatusOK,
 			wantQuery: url.Values{
-				"q": {"test query"}, "format": {"json"}, "language": {""}, "categories": {""},
-				"safesearch": {""}, "time_range": {"day"}, "limit": {"5"},
+				"q": {"test query"}, "format": {"json"}, "time_range": {"day"}, "limit": {"5"},
 			},
 		},
 		{
@@ -58,8 +56,7 @@ func TestSearxng_Handle_SendsTheConfiguredQueryAndReturnsItsOutcome(t *testing.T
 			maxResults: 5,
 			status:     http.StatusBadGateway,
 			wantQuery: url.Values{
-				"q": {"test query"}, "format": {"json"}, "language": {""}, "categories": {""},
-				"safesearch": {""}, "limit": {"5"},
+				"q": {"test query"}, "format": {"json"}, "limit": {"5"},
 			},
 			wantRetryable: true,
 		},
