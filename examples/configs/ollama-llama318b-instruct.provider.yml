@@ -92,7 +92,7 @@ installer:
   temperature: 0.1
   top_p: 0.8
   n: 1
-  max_tokens: 4096
+  max_tokens: 6000
 
 # Pentester - security testing needs precision but also creative attack vectors
 pentester:

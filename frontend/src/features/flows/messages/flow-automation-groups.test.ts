@@ -23,13 +23,16 @@ const log = (overrides: Partial<MessageLogFragmentFragment> = {}): MessageLogFra
 });
 
 const subtask = (overrides: Partial<SubtaskFragmentFragment> = {}): SubtaskFragmentFragment => ({
+    budgetSeconds: null,
     createdAt,
     description: '',
+    evidence: null,
     id: '9',
     result: '',
     status: StatusType.Running,
     taskId: '5',
     title: 'Recon',
+    type: null,
     updatedAt: createdAt,
     ...overrides,
 });

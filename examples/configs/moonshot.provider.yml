@@ -84,7 +84,7 @@ refiner:
   temperature: 1.0
   top_p: 0.95
   n: 1
-  max_tokens: 16384
+  max_tokens: 32768
   extra_body:
     thinking:
       type: enabled
@@ -166,7 +166,7 @@ coder:
   temperature: 1.0
   top_p: 0.95
   n: 1
-  max_tokens: 16384
+  max_tokens: 20480
   extra_body:
     thinking:
       type: enabled
@@ -182,7 +182,7 @@ installer:
   temperature: 1.0
   top_p: 0.95
   n: 1
-  max_tokens: 4096
+  max_tokens: 16384
   extra_body:
     thinking:
       type: enabled
