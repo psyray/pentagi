@@ -343,30 +343,41 @@ const (
 	closureForce                           // verified: enter the graceful shutdown phase now
 )
 
+// maxCompletionCriticCalls caps the adversarial completion checks per agent
+// chain. A critic that keeps rejecting must not be re-asked forever: after this
+// many calls the chain keeps working until the model or the adviser raises a
+// new close signal.
+const maxCompletionCriticCalls = 2
+
 // closureDetector turns an adviser close verdict into a VERIFIED decision instead
 // of a blind order. Two stages gate the forced closure so a subtask that is still
 // making progress (a long exploitation, a slow web chain, a code audit) is never
 // cut:
 //
-//  1. deterministic: a close verdict only counts once the subtask is idle on new
-//     evidence, i.e. no new tool-output fingerprint for minIdleCalls calls. A
-//     subtask that keeps producing distinct output is still progressing, so the
-//     close signal is ignored (the counter is not incremented).
-//  2. adversarial: the caller asks an independent completion critic to confirm
-//     the objective is genuinely met before forcing.
+//  1. deterministic: when the critic is disabled, a close verdict only counts
+//     once the subtask is idle on new evidence, i.e. no new tool-output
+//     fingerprint for minIdleCalls calls. A subtask that keeps producing distinct
+//     output is still progressing, so the close signal is ignored (the counter is
+//     not incremented).
+//  2. adversarial: when the critic is enabled, consecutive close verdicts ask an
+//     independent completion critic to confirm the objective is genuinely met,
+//     regardless of new tool output. New-but-redundant evidence (re-reading the
+//     same file, re-running the same check) is exactly what a completion-lag
+//     chain produces, so the idle gate cannot be the only trigger.
 //
 // A PLAN or EXEC verdict resets the close counter. There is no tool-call cap: a
 // long subtask is not a blocked subtask.
 type closureDetector struct {
 	enabled        bool
 	closeThreshold int  // consecutive close verdicts required
-	minIdleCalls   int  // idle tool calls (no new output fingerprint) required
+	minIdleCalls   int  // idle tool calls (no new output fingerprint) required when the critic is off
 	criticEnabled  bool // require the stage-2 completion critic before forcing
 
 	closeSignals    int
 	lastFingerprint string
 	idleCalls       int
 	criticConfirmed bool
+	criticCalls     int // completion critic invocations in this chain
 }
 
 // observeResult records a tool output. A new distinct fingerprint means the
@@ -405,11 +416,19 @@ func (cd *closureDetector) evaluate() closureDecision {
 	if cd.criticConfirmed {
 		return closureForce
 	}
-	if cd.closeSignals >= cd.closeThreshold && cd.idleCalls >= cd.minIdleCalls {
-		if cd.criticEnabled {
-			return closureVerify
+	if cd.closeSignals < cd.closeThreshold {
+		return closureContinue
+	}
+
+	if cd.criticEnabled {
+		if cd.criticCalls >= maxCompletionCriticCalls {
+			return closureContinue
 		}
 
+		return closureVerify
+	}
+
+	if cd.idleCalls >= cd.minIdleCalls {
 		return closureForce
 	}
 
@@ -417,12 +436,16 @@ func (cd *closureDetector) evaluate() closureDecision {
 }
 
 // confirm records that the completion critic agreed the objective is met.
-func (cd *closureDetector) confirm() { cd.criticConfirmed = true }
+func (cd *closureDetector) confirm() {
+	cd.criticCalls++
+	cd.criticConfirmed = true
+}
 
 // reject records that the close signal was not honoured (fresh evidence, or the
 // completion critic found the objective is not met yet). The counter is reset so
 // the chain keeps working until a new close signal is raised.
 func (cd *closureDetector) reject() {
+	cd.criticCalls++
 	cd.closeSignals = 0
 	cd.criticConfirmed = false
 }
