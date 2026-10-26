@@ -235,10 +235,27 @@ func TestSubtaskPatch_ApplySubtaskOperations_ProducesThePlanThePatchDescribes(t 
 			},
 		},
 		{
-			name:    "a modify with neither title nor description is refused",
+			name:    "a modify with no field at all is refused",
 			planned: subtaskPatchPlan(1),
 			ops:     []tools.SubtaskOperation{{Op: tools.SubtaskOpModify, ID: subtaskPatchID(1)}},
-			wantErr: "operation 0: modify operation missing both title and description fields",
+			wantErr: "operation 0: modify operation requires at least one field to change (title, description, type, evidence or budget_seconds)",
+		},
+		{
+			// Prod flow 128 sent budget-only modifications: Validate already accepts
+			// them, and applying them must not fall back to the title/description rule.
+			name:    "a metadata-only modify changes the metadata and keeps title and description",
+			planned: subtaskPatchPlan(1),
+			ops: []tools.SubtaskOperation{{
+				Op: tools.SubtaskOpModify, ID: subtaskPatchID(1),
+				Type: "verification", Evidence: tools.Strings{"log-evidence"}, BudgetSeconds: 1200,
+			}},
+			want: []tools.SubtaskInfoPatch{{
+				ID: 1,
+				SubtaskInfo: tools.SubtaskInfo{
+					Title: "Task 1", Description: "Description 1",
+					Type: "verification", Evidence: tools.Strings{"log-evidence"}, BudgetSeconds: 1200,
+				},
+			}},
 		},
 		{
 			name:    "a reorder of a subtask removed in the same patch is refused",
@@ -571,6 +588,17 @@ func TestSubtaskPatch_ApplySubtaskOperations_KeepsPlanningMetadata(t *testing.T)
 		assert.Equal(t, "recon", got[0].Type)
 		assert.Equal(t, tools.Strings{"http-discovery-evidence"}, got[0].Evidence)
 		assert.Equal(t, tools.Int64(600), got[0].BudgetSeconds)
+	})
+
+	t.Run("a metadata-only modify replaces only the given fields", func(t *testing.T) {
+		got, err := applySubtaskOperations(planned, tools.SubtaskPatch{Operations: []tools.SubtaskOperation{
+			{Op: tools.SubtaskOpModify, ID: subtaskPatchID(1), Type: "verification", BudgetSeconds: 1200},
+		}}, subtaskPatchLogger())
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		assert.Equal(t, "verification", got[0].Type)
+		assert.Equal(t, tools.Strings{"http-discovery-evidence"}, got[0].Evidence)
+		assert.Equal(t, tools.Int64(1200), got[0].BudgetSeconds)
 	})
 
 	t.Run("the none sentinel clears only the type", func(t *testing.T) {

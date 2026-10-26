@@ -71,8 +71,8 @@ func applySubtaskOperations(
 				opLogger.Error(err.Error())
 				return nil, err
 			}
-			if op.Title == "" && op.Description == "" {
-				err := fmt.Errorf("operation %d: modify operation missing both title and description fields", i)
+			if op.Title == "" && op.Description == "" && op.Type == "" && len(op.Evidence) == 0 && op.BudgetSeconds == 0 {
+				err := fmt.Errorf("operation %d: modify operation requires at least one field to change (title, description, type, evidence or budget_seconds)", i)
 				opLogger.Error(err.Error())
 				return nil, err
 			}
