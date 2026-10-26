@@ -435,8 +435,8 @@ func (sp SubtaskPatch) Validate() error {
 			if op.ID == nil {
 				return fmt.Errorf("operation %d: modify requires id", i)
 			}
-			if op.Title == "" && op.Description == "" {
-				return fmt.Errorf("operation %d: modify requires at least title or description", i)
+			if op.Title == "" && op.Description == "" && op.Type == "" && len(op.Evidence) == 0 && op.BudgetSeconds == 0 {
+				return fmt.Errorf("operation %d: modify requires at least one field to change (title, description, type, evidence or budget_seconds)", i)
 			}
 		case SubtaskOpReorder:
 			if op.ID == nil {
