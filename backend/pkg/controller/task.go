@@ -329,13 +329,12 @@ func (tw *taskWorker) PutInput(ctx context.Context, input string) error {
 		if !st.IsCompleted() && st.IsWaiting() {
 			if err := st.PutInput(ctx, input); err != nil {
 				return fmt.Errorf("failed to put input to subtask %d: %w", st.GetSubtaskID(), err)
-			} else {
-				break
 			}
+			return nil
 		}
 	}
 
-	return nil
+	return fmt.Errorf("task %d is waiting but has no waiting subtask to receive input; create a new task or flow for new work", tw.GetTaskID())
 }
 
 func (tw *taskWorker) Run(ctx context.Context) error {
