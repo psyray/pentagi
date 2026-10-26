@@ -281,9 +281,21 @@ func TestArgs_SubtaskPatch_NamesTheOperationItRefusesAndWhy(t *testing.T) {
 			wantErr: "operation 0: modify requires id",
 		},
 		{
-			name:    "modify without title or description",
+			name:    "modify without any change",
 			ops:     []SubtaskOperation{{Op: SubtaskOpModify, ID: &id}},
-			wantErr: "operation 0: modify requires at least title or description",
+			wantErr: "operation 0: modify requires at least one field to change (title, description, type, evidence or budget_seconds)",
+		},
+		{
+			name: "modify only the planned budget",
+			ops:  []SubtaskOperation{{Op: SubtaskOpModify, ID: &id, BudgetSeconds: 1500}},
+		},
+		{
+			name: "modify only the plan type",
+			ops:  []SubtaskOperation{{Op: SubtaskOpModify, ID: &id, Type: "exploitation"}},
+		},
+		{
+			name: "modify only the expected evidence",
+			ops:  []SubtaskOperation{{Op: SubtaskOpModify, ID: &id, Evidence: Strings{"privilege-escalation-evidence"}}},
 		},
 		{
 			name: "reorder with id",
