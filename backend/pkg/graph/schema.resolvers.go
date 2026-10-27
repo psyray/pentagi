@@ -89,7 +89,7 @@ func (r *mutationResolver) CreateFlow(ctx context.Context, modelProvider string,
 }
 
 // PutUserInput is the resolver for the putUserInput field.
-func (r *mutationResolver) PutUserInput(ctx context.Context, flowID int64, input string, modelProvider *string, resourceIds []int64) (model.ResultType, error) {
+func (r *mutationResolver) PutUserInput(ctx context.Context, flowID int64, input string, modelProvider *string, resourceIds []int64, mode *model.UserInputMode) (model.ResultType, error) {
 	uid, err := validatePermissionWithFlowID(ctx, "flows.edit", flowID, r.DB)
 	if err != nil {
 		return model.ResultTypeError, err
@@ -99,9 +99,15 @@ func (r *mutationResolver) PutUserInput(ctx context.Context, flowID int64, input
 		return model.ResultTypeError, fmt.Errorf("user input is required")
 	}
 
+	inputMode := controller.InputModeInterrupt
+	if mode != nil && *mode == model.UserInputModeSteer {
+		inputMode = controller.InputModeSteer
+	}
+
 	fields := logrus.Fields{
 		"uid":  uid,
 		"flow": flowID,
+		"mode": string(inputMode),
 	}
 	if modelProvider != nil {
 		if *modelProvider == "" {
@@ -129,6 +135,14 @@ func (r *mutationResolver) PutUserInput(ctx context.Context, flowID int64, input
 	}
 
 	var prv provider.Provider
+	if inputMode == controller.InputModeSteer {
+		if err := fw.SteerInput(ctx, input, dbResources); err != nil {
+			return model.ResultTypeError, err
+		}
+
+		return model.ResultTypeSuccess, nil
+	}
+
 	if modelProvider != nil && *modelProvider != "" {
 		name := provider.ProviderName(*modelProvider)
 		prv, err = r.ProvidersCtrl.GetProvider(ctx, name, uid)
