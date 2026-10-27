@@ -22,6 +22,9 @@ interface FlowMessageProps {
 function FlowMessage({ log, searchValue = '' }: FlowMessageProps) {
     const { createdAt, message, result, resultFormat = ResultFormat.Plain, thinking, type } = log;
     const isReportMessage = type === MessageLogType.Report;
+    // Operator steers are stored as input messages with thinking="steer": the
+    // marker is metadata for the badge, not reasoning to show in a collapsible.
+    const isSteerInput = type === MessageLogType.Input && thinking === 'steer';
 
     const searchChecks = useMemo(() => {
         const trimmedSearch = searchValue.trim();
@@ -81,13 +84,13 @@ function FlowMessage({ log, searchValue = '' }: FlowMessageProps) {
             message,
             result,
             resultFormat,
-            thinking,
+            thinking: isSteerInput ? '' : thinking,
         });
-    }, [thinking, message, result, resultFormat]);
+    }, [isSteerInput, thinking, message, result, resultFormat]);
 
-    const shouldShowThinking = thinking && (!message || isThinkingVisible);
+    const shouldShowThinking = thinking && !isSteerInput && (!message || isThinkingVisible);
 
-    const shouldShowThinkingToggle = thinking && message;
+    const shouldShowThinkingToggle = thinking && !isSteerInput && message;
 
     // Gate by visibility so the (potentially heavy) details subtree isn't in the DOM when collapsed.
     const renderDetailsContent = () => {
@@ -163,6 +166,12 @@ function FlowMessage({ log, searchValue = '' }: FlowMessageProps) {
                 )}
 
                 {renderThinkingContent()}
+
+                {isSteerInput && (
+                    <div className="text-muted-foreground mb-1 text-[10px] font-medium tracking-wide uppercase">
+                        Steer
+                    </div>
+                )}
 
                 {message && (
                     <Markdown

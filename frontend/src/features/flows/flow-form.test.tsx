@@ -147,3 +147,30 @@ describe('FlowForm attachments', () => {
         expect(await screen.findByRole('button', { name: 'Remove scope.txt' })).toBeInTheDocument();
     });
 });
+
+describe('FlowForm steering', () => {
+    it('keeps the composer usable, locks the provider and offers Stop while running', async () => {
+        const user = userEvent.setup({ delay: null });
+        const onSubmit = vi.fn().mockResolvedValue(true);
+
+        render(
+            <FlowForm
+                defaultValues={{ providerName: 'openai' }}
+                isProviderDisabled
+                isRunning
+                onSubmit={onSubmit}
+                type="automation"
+            />,
+        );
+
+        expect(screen.getByRole('textbox')).toBeEnabled();
+        expect(screen.getByRole('button', { name: 'Stop' })).toBeVisible();
+        expect(screen.getByRole('button', { name: /openai/i })).toBeDisabled();
+
+        await user.type(screen.getByRole('textbox'), 'focus on A15');
+        await user.click(screen.getByRole('button', { name: 'Submit' }));
+
+        await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+        expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({ message: 'focus on A15' });
+    });
+});

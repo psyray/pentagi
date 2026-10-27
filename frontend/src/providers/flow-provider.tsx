@@ -32,6 +32,7 @@ import {
     TaskCreatedDocument,
     TaskUpdatedDocument,
     TerminalLogAddedDocument,
+    UserInputMode,
     VectorStoreLogAddedDocument,
 } from '@/graphql/types';
 import { lastLocalWriteAt } from '@/lib/apollo';
@@ -507,13 +508,17 @@ export function FlowProvider({ children }: FlowProviderProps) {
             }
 
             const { message: input, providerName, resourceIds } = values;
+            const isSteer = flowStatus === StatusType.Running;
 
             try {
                 await putUserInput({
                     variables: {
                         flowId,
                         input,
-                        modelProvider: providerName || undefined,
+                        mode: isSteer ? UserInputMode.Steer : undefined,
+                        // A steer is delivered to the agent already running with the
+                        // current provider, so the provider is neither sent nor changed.
+                        modelProvider: isSteer ? undefined : providerName || undefined,
                         resourceIds: resourceIds?.length ? resourceIds : undefined,
                     },
                 });

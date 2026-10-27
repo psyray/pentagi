@@ -61,6 +61,7 @@ export interface FlowFormProps {
     isDisabled?: boolean;
     isLoading?: boolean;
     isProviderDisabled?: boolean;
+    isRunning?: boolean;
     isSubmitting?: boolean;
     onCancel?: () => Promise<void> | void;
     onSubmit: (values: FlowFormValues) => boolean | Promise<boolean>;
@@ -76,6 +77,7 @@ export function FlowForm({
     isDisabled,
     isLoading,
     isProviderDisabled,
+    isRunning,
     isSubmitting,
     onCancel,
     onSubmit,
@@ -761,18 +763,20 @@ export function FlowForm({
                                         </DropdownMenuContent>
                                     </DropdownMenu>
 
-                                    {!isLoading || isSubmitting ? (
+                                    {!isLoading && (
                                         <InputGroupButton
                                             aria-label={isSubmitting ? 'Submitting…' : 'Submit'}
                                             className="shrink-0"
-                                            disabled={isSubmitting || !isValid || upload.isUploading}
+                                            disabled={isFormDisabled || isSubmitting || !isValid || upload.isUploading}
                                             size="icon-xs"
                                             type="submit"
                                             variant="default"
                                         >
                                             {isSubmitting ? <Spinner variant="circle" /> : <ArrowUp />}
                                         </InputGroupButton>
-                                    ) : (
+                                    )}
+
+                                    {(isRunning || isLoading) && (
                                         <InputGroupButton
                                             aria-label={isCanceling ? 'Stopping…' : 'Stop'}
                                             className="shrink-0"
