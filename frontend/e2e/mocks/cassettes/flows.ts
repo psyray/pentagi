@@ -146,7 +146,22 @@ export const flowQueryData = (
     _terminalLogs: TerminalLogFragmentFragment[] = [],
 ): ResultOf<typeof FlowDocument> => ({
     flow,
-    flowLooseMessageLogs: [],
+    // The flow query carries a slim message list; the heavy content of the messages
+    // written outside a subtask comes from this sibling list (the ones inside a
+    // subtask are fetched lazily). The fixtures still build full messages, so mirror
+    // them here instead of rendering every thinking/result as empty.
+    flowLooseMessageLogs: messageLogs
+        .filter((log) => !log.subtaskId && !log.taskId)
+        .map((log) => {
+            const content = log as MessageLogFragmentFragment & Partial<MessageLogContentFragmentFragment>;
+
+            return entity('MessageLog', {
+                id: log.id,
+                result: content.result ?? '',
+                resultFormat: content.resultFormat ?? ResultFormat.Plain,
+                thinking: content.thinking ?? null,
+            });
+        }),
     messageLogs,
     msgchains: [],
     screenshots: [],
@@ -188,6 +203,15 @@ export const flowsCassette = (override: Cassette = {}): Cassette =>
                     { data: flowQueryData(FLOW_B, messagesFor('6', FLOW_B_INITIAL_IDS)), variables: { id: '6' } },
                 ],
                 flows: [{ data: { flows: [FLOW_A, FLOW_B] } }],
+                // The desktop layout opens the Terminal side tab by default, and that
+                // panel fetches its logs through its own query (the flow query no
+                // longer carries them), so every flow landing asks for them. Mock
+                // both seeded flows here instead of in each spec; flow A's fixtures
+                // are the ones the terminal spec reads back from the xterm buffer.
+                flowTerminalLogs: [
+                    { data: { terminalLogs: FLOW_A_TERMINAL_LOGS }, variables: { flowId: FLOW_A.id } },
+                    { data: { terminalLogs: [] }, variables: { flowId: FLOW_B.id } },
+                ],
             },
             rest: baseRest(),
             subscriptions: {
@@ -655,6 +679,21 @@ export const flowTabsCassette = (override: Cassette = {}): Cassette =>
             queries: {
                 flow: [{ data: flowTabsData, variables: { id: '5' } }],
                 flowAgentLogs: [{ data: { agentLogs: [TABS_AGENT_LOG] }, variables: { flowId: '5' } }],
+                flowExecutionStats: [
+                    {
+                        data: {
+                            flowExecutionStats: entity('FlowExecutionStats', {
+                                flowId: FLOW_A.id,
+                                flowTitle: FLOW_A.title,
+                                tasks: [],
+                                totalAssistantsCount: 0,
+                                totalDurationSeconds: 0,
+                                totalToolcallsCount: 0,
+                            }),
+                        },
+                        variables: { flowId: '5' },
+                    },
+                ],
                 flowFiles: [{ data: flowFiles, variables: { flowId: '5' } }],
                 flowStatsByFlow: [{ data: flowStatsByFlow, variables: { flowId: '5' } }],
                 flowTerminalLogs: [{ data: { terminalLogs: [] }, variables: { flowId: '5' } }],
