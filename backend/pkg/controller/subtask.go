@@ -34,6 +34,8 @@ type SubtaskWorker interface {
 	GetResult(ctx context.Context) (string, error)
 	SetResult(ctx context.Context, result string) error
 	PutInput(ctx context.Context, input string) error
+	Steer(ctx context.Context, input string) error
+	DrainSteers() []string
 	Run(ctx context.Context) error
 	Finish(ctx context.Context) error
 }
@@ -44,6 +46,7 @@ type subtaskWorker struct {
 	updater    TaskUpdater
 	completed  bool
 	waiting    bool
+	steerCh    chan string
 }
 
 func NewSubtaskWorker(
@@ -74,6 +77,7 @@ func NewSubtaskWorker(
 		updater:   updater,
 		completed: false,
 		waiting:   false,
+		steerCh:   make(chan string, subtaskSteerQueueSize),
 	}, nil
 }
 
@@ -130,6 +134,7 @@ func LoadSubtaskWorker(
 		updater:   updater,
 		completed: completed,
 		waiting:   waiting,
+		steerCh:   make(chan string, subtaskSteerQueueSize),
 	}, nil
 }
 
@@ -291,6 +296,50 @@ func (stw *subtaskWorker) PutInput(ctx context.Context, input string) error {
 	return nil
 }
 
+const subtaskSteerQueueSize = 16
+
+// Steer hands an operator message to this subtask without cancelling the agent
+// chain. A waiting subtask keeps the historical behaviour and receives the text
+// as its awaited input; a created or running subtask queues it for the next
+// iteration of performAgentChain.
+func (stw *subtaskWorker) Steer(ctx context.Context, input string) error {
+	if stw.IsCompleted() {
+		return fmt.Errorf("subtask %d has already completed", stw.subtaskCtx.SubtaskID)
+	}
+
+	if stw.IsWaiting() {
+		return stw.PutInput(ctx, input)
+	}
+
+	select {
+	case stw.steerCh <- input:
+	default:
+		return fmt.Errorf("steer queue for subtask %d is full", stw.subtaskCtx.SubtaskID)
+	}
+
+	return nil
+}
+
+// DrainSteers returns the operator messages still waiting in the subtask queue.
+// taskWorker uses it when a subtask finishes before its next turn, so the
+// messages are not lost and can be delivered to the next subtask.
+func (stw *subtaskWorker) DrainSteers() []string {
+	var messages []string
+	for {
+		select {
+		case message, ok := <-stw.steerCh:
+			if !ok {
+				return messages
+			}
+			if message != "" {
+				messages = append(messages, message)
+			}
+		default:
+			return messages
+		}
+	}
+}
+
 func (stw *subtaskWorker) Run(ctx context.Context) error {
 	if stw.IsCompleted() {
 		return fmt.Errorf("subtask has already completed")
@@ -315,6 +364,10 @@ func (stw *subtaskWorker) Run(ctx context.Context) error {
 		stw.handleInterrupting(err)
 		return fmt.Errorf("failed to ensure chain consistency for subtask %d: %w", subtaskID, err)
 	}
+
+	// Operator steers queued for this subtask are drained by performAgentChain
+	// at the start of every iteration, so they reach the model on its next turn.
+	ctx = providers.WithSteerChannel(ctx, stw.steerCh)
 
 	performResult, err := stw.subtaskCtx.Provider.PerformAgentChain(ctx, taskID, subtaskID, msgChainID)
 	if err != nil {
