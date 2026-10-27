@@ -63,6 +63,21 @@ func TestTaskWorker_Steer_HandsTheMessageToTheRunningSubtask(t *testing.T) {
 	assert.Equal(t, []string{"focus on A15"}, sub.steers)
 }
 
+func TestTaskWorker_Steer_ReachesARunningSubtaskEvenWhenTheTaskIsWaiting(t *testing.T) {
+	t.Parallel()
+
+	sub := &steerRecordingSubtask{}
+	tw := &taskWorker{
+		mx:      &sync.RWMutex{},
+		stc:     steerSubtaskController{subtasks: []SubtaskWorker{sub}},
+		taskCtx: &TaskContext{TaskID: 42},
+		waiting: true,
+	}
+
+	require.NoError(t, tw.Steer(context.Background(), "keep going on the current subtask"))
+	assert.Equal(t, []string{"keep going on the current subtask"}, sub.steers)
+}
+
 func TestTaskWorker_Steer_QueuesBetweenSubtasks(t *testing.T) {
 	t.Parallel()
 

@@ -308,7 +308,7 @@ func (stw *subtaskWorker) Steer(ctx context.Context, input string) error {
 	}
 
 	if stw.IsWaiting() {
-		return stw.PutInput(ctx, input)
+		return fmt.Errorf("subtask %d is waiting; use the normal input path", stw.subtaskCtx.SubtaskID)
 	}
 
 	select {
