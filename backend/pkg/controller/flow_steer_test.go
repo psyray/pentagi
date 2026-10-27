@@ -32,7 +32,7 @@ func (t *steerRecordingTask) Steer(_ context.Context, input string) error {
 	return nil
 }
 
-func TestFlowWorker_ProcessInput_HandsASteerToTheRunningTask(t *testing.T) {
+func TestFlowWorker_SteerRunningTask_HandsTheMessageToTheActiveTask(t *testing.T) {
 	t.Parallel()
 
 	task := &steerRecordingTask{}
@@ -42,32 +42,21 @@ func TestFlowWorker_ProcessInput_HandsASteerToTheRunningTask(t *testing.T) {
 		flowCtx: &FlowContext{FlowID: 7},
 	}
 
-	got, err := fw.processInput(flowInput{
-		input: "focus on A15 instead",
-		mode:  InputModeSteer,
-		reply: newInputReply(),
-	})
-
-	require.NoError(t, err)
-	assert.Equal(t, task, got)
+	require.NoError(t, fw.steerRunningTask(context.Background(), "focus on A15 instead"))
 	assert.Equal(t, []string{"focus on A15 instead"}, task.steers)
 }
 
-func TestFlowWorker_ProcessInput_RefusesToSteerWithoutARunningTask(t *testing.T) {
+func TestFlowWorker_SteerRunningTask_RefusesWithoutAnActiveTask(t *testing.T) {
 	t.Parallel()
 
 	fw := &flowWorker{
-		tc:      &scriptedTasks{tasks: []TaskWorker{&steerRecordingTask{waiting: true}}},
+		tc:      &scriptedTasks{tasks: []TaskWorker{}},
 		ctx:     context.Background(),
 		flowCtx: &FlowContext{FlowID: 7},
 	}
 
-	_, err := fw.processInput(flowInput{
-		input: "too late",
-		mode:  InputModeSteer,
-		reply: newInputReply(),
-	})
+	err := fw.steerRunningTask(context.Background(), "too late")
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no running task to steer")
+	assert.Contains(t, err.Error(), "no active task to steer")
 }

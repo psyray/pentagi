@@ -343,17 +343,14 @@ func (tw *taskWorker) PutInput(ctx context.Context, input string) error {
 const taskSteerQueueSize = 16
 
 // Steer delivers an operator message to the agent that is currently working.
-// A running subtask receives it in its own queue; between two subtasks the
-// message waits at task level and is handed to the next subtask when it starts.
-// A waiting task keeps the historical behaviour and forwards the input to its
-// waiting subtask.
+// A running subtask receives it in its own queue, even when the task itself is
+// marked waiting because a specialist is waiting for input; between two
+// subtasks the message waits at task level and is handed to the next subtask
+// when it starts. A waiting task with no running subtask asks for the normal
+// interrupt path.
 func (tw *taskWorker) Steer(ctx context.Context, input string) error {
 	if tw.IsCompleted() {
 		return fmt.Errorf("task %d has already completed", tw.GetTaskID())
-	}
-
-	if tw.IsWaiting() {
-		return tw.PutInput(ctx, input)
 	}
 
 	for _, st := range tw.stc.ListSubtasks(ctx) {
@@ -362,6 +359,10 @@ func (tw *taskWorker) Steer(ctx context.Context, input string) error {
 		}
 
 		return st.Steer(ctx, input)
+	}
+
+	if tw.IsWaiting() {
+		return fmt.Errorf("task %d is waiting; use interrupt mode to resume it", tw.GetTaskID())
 	}
 
 	tw.steerMu.Lock()

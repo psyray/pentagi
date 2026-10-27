@@ -135,20 +135,8 @@ var ErrInputAccepted = errors.New("input accepted, still being processed")
 // the whole point -- a caller that cannot duplicates the action or drops it.
 var ErrInputNotAccepted = errors.New("input was not accepted")
 
-// InputMode decides how a user input reaches a flow that is already working.
-// Interrupt is the historical behaviour: the running task is cancelled and
-// replanned. Steer hands the text to the running agent at its next turn and
-// leaves the work in progress untouched.
-type InputMode string
-
-const (
-	InputModeInterrupt InputMode = "interrupt"
-	InputModeSteer     InputMode = "steer"
-)
-
 type flowInput struct {
 	input string
-	mode  InputMode
 	reply *inputReply
 }
 
@@ -711,7 +699,7 @@ func (fw *flowWorker) PutInput(
 		fw.logger.WithError(err).Warn("failed to copy resources before user input")
 	}
 
-	return fw.sendInput(ctx, flowInput{input: input, reply: newInputReply(), mode: InputModeInterrupt})
+	return fw.sendInput(ctx, flowInput{input: input, reply: newInputReply()})
 }
 
 // SteerInput hands an instruction to the task that is currently working. It
@@ -733,7 +721,23 @@ func (fw *flowWorker) SteerInput(
 		fw.logger.WithError(err).Warn("failed to copy resources before user input")
 	}
 
-	return fw.sendInput(ctx, flowInput{input: input, reply: newInputReply(), mode: InputModeSteer})
+	return fw.steerRunningTask(ctx, input)
+}
+
+// steerRunningTask delivers the message straight to the task that is working.
+// It deliberately bypasses the flow input channel: that channel is consumed
+// sequentially, and the worker may be busy creating the task for minutes, so a
+// steer must not wait behind it.
+func (fw *flowWorker) steerRunningTask(ctx context.Context, input string) error {
+	for _, task := range fw.tc.ListTasks(ctx) {
+		if task.IsCompleted() {
+			continue
+		}
+
+		return task.Steer(ctx, input)
+	}
+
+	return fmt.Errorf("flow %d has no active task to steer; use interrupt mode to start new work", fw.flowCtx.FlowID)
 }
 
 // sendInput queues an already prepared input for the flow worker. Both
@@ -1390,37 +1394,7 @@ func (fw *flowWorker) worker() {
 	}
 }
 
-// steerInput hands the operator message to the task that is currently running.
-// It never cancels the running chain: the agent reads the message at its next
-// turn. If no task is running, the caller gets an explicit error instead of a
-// silent success, because there is no agent to steer.
-func (fw *flowWorker) steerInput(flin flowInput) (TaskWorker, error) {
-	for _, task := range fw.tc.ListTasks(fw.ctx) {
-		if task.IsCompleted() || task.IsWaiting() {
-			continue
-		}
-
-		if err := task.Steer(fw.ctx, flin.input); err != nil {
-			err = fmt.Errorf("failed to steer task %d: %w", task.GetTaskID(), err)
-			if flin.reply.deliver(err) {
-				return nil, err
-			}
-			return nil, fw.reportFailure(task, flin.input, err)
-		}
-
-		flin.reply.deliver(nil)
-		return task, nil
-	}
-
-	err := fmt.Errorf("flow %d has no running task to steer; use interrupt mode to start new work", fw.flowCtx.FlowID)
-	flin.reply.deliver(err)
-	return nil, err
-}
-
 func (fw *flowWorker) processInput(flin flowInput) (TaskWorker, error) {
-	if flin.mode == InputModeSteer {
-		return fw.steerInput(flin)
-	}
 	for _, task := range fw.tc.ListTasks(fw.ctx) {
 		if !task.IsCompleted() && task.IsWaiting() {
 			if err := task.PutInput(fw.ctx, flin.input); err != nil {

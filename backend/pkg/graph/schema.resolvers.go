@@ -101,15 +101,15 @@ func (r *mutationResolver) PutUserInput(ctx context.Context, flowID int64, input
 		return model.ResultTypeError, fmt.Errorf("user input is required")
 	}
 
-	inputMode := controller.InputModeInterrupt
-	if mode != nil && *mode == model.UserInputModeSteer {
-		inputMode = controller.InputModeSteer
-	}
+	isSteer := mode != nil && *mode == model.UserInputModeSteer
 
 	fields := logrus.Fields{
 		"uid":  uid,
 		"flow": flowID,
-		"mode": string(inputMode),
+		"mode": "interrupt",
+	}
+	if isSteer {
+		fields["mode"] = "steer"
 	}
 	if modelProvider != nil {
 		if *modelProvider == "" {
@@ -137,7 +137,7 @@ func (r *mutationResolver) PutUserInput(ctx context.Context, flowID int64, input
 	}
 
 	var prv provider.Provider
-	if inputMode == controller.InputModeSteer {
+	if isSteer {
 		if err := fw.SteerInput(ctx, input, dbResources); err != nil {
 			return model.ResultTypeError, err
 		}
