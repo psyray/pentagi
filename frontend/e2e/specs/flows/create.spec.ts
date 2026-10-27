@@ -25,6 +25,9 @@ test.describe('flow create', { tag: ['@flows', '@smoke'] }, () => {
             },
             queries: {
                 flow: [{ data: flowQueryData(CREATED_FLOW, []), variables: { id: '7' } }],
+                // The freshly created flow opens on the Terminal side tab, which
+                // queries its own logs for the new id.
+                flowTerminalLogs: [{ data: { terminalLogs: [] }, variables: { flowId: '7' } }],
                 providers: [{ data: { providers: [PROVIDER] } }],
             },
             subscriptions: {
