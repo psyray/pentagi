@@ -65,6 +65,7 @@ func (t *scriptedTask) GetTitle() string                          { return "scan
 func (t *scriptedTask) IsCompleted() bool                         { return false }
 func (t *scriptedTask) IsWaiting() bool                           { return t.isWaiting }
 func (t *scriptedTask) PutInput(context.Context, string) error    { return t.inputErr }
+func (t *scriptedTask) Steer(context.Context, string) error       { return nil }
 func (t *scriptedTask) GetResult(context.Context) (string, error) { return "", nil }
 func (t *scriptedTask) GetStatus(context.Context) (database.TaskStatus, error) {
 	return database.TaskStatusWaiting, nil

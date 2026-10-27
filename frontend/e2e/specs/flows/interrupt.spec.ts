@@ -51,8 +51,8 @@ test.describe('flow interrupt', { tag: '@flows' }, () => {
 
             const stop = page.getByRole('button', { name: 'Stop' });
 
-            await expect(stop, 'a running flow offers Stop, not Submit').toBeVisible();
-            await expect(page.getByRole('button', { name: 'Submit' })).toBeHidden();
+            await expect(stop, 'a running flow offers Stop').toBeVisible();
+            await expect(page.getByRole('button', { name: 'Submit' })).toBeVisible();
 
             const request = operationRequest(page, 'stopFlow');
 
@@ -112,6 +112,44 @@ test.describe('flow interrupt', { tag: '@flows' }, () => {
                 modelProvider: PROVIDER.name,
             });
             await expect(composer).toHaveValue('');
+            expectCleanPage(pageErrorLog);
+        });
+    });
+
+    test.describe('steer', () => {
+        const accepted: ResultOf<typeof PutUserInputDocument> = { putUserInput: ResultType.Success };
+
+        test.use({
+            cassette: flowsCassette({
+                mutations: {
+                    putUserInput: [
+                        {
+                            data: accepted,
+                            variables: { flowId: '5', input: 'focus on A15', mode: 'STEER' },
+                        },
+                    ],
+                },
+            }),
+        });
+
+        test('steers a running flow and keeps Stop available', async ({ page, pageErrorLog }) => {
+            await openFlowA(page);
+
+            const composer = page.getByPlaceholder('Steer the running task, or click Stop to interrupt...');
+
+            await expect(composer).toBeEnabled();
+            await composer.fill('focus on A15');
+
+            const request = operationRequest(page, 'putUserInput');
+
+            await page.getByRole('button', { name: 'Submit' }).click();
+
+            expect((await request).postDataJSON().variables).toEqual({
+                flowId: '5',
+                input: 'focus on A15',
+                mode: 'STEER',
+            });
+            await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
             expectCleanPage(pageErrorLog);
         });
     });

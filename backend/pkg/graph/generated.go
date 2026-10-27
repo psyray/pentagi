@@ -486,7 +486,7 @@ type ComplexityRoot struct {
 		HideReportSection           func(childComplexity int, reportID int64, sectionID int64, hidden bool) int
 		MoveReportSection           func(childComplexity int, reportID int64, sectionID int64, direction model.SectionDirection) int
 		PutReportNote               func(childComplexity int, reportID int64, note string) int
-		PutUserInput                func(childComplexity int, flowID int64, input string, modelProvider *string, resourceIds []int64) int
+		PutUserInput                func(childComplexity int, flowID int64, input string, modelProvider *string, resourceIds []int64, mode *model.UserInputMode) int
 		RenameFlow                  func(childComplexity int, flowID int64, title string) int
 		RenameKnowledgeDocument     func(childComplexity int, id string, question string) int
 		ResumeReport                func(childComplexity int, reportID int64, contentBudgetSeconds *int) int
@@ -1074,7 +1074,7 @@ type ComplexityRoot struct {
 
 type MutationResolver interface {
 	CreateFlow(ctx context.Context, modelProvider string, input string, resourceIds []int64) (*model.Flow, error)
-	PutUserInput(ctx context.Context, flowID int64, input string, modelProvider *string, resourceIds []int64) (model.ResultType, error)
+	PutUserInput(ctx context.Context, flowID int64, input string, modelProvider *string, resourceIds []int64, mode *model.UserInputMode) (model.ResultType, error)
 	StopFlow(ctx context.Context, flowID int64) (model.ResultType, error)
 	FinishFlow(ctx context.Context, flowID int64) (model.ResultType, error)
 	DeleteFlow(ctx context.Context, flowID int64) (model.ResultType, error)
@@ -3490,7 +3490,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Mutation.PutUserInput(childComplexity, args["flowId"].(int64), args["input"].(string), args["modelProvider"].(*string), args["resourceIds"].([]int64)), true
+		return e.complexity.Mutation.PutUserInput(childComplexity, args["flowId"].(int64), args["input"].(string), args["modelProvider"].(*string), args["resourceIds"].([]int64), args["mode"].(*model.UserInputMode)), true
 
 	case "Mutation.renameFlow":
 		if e.complexity.Mutation.RenameFlow == nil {
@@ -8873,6 +8873,11 @@ func (ec *executionContext) field_Mutation_putUserInput_args(ctx context.Context
 		return nil, err
 	}
 	args["resourceIds"] = arg3
+	arg4, err := ec.field_Mutation_putUserInput_argsMode(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["mode"] = arg4
 	return args, nil
 }
 func (ec *executionContext) field_Mutation_putUserInput_argsFlowID(
@@ -8960,6 +8965,28 @@ func (ec *executionContext) field_Mutation_putUserInput_argsResourceIds(
 	}
 
 	var zeroVal []int64
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_putUserInput_argsMode(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (*model.UserInputMode, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["mode"]
+	if !ok {
+		var zeroVal *model.UserInputMode
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("mode"))
+	if tmp, ok := rawArgs["mode"]; ok {
+		return ec.unmarshalOUserInputMode2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐUserInputMode(ctx, tmp)
+	}
+
+	var zeroVal *model.UserInputMode
 	return zeroVal, nil
 }
 
@@ -26117,7 +26144,7 @@ func (ec *executionContext) _Mutation_putUserInput(ctx context.Context, field gr
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().PutUserInput(rctx, fc.Args["flowId"].(int64), fc.Args["input"].(string), fc.Args["modelProvider"].(*string), fc.Args["resourceIds"].([]int64))
+		return ec.resolvers.Mutation().PutUserInput(rctx, fc.Args["flowId"].(int64), fc.Args["input"].(string), fc.Args["modelProvider"].(*string), fc.Args["resourceIds"].([]int64), fc.Args["mode"].(*model.UserInputMode))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -67996,6 +68023,22 @@ func (ec *executionContext) marshalOToolCallLog2ᚕᚖpentagiᚋpkgᚋgraphᚋmo
 	}
 
 	return ret
+}
+
+func (ec *executionContext) unmarshalOUserInputMode2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐUserInputMode(ctx context.Context, v interface{}) (*model.UserInputMode, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.UserInputMode)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOUserInputMode2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐUserInputMode(ctx context.Context, sel ast.SelectionSet, v *model.UserInputMode) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) marshalOUserPrompt2ᚕᚖpentagiᚋpkgᚋgraphᚋmodelᚐUserPromptᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.UserPrompt) graphql.Marshaler {

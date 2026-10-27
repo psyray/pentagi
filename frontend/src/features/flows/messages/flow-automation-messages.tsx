@@ -249,7 +249,7 @@ function FlowAutomationMessages({ className }: FlowAutomationMessagesProps) {
             }
 
             case StatusType.Running: {
-                return 'PentAGI is working... Click Stop to interrupt';
+                return 'Steer the running task, or click Stop to interrupt...';
             }
 
             case StatusType.Waiting: {
@@ -295,7 +295,8 @@ function FlowAutomationMessages({ className }: FlowAutomationMessagesProps) {
     };
 
     const isFormDisabled = flowStatus === StatusType.Finished || flowStatus === StatusType.Failed;
-    const isFormLoading = flowStatus === StatusType.Created || flowStatus === StatusType.Running;
+    const isFormCreating = flowStatus === StatusType.Created;
+    const isRunning = flowStatus === StatusType.Running;
     const isProviderChangeAllowed = flowStatus === StatusType.Waiting;
 
     return (
@@ -464,8 +465,9 @@ function FlowAutomationMessages({ className }: FlowAutomationMessagesProps) {
                     }}
                     isCanceling={isCanceling}
                     isDisabled={isFormDisabled}
-                    isLoading={isFormLoading}
+                    isLoading={isFormCreating}
                     isProviderDisabled={!isProviderChangeAllowed}
+                    isRunning={isRunning}
                     isSubmitting={isSubmitting}
                     onCancel={handleStopAutomation}
                     onSubmit={handleSubmitMessage}

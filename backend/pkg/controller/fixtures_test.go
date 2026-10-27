@@ -60,6 +60,9 @@ func (w *noopFlowWorker) ListTasks(context.Context) []TaskWorker           { ret
 func (w *noopFlowWorker) PutInput(context.Context, string, provider.Provider, []database.UserResource) error {
 	return nil
 }
+func (w *noopFlowWorker) SteerInput(context.Context, string, []database.UserResource) error {
+	return nil
+}
 func (w *noopFlowWorker) PutResources(context.Context, []database.UserResource) error { return nil }
 func (w *noopFlowWorker) Finish(context.Context) error                                { return nil }
 func (w *noopFlowWorker) Stop(context.Context) error                                  { return nil }

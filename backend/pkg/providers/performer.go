@@ -193,6 +193,23 @@ func (fp *flowProvider) performAgentChain(
 			return fmt.Errorf("%w: %s", ErrAgentModelCall, msg)
 		}
 
+		// Operator steer: messages sent while the chain is working are handed to
+		// the model at the next turn. They never cancel the call already running;
+		// the operator uses the interrupt mode or Stop for that.
+		if steers := drainSteer(ctx); len(steers) > 0 {
+			for _, steer := range steers {
+				chain = append(chain, llms.TextParts(llms.ChatMessageTypeHuman, operatorSteerPrefix+steer))
+				if _, err := fp.putMsgLog(ctx, database.MsglogTypeInput, taskID, subtaskID, 0, "steer", steer); err != nil {
+					logger.WithError(err).Warn("failed to record delivered operator steer")
+				}
+			}
+			if err := fp.updateMsgChain(ctx, optAgentType, chainID, chain, rollLastUpdateTime()); err != nil {
+				obs.LogErrorOrCancel(logger, err, "failed to update msg chain with operator steer")
+				return err
+			}
+			logger.WithField("count", len(steers)).Info("operator steer delivered to agent chain")
+		}
+
 		// Stage 2: a close signal that survived the deterministic idle gate is only
 		// honoured if an independent completion critic confirms the objective is
 		// genuinely met. A rejected signal is fed back and the chain keeps working.

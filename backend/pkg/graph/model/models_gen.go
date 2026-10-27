@@ -2416,6 +2416,47 @@ func (e UsageStatsPeriod) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
+type UserInputMode string
+
+const (
+	UserInputModeInterrupt UserInputMode = "INTERRUPT"
+	UserInputModeSteer     UserInputMode = "STEER"
+)
+
+var AllUserInputMode = []UserInputMode{
+	UserInputModeInterrupt,
+	UserInputModeSteer,
+}
+
+func (e UserInputMode) IsValid() bool {
+	switch e {
+	case UserInputModeInterrupt, UserInputModeSteer:
+		return true
+	}
+	return false
+}
+
+func (e UserInputMode) String() string {
+	return string(e)
+}
+
+func (e *UserInputMode) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = UserInputMode(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid UserInputMode", str)
+	}
+	return nil
+}
+
+func (e UserInputMode) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
 type VectorStoreAction string
 
 const (

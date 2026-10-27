@@ -179,6 +179,14 @@ enum ResultType {
   error
 }
 
+# How a user input is delivered to a flow that is already working.
+# INTERRUPT cancels the running task and replans, STEER hands the text to the
+# running agent at its next turn without cancelling anything.
+enum UserInputMode {
+  INTERRUPT
+  STEER
+}
+
 enum TerminalType {
   primary
   secondary
@@ -1303,7 +1311,7 @@ type Query {
 type Mutation {
   # Flow management
   createFlow(modelProvider: String!, input: String!, resourceIds: [ID!]): Flow!
-  putUserInput(flowId: ID!, input: String!, modelProvider: String, resourceIds: [ID!]): ResultType!
+  putUserInput(flowId: ID!, input: String!, modelProvider: String, resourceIds: [ID!], mode: UserInputMode = INTERRUPT): ResultType!
   stopFlow(flowId: ID!): ResultType!
   finishFlow(flowId: ID!): ResultType!
   deleteFlow(flowId: ID!): ResultType!

@@ -33,6 +33,7 @@ type TaskWorker interface {
 	Report(ctx context.Context) error
 	SetResult(ctx context.Context, result string) error
 	PutInput(ctx context.Context, input string) error
+	Steer(ctx context.Context, input string) error
 	Run(ctx context.Context) error
 	Finish(ctx context.Context) error
 	InvalidateSubtasks(subtaskIDs []int64)
@@ -43,6 +44,8 @@ type taskWorker struct {
 	stc       SubtaskController
 	taskCtx   *TaskContext
 	updater   FlowUpdater
+	steerMu   sync.Mutex
+	pendSteer []string
 	completed bool
 	waiting   bool
 }
@@ -337,6 +340,81 @@ func (tw *taskWorker) PutInput(ctx context.Context, input string) error {
 	return fmt.Errorf("task %d is waiting but has no waiting subtask to receive input; create a new task or flow for new work", tw.GetTaskID())
 }
 
+const taskSteerQueueSize = 16
+
+// Steer delivers an operator message to the agent that is currently working.
+// A running subtask receives it in its own queue; between two subtasks the
+// message waits at task level and is handed to the next subtask when it starts.
+// A waiting task keeps the historical behaviour and forwards the input to its
+// waiting subtask.
+func (tw *taskWorker) Steer(ctx context.Context, input string) error {
+	if tw.IsCompleted() {
+		return fmt.Errorf("task %d has already completed", tw.GetTaskID())
+	}
+
+	if tw.IsWaiting() {
+		return tw.PutInput(ctx, input)
+	}
+
+	for _, st := range tw.stc.ListSubtasks(ctx) {
+		if st.IsCompleted() || st.IsWaiting() {
+			continue
+		}
+
+		return st.Steer(ctx, input)
+	}
+
+	tw.steerMu.Lock()
+	defer tw.steerMu.Unlock()
+
+	if len(tw.pendSteer) >= taskSteerQueueSize {
+		return fmt.Errorf("steer queue for task %d is full", tw.GetTaskID())
+	}
+	tw.pendSteer = append(tw.pendSteer, input)
+
+	return nil
+}
+
+func (tw *taskWorker) drainPendingSteers() []string {
+	tw.steerMu.Lock()
+	defer tw.steerMu.Unlock()
+
+	if len(tw.pendSteer) == 0 {
+		return nil
+	}
+
+	steers := tw.pendSteer
+	tw.pendSteer = nil
+
+	return steers
+}
+
+func (tw *taskWorker) requeueSteers(ctx context.Context, messages []string) {
+	tw.steerMu.Lock()
+	defer tw.steerMu.Unlock()
+
+	for _, message := range messages {
+		if len(tw.pendSteer) >= taskSteerQueueSize {
+			logrus.WithContext(ctx).WithField("task_id", tw.GetTaskID()).
+				Warn("task steer queue is full, dropping an undelivered operator steer")
+			return
+		}
+		tw.pendSteer = append(tw.pendSteer, message)
+	}
+}
+
+func (tw *taskWorker) warnUndeliveredSteers(ctx context.Context) {
+	tw.steerMu.Lock()
+	defer tw.steerMu.Unlock()
+
+	if len(tw.pendSteer) > 0 {
+		logrus.WithContext(ctx).WithFields(logrus.Fields{
+			"task_id": tw.GetTaskID(),
+			"count":   len(tw.pendSteer),
+		}).Warn("task finished with undelivered operator steers")
+	}
+}
+
 func (tw *taskWorker) Run(ctx context.Context) error {
 	ctx = tools.PutAgentContext(ctx, database.MsgchainTypePrimaryAgent)
 
@@ -352,9 +430,26 @@ func (tw *taskWorker) Run(ctx context.Context) error {
 			break
 		}
 
+		for _, steer := range tw.drainPendingSteers() {
+			if err := st.Steer(ctx, steer); err != nil {
+				logrus.WithContext(ctx).WithError(err).WithFields(logrus.Fields{
+					"task_id":    tw.GetTaskID(),
+					"subtask_id": st.GetSubtaskID(),
+				}).Warn("failed to deliver queued steer to subtask")
+			}
+		}
+
 		if err := st.Run(ctx); err != nil {
 			tw.handleInterrupting(err)
 			return err
+		}
+
+		if undelivered := st.DrainSteers(); len(undelivered) > 0 {
+			tw.requeueSteers(ctx, undelivered)
+			logrus.WithContext(ctx).WithFields(logrus.Fields{
+				"task_id": tw.GetTaskID(),
+				"count":   len(undelivered),
+			}).Warn("subtask finished before delivering operator steers; re-queued for the next subtask")
 		}
 
 		// pass through if task is waiting from back status propagation
@@ -370,6 +465,8 @@ func (tw *taskWorker) Run(ctx context.Context) error {
 			return fmt.Errorf("failed to refine subtasks list for the task %d: %w", tw.taskCtx.TaskID, err)
 		}
 	}
+
+	tw.warnUndeliveredSteers(ctx)
 
 	return tw.writeResult(ctx)
 }

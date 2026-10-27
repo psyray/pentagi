@@ -419,6 +419,11 @@ export enum UsageStatsPeriod {
     Week = 'week',
 }
 
+export enum UserInputMode {
+    Interrupt = 'INTERRUPT',
+    Steer = 'STEER',
+}
+
 export enum VectorStoreAction {
     Retrieve = 'retrieve',
     Store = 'store',
@@ -1290,6 +1295,7 @@ export type PutUserInputMutationVariables = Exact<{
     input: string;
     modelProvider?: string | null | undefined;
     resourceIds?: Array<string | number> | string | number | null | undefined;
+    mode?: UserInputMode | null | undefined;
 }>;
 
 export type PutUserInputMutation = { putUserInput: ResultType };
@@ -9712,6 +9718,11 @@ export const PutUserInputDocument = {
                         type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'ID' } } },
                     },
                 },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'mode' } },
+                    type: { kind: 'NamedType', name: { kind: 'Name', value: 'UserInputMode' } },
+                },
             ],
             selectionSet: {
                 kind: 'SelectionSet',
@@ -9739,6 +9750,11 @@ export const PutUserInputDocument = {
                                 kind: 'Argument',
                                 name: { kind: 'Name', value: 'resourceIds' },
                                 value: { kind: 'Variable', name: { kind: 'Name', value: 'resourceIds' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'mode' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'mode' } },
                             },
                         ],
                     },
