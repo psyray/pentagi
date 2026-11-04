@@ -24,6 +24,7 @@ import { routes } from '@/lib/routes';
 import { formatDate } from '@/lib/utils/format';
 
 import { skillKindBadgeVariant, skillStatusBadgeVariant } from './skill-badges';
+import { SkillFiles } from './skill-files';
 
 function Skill() {
     const navigate = useNavigate();
@@ -159,6 +160,13 @@ function Skill() {
                 <Separator />
 
                 <Markdown>{skill.content}</Markdown>
+
+                <Separator />
+
+                <SkillFiles
+                    key={skill.slug}
+                    skillSlug={skill.slug}
+                />
 
                 <Separator />
 

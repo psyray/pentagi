@@ -1,11 +1,18 @@
 package services
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
+	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
+	"pentagi/pkg/resources"
 	"pentagi/pkg/server/response"
 	"pentagi/pkg/skills"
 
@@ -17,11 +24,15 @@ import (
 // embedding provider or the shared pgx pool is unavailable; read endpoints
 // then return 503 instead of failing at query time.
 type SkillsService struct {
-	store *skills.Store
+	store   *skills.Store
+	dataDir string
 }
 
-func NewSkillsService(store *skills.Store) *SkillsService {
-	return &SkillsService{store: store}
+func NewSkillsService(store *skills.Store, dataDir string) *SkillsService {
+	return &SkillsService{
+		store:   store,
+		dataDir: dataDir,
+	}
 }
 
 func (s *SkillsService) available(c *gin.Context) bool {
@@ -215,6 +226,244 @@ func (s *SkillsService) Delete(c *gin.Context) {
 	}
 
 	response.Success(c, http.StatusOK, gin.H{"message": "skill deleted"})
+}
+
+// ListFiles returns the attachments declared for a skill.
+//
+// @Summary List skill files
+// @Tags Skills
+// @Produce json
+// @Security BearerAuth
+// @Param idOrSlug path string true "document id or slug"
+// @Success 200 {object} response.successResp{data=object}
+// @Router /skills/{idOrSlug}/files [get]
+func (s *SkillsService) ListFiles(c *gin.Context) {
+	if !s.available(c) {
+		return
+	}
+
+	uid := int64(c.GetUint64("uid"))
+	doc, files, err := s.store.Read(c.Request.Context(), uid, c.Param("idOrSlug"))
+	if err != nil {
+		s.writeStoreError(c, err, "list skill files")
+		return
+	}
+
+	response.Success(c, http.StatusOK, gin.H{"document_id": doc.ID, "files": files, "total": len(files)})
+}
+
+// UploadFiles stores one or more attachments for a skill. The bytes go to the
+// shared resource blob store, keyed by MD5, and knowledge_files keeps the link.
+//
+// @Summary Upload skill files
+// @Tags Skills
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param idOrSlug path string true "document id or slug"
+// @Param path formData string false "virtual directory inside the skill"
+// @Param files formData file true "files to upload"
+// @Success 201 {object} response.successResp{data=object}
+// @Router /skills/{idOrSlug}/files [post]
+func (s *SkillsService) UploadFiles(c *gin.Context) {
+	if !s.available(c) {
+		return
+	}
+
+	ctx := c.Request.Context()
+	uid := int64(c.GetUint64("uid"))
+
+	doc, err := s.store.Get(ctx, uid, c.Param("idOrSlug"))
+	if err != nil {
+		s.writeStoreError(c, err, "get skill for upload")
+		return
+	}
+	if doc.UserID != uid {
+		s.writeStoreError(c, skills.ErrNotFound, "get skill for upload")
+		return
+	}
+
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, resources.MaxUploadRequestSize)
+	multipartForm, err := c.MultipartForm()
+	if err != nil {
+		response.Error(c, response.ErrKnowledgeInvalidRequest, err)
+		return
+	}
+
+	headers := multipartForm.File["files"]
+	if len(headers) == 0 {
+		if fh, uploadErr := c.FormFile("file"); uploadErr == nil && fh != nil {
+			headers = append(headers, fh)
+		}
+	}
+	if len(headers) == 0 {
+		response.Error(c, response.ErrKnowledgeInvalidRequest, errors.New("at least one file is required"))
+		return
+	}
+	if len(headers) > resources.MaxUploadFiles {
+		response.Error(c, response.ErrKnowledgeInvalidRequest,
+			fmt.Errorf("too many files: %d exceeds the limit of %d", len(headers), resources.MaxUploadFiles))
+		return
+	}
+
+	dir, err := resources.SanitizeResourceDir(c.PostForm("path"))
+	if err != nil {
+		response.Error(c, response.ErrKnowledgeInvalidRequest, err)
+		return
+	}
+	if err := resources.EnsureResourcesDir(s.dataDir); err != nil {
+		response.Error(c, response.ErrInternal, err)
+		return
+	}
+
+	blobsDir := resources.ResourcesDir(s.dataDir)
+	uploaded := make([]skills.File, 0, len(headers))
+
+	for _, header := range headers {
+		file, err := s.uploadOne(c, uid, doc.ID, dir, blobsDir, header)
+		if err != nil {
+			response.Error(c, response.ErrKnowledgeInvalidRequest, err)
+			return
+		}
+		uploaded = append(uploaded, *file)
+	}
+
+	response.Success(c, http.StatusCreated, gin.H{"files": uploaded, "total": len(uploaded)})
+}
+
+func (s *SkillsService) uploadOne(c *gin.Context, uid int64, documentID, dir, blobsDir string, header *multipart.FileHeader) (*skills.File, error) {
+	name, err := resources.SanitizeResourceFileName(header.Filename)
+	if err != nil {
+		return nil, err
+	}
+	if header.Size > resources.MaxUploadFileSize {
+		return nil, fmt.Errorf("file %q size %d bytes exceeds the limit of %d bytes",
+			name, header.Size, resources.MaxUploadFileSize)
+	}
+
+	src, err := header.Open()
+	if err != nil {
+		return nil, fmt.Errorf("failed to open uploaded file %q: %w", name, err)
+	}
+	tmpPath, hash, size, saveErr := resources.SaveToTemp(src, blobsDir)
+	src.Close()
+	if saveErr != nil {
+		return nil, saveErr
+	}
+
+	digest, err := fileSHA256(tmpPath)
+	if err != nil {
+		os.Remove(tmpPath)
+		return nil, fmt.Errorf("failed to hash uploaded file %q: %w", name, err)
+	}
+
+	if err := resources.CommitBlob(s.dataDir, hash, tmpPath); err != nil {
+		os.Remove(tmpPath)
+		return nil, err
+	}
+
+	file, err := s.store.AddFile(c.Request.Context(), uid, documentID, skills.File{
+		Path:    resources.FilePath(dir, name),
+		MIME:    header.Header.Get("Content-Type"),
+		Size:    size,
+		SHA256:  digest,
+		BlobRef: hash,
+	})
+	if err != nil {
+		if referenced, refErr := s.store.BlobReferenced(c.Request.Context(), hash); refErr == nil && !referenced {
+			_ = resources.DeleteBlob(s.dataDir, hash)
+		}
+		return nil, err
+	}
+
+	return file, nil
+}
+
+// DownloadFile streams one attachment back to the caller.
+//
+// @Summary Download a skill file
+// @Tags Skills
+// @Security BearerAuth
+// @Param idOrSlug path string true "document id or slug"
+// @Param path path string true "virtual file path"
+// @Success 200 {file} file
+// @Router /skills/{idOrSlug}/files/{path} [get]
+func (s *SkillsService) DownloadFile(c *gin.Context) {
+	if !s.available(c) {
+		return
+	}
+
+	uid := int64(c.GetUint64("uid"))
+	filePath, err := resources.SanitizeResourcePath(strings.TrimPrefix(c.Param("path"), "/"))
+	if err != nil {
+		response.Error(c, response.ErrKnowledgeInvalidRequest, err)
+		return
+	}
+
+	file, err := s.store.GetFile(c.Request.Context(), uid, c.Param("idOrSlug"), filePath)
+	if err != nil {
+		s.writeStoreError(c, err, "get skill file")
+		return
+	}
+
+	blobPath := resources.BlobPath(s.dataDir, file.BlobRef)
+	if _, err := os.Stat(blobPath); err != nil {
+		response.Error(c, response.ErrKnowledgeNotFound, fmt.Errorf("file blob is missing"))
+		return
+	}
+
+	c.FileAttachment(blobPath, file.Path)
+}
+
+// DeleteFile removes one attachment and its blob when it is no longer shared.
+//
+// @Summary Delete a skill file
+// @Tags Skills
+// @Produce json
+// @Security BearerAuth
+// @Param idOrSlug path string true "document id or slug"
+// @Param path path string true "virtual file path"
+// @Success 200 {object} response.successResp
+// @Router /skills/{idOrSlug}/files/{path} [delete]
+func (s *SkillsService) DeleteFile(c *gin.Context) {
+	if !s.available(c) {
+		return
+	}
+
+	ctx := c.Request.Context()
+	uid := int64(c.GetUint64("uid"))
+	filePath, err := resources.SanitizeResourcePath(strings.TrimPrefix(c.Param("path"), "/"))
+	if err != nil {
+		response.Error(c, response.ErrKnowledgeInvalidRequest, err)
+		return
+	}
+
+	blobRef, err := s.store.DeleteFile(ctx, uid, c.Param("idOrSlug"), filePath)
+	if err != nil {
+		s.writeStoreError(c, err, "delete skill file")
+		return
+	}
+
+	if referenced, err := s.store.BlobReferenced(ctx, blobRef); err == nil && !referenced {
+		_ = resources.DeleteBlob(s.dataDir, blobRef)
+	}
+
+	response.Success(c, http.StatusOK, gin.H{"message": "file deleted"})
+}
+
+func fileSHA256(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 func (s *SkillsService) writeStoreError(c *gin.Context, err error, action string) {

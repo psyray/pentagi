@@ -56,11 +56,11 @@ type Document struct {
 // File is an attachment stored alongside a document. The bytes live in the
 // user resources blob store; blob_ref is the hash that addresses them.
 type File struct {
-	Path    string
-	MIME    string
-	Size    int64
-	SHA256  string
-	BlobRef string
+	Path    string `json:"path"`
+	MIME    string `json:"mime"`
+	Size    int64  `json:"size"`
+	SHA256  string `json:"sha256"`
+	BlobRef string `json:"blobRef"`
 }
 
 // Filter narrows a list or a search.

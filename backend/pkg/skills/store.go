@@ -411,6 +411,116 @@ ORDER BY path`, documentID)
 	return files, rows.Err()
 }
 
+// AddFile upserts an attachment record for a document owned by the caller.
+// The blob itself is written by the caller (the REST layer reuses the resource
+// blob store); BlobRef is the blob-store key.
+func (s *Store) AddFile(ctx context.Context, userID int64, idOrSlug string, file File) (*File, error) {
+	if s.db == nil {
+		return nil, fmt.Errorf("skills: database is not configured")
+	}
+	if strings.TrimSpace(file.Path) == "" {
+		return nil, fmt.Errorf("%w: file path is required", ErrInvalidInput)
+	}
+	if strings.TrimSpace(file.BlobRef) == "" {
+		return nil, fmt.Errorf("%w: blob reference is required", ErrInvalidInput)
+	}
+
+	doc, err := s.Get(ctx, userID, idOrSlug)
+	if err != nil {
+		return nil, err
+	}
+	if doc.UserID != userID {
+		return nil, ErrNotFound
+	}
+
+	_, err = s.db.Exec(ctx, `
+INSERT INTO knowledge_files (document_id, path, mime, size, sha256, blob_ref)
+VALUES ($1::uuid, $2, $3, $4, $5, $6)
+ON CONFLICT (document_id, path) DO UPDATE SET
+  mime = EXCLUDED.mime,
+  size = EXCLUDED.size,
+  sha256 = EXCLUDED.sha256,
+  blob_ref = EXCLUDED.blob_ref`,
+		doc.ID, file.Path, file.MIME, file.Size, file.SHA256, file.BlobRef)
+	if err != nil {
+		return nil, fmt.Errorf("skills: add file: %w", err)
+	}
+
+	return &file, nil
+}
+
+// GetFile returns one attachment of a document readable by the caller.
+func (s *Store) GetFile(ctx context.Context, userID int64, idOrSlug, filePath string) (*File, error) {
+	if s.db == nil {
+		return nil, fmt.Errorf("skills: database is not configured")
+	}
+
+	doc, err := s.Get(ctx, userID, idOrSlug)
+	if err != nil {
+		return nil, err
+	}
+
+	var file File
+	err = s.db.QueryRow(ctx, `
+SELECT path, COALESCE(mime, ''), size, COALESCE(sha256, ''), blob_ref
+FROM knowledge_files
+WHERE document_id = $1::uuid AND path = $2`, doc.ID, filePath).
+		Scan(&file.Path, &file.MIME, &file.Size, &file.SHA256, &file.BlobRef)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("skills: get file: %w", err)
+	}
+
+	return &file, nil
+}
+
+// DeleteFile removes an attachment record from a document owned by the caller
+// and returns the blob reference so the caller can delete an orphan blob.
+func (s *Store) DeleteFile(ctx context.Context, userID int64, idOrSlug, filePath string) (string, error) {
+	if s.db == nil {
+		return "", fmt.Errorf("skills: database is not configured")
+	}
+
+	doc, err := s.Get(ctx, userID, idOrSlug)
+	if err != nil {
+		return "", err
+	}
+	if doc.UserID != userID {
+		return "", ErrNotFound
+	}
+
+	var blobRef string
+	err = s.db.QueryRow(ctx, `
+DELETE FROM knowledge_files
+WHERE document_id = $1::uuid AND path = $2
+RETURNING blob_ref`, doc.ID, filePath).Scan(&blobRef)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("skills: delete file: %w", err)
+	}
+
+	return blobRef, nil
+}
+
+// BlobReferenced reports whether any attachment still points at blobRef.
+func (s *Store) BlobReferenced(ctx context.Context, blobRef string) (bool, error) {
+	if s.db == nil {
+		return false, fmt.Errorf("skills: database is not configured")
+	}
+
+	var exists bool
+	if err := s.db.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM knowledge_files WHERE blob_ref = $1)`, blobRef).
+		Scan(&exists); err != nil {
+		return false, fmt.Errorf("skills: check blob reference: %w", err)
+	}
+
+	return exists, nil
+}
+
 // Delete soft-deletes a document and removes its chunks.
 func (s *Store) Delete(ctx context.Context, userID int64, idOrSlug string) error {
 	if s.db == nil {
