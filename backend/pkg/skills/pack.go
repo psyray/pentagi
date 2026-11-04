@@ -34,14 +34,14 @@ const (
 // ship drafts it does not want imported yet.
 type PackManifest struct {
 	Name        string   `yaml:"name"`
-	Description string   `yaml:"description"`
-	Version     string   `yaml:"version"`
-	License     string   `yaml:"license"`
-	Visibility  string   `yaml:"visibility"`
-	Status      string   `yaml:"status"`
-	Skills      []string `yaml:"skills"`
-	References  []string `yaml:"references"`
-	Missions    []string `yaml:"missions"`
+	Description string   `yaml:"description,omitempty"`
+	Version     string   `yaml:"version,omitempty"`
+	License     string   `yaml:"license,omitempty"`
+	Visibility  string   `yaml:"visibility,omitempty"`
+	Status      string   `yaml:"status,omitempty"`
+	Skills      []string `yaml:"skills,omitempty"`
+	References  []string `yaml:"references,omitempty"`
+	Missions    []string `yaml:"missions,omitempty"`
 }
 
 // PackFile is one attachment read from a skill directory.
