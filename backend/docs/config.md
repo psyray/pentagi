@@ -1225,6 +1225,11 @@ These settings are essential for:
 | Setting | Environment Variable | Default | Description |
 |---------|----------------------|---------|-------------|
 | KnowledgeSharedSearch | `KNOWLEDGE_SHARED_SEARCH` | `false` | When `false`, agent knowledge searches and pre-insertion duplicate lookups only read the caller's documents. When `true`, they span every user's documents in the instance, which is the historical behaviour. Keep `false` on multi-user deployments; set `true` only when the knowledge base is intentionally shared, for example on a single-user benchmarking instance. |
+| SkillCatalogueEnabled | `SKILL_CATALOGUE_ENABLED` | `true` | Injects a compact catalogue of the matching skills and references into the system prompts of the primary agent, pentester, coder, installer, searcher, generator and refiner. Set it to `false` to run the control arm of an A/B comparison. |
+| SkillCatalogueLimit | `SKILL_CATALOGUE_LIMIT` | `40` | Maximum number of entries in the catalogue. The rendered block is also capped at roughly 1500 tokens; entries beyond the budget are replaced by a pointer to `list_skills`. |
+| SkillCatalogueIncludeDrafts | `SKILL_CATALOGUE_INCLUDE_DRAFTS` | `false` | Adds draft skills to the catalogue. Keep it off outside a test instance so unfinished procedures are not advertised to the agents. |
+
+The catalogue is selected once per flow, from the flow title and the head of the initial request, and then frozen: every prompt of the flow receives the same block, which preserves the prompt cache and makes replays reproducible. Its hash is logged (`skill catalogue frozen for the flow`) for the A/B and for auditing.
 
 The scope applies to `search_guide`, `search_answer`, `search_code` and to the duplicate lookup performed by `store_guide`, `store_answer` and `store_code`. It does not change the flow-scoped execution memory.
 

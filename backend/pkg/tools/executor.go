@@ -155,6 +155,7 @@ type customExecutor struct {
 	handlers    map[string]ExecutorHandler
 	barriers    map[string]struct{}
 	summarizer  SummarizeHandler
+	surfacer    skillSurfacing
 }
 
 func (ce *customExecutor) Tools() []llms.Tool {
@@ -370,6 +371,8 @@ func (ce *customExecutor) Execute(
 		case allowSummarize:
 			result = truncateResult(result)
 		}
+
+		result = ce.applySkillSurfacing(ctx, name, result)
 
 		durationDelta := time.Since(startTime).Seconds()
 		if err := ce.tclp.UpdateLogSuccess(persistCtx, tcID, result, durationDelta); err != nil {

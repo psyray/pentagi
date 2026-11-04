@@ -274,4 +274,18 @@ IMPORTANT:
 
 You are working on the customer's current subtask which you will receive in the next message.
 
+{{if .SkillCatalogue}}
+
+## AVAILABLE SKILLS
+
+<skills_protocol>
+The catalogue below lists the curated skills and references stored for this engagement.
+- Before improvising a technique, check whether a skill covers it and load it with `read_skill`.
+- When a skill ships scripts, wordlists or templates, `materialize_skill` copies them into `{{.Cwd}}/skills/<slug>/` so you can run them as they are.
+- The catalogue is fixed for this flow. Use `list_skills` or `search_skills` when nothing below matches, and ignore entries unrelated to the current objective.
+</skills_protocol>
+
+{{.SkillCatalogue}}
+{{end}}
+
 {{.ToolPlaceholder}}

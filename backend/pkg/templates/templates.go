@@ -89,6 +89,7 @@ var PromptVariables = map[PromptType][]string{
 		"CurrentTime",
 		"ToolPlaceholder",
 		"UserFiles",
+		"SkillCatalogue",
 	},
 	PromptTypeAssistant: {
 		"SearchToolName",
@@ -147,6 +148,7 @@ var PromptVariables = map[PromptType][]string{
 		"CurrentTime",
 		"ToolPlaceholder",
 		"UserFiles",
+		"SkillCatalogue",
 	},
 	PromptTypeQuestionPentester: {
 		"Question",
@@ -173,6 +175,7 @@ var PromptVariables = map[PromptType][]string{
 		"CurrentTime",
 		"ToolPlaceholder",
 		"UserFiles",
+		"SkillCatalogue",
 	},
 	PromptTypeQuestionCoder: {
 		"Question",
@@ -196,6 +199,7 @@ var PromptVariables = map[PromptType][]string{
 		"CurrentTime",
 		"ToolPlaceholder",
 		"UserFiles",
+		"SkillCatalogue",
 	},
 	PromptTypeQuestionInstaller: {
 		"Question",
@@ -212,6 +216,7 @@ var PromptVariables = map[PromptType][]string{
 		"CurrentTime",
 		"ToolPlaceholder",
 		"UserFiles",
+		"SkillCatalogue",
 	},
 	PromptTypeQuestionSearcher: {
 		"Question",
@@ -282,6 +287,7 @@ var PromptVariables = map[PromptType][]string{
 		"N",
 		"ToolPlaceholder",
 		"UserFiles",
+		"SkillCatalogue",
 	},
 	PromptTypeSubtasksGenerator: {
 		"Task",
@@ -303,6 +309,7 @@ var PromptVariables = map[PromptType][]string{
 		"N",
 		"ToolPlaceholder",
 		"UserFiles",
+		"SkillCatalogue",
 	},
 	PromptTypeSubtasksRefiner: {
 		"Task",

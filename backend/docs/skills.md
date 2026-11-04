@@ -147,6 +147,31 @@ present are kept unless `overwrite` is true, so an edited script survives a
 second call. The host copy lives in `flow-<id>-data/skills/<slug>/`, is listed
 by the flow file browser and is re-synced when the container restarts.
 
+## Catalogue and detection
+
+Two mechanisms make a skill discoverable before the agent thinks of asking for
+one.
+
+The **catalogue** is built once per flow, from the flow title and the head of
+the initial request, then frozen and cached in the flow provider: every prompt
+of the flow receives the same `<available_skills>` block, which preserves the
+prompt cache and keeps replays reproducible. It selects at most
+`SKILL_CATALOGUE_LIMIT` entries (canonical first, then reviewed, then quality)
+and stops at roughly 1500 tokens, replacing the rest with a pointer to
+`list_skills`. Drafts are excluded unless `SKILL_CATALOGUE_INCLUDE_DRAFTS` is
+set. `SKILL_CATALOGUE_ENABLED=false` removes the block entirely, which is the
+control arm of an A/B run. The block is injected into the `primary_agent`,
+`pentester`, `coder`, `installer`, `searcher`, `generator` and `refiner`
+prompts; the catalogue hash is logged for the audit.
+
+**Detection** is deterministic and costs no model call. `pkg/skills/detectors.yaml`
+maps a banner, a port, an error string or a CVE id to a skill slug. When the raw
+output of `terminal`, `file` or `web_search` matches a rule, the executor
+appends a `<relevant_skills>` block to the tool result, with at most three cards
+and each skill surfaced once per flow. A rule whose slug is not imported yet
+stays silent, so the file can announce skills before they exist. Set
+`SKILL_DETECTORS_PATH` to replace the bundled rules without rebuilding.
+
 ## Limits and current gaps
 
 - Embedding dimension is fixed at 1024 (`bge-m3`). A different model needs a
@@ -160,7 +185,5 @@ by the flow file browser and is re-synced when the container restarts.
 - The legacy 958 knowledge documents are not backfilled into the new tables.
   They remain available through `search_guide`, `search_answer` and
   `search_code`; a backfill can import the curated subset later.
-- The catalogue is not injected into the agent prompts yet, and there is no
-  deterministic detector: agents reach the skills through the tools only.
 - Only markdown is ingested. PDF, DOCX, HTML and ZIP archives need the ingest
   sidecar.

@@ -296,6 +296,7 @@ func (fp *flowProvider) GetCoderHandler(ctx context.Context, taskID, subtaskID *
 				"CurrentTime":             getCurrentTime(),
 				"ToolPlaceholder":         ToolPlaceholder,
 				"UserFiles":               fp.userFilesListing(),
+				"SkillCatalogue":          fp.skillCatalogueText(ctx),
 			},
 		}
 
@@ -393,6 +394,7 @@ func (fp *flowProvider) GetInstallerHandler(ctx context.Context, taskID, subtask
 				"CurrentTime":               getCurrentTime(),
 				"ToolPlaceholder":           ToolPlaceholder,
 				"UserFiles":                 fp.userFilesListing(),
+				"SkillCatalogue":            fp.skillCatalogueText(ctx),
 			},
 		}
 
@@ -634,6 +636,7 @@ func (fp *flowProvider) GetPentesterHandler(ctx context.Context, taskID, subtask
 				"CurrentTime":             getCurrentTime(),
 				"ToolPlaceholder":         ToolPlaceholder,
 				"UserFiles":               fp.userFilesListing(),
+				"SkillCatalogue":          fp.skillCatalogueText(ctx),
 			},
 		}
 
@@ -726,6 +729,7 @@ func (fp *flowProvider) GetSubtaskSearcherHandler(ctx context.Context, taskID, s
 				"CurrentTime":             getCurrentTime(),
 				"ToolPlaceholder":         ToolPlaceholder,
 				"UserFiles":               fp.userFilesListing(),
+				"SkillCatalogue":          fp.skillCatalogueText(ctx),
 			},
 		}
 
@@ -817,6 +821,7 @@ func (fp *flowProvider) GetTaskSearcherHandler(ctx context.Context, taskID int64
 				"CurrentTime":             getCurrentTime(),
 				"ToolPlaceholder":         ToolPlaceholder,
 				"UserFiles":               fp.userFilesListing(),
+				"SkillCatalogue":          fp.skillCatalogueText(ctx),
 			},
 		}
 

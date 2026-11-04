@@ -1,0 +1,108 @@
+# Deterministic skill detection.
+#
+# Each rule maps an observed string in a tool result (a banner, a port, an error
+# message, a CVE id) to a skill slug. Matching is case-insensitive for keywords
+# and case-sensitive for regex. The first three matching rules win.
+#
+# A rule whose slug does not exist in the skills store is ignored at runtime, so
+# this file can announce skills before they are imported.
+#
+# Keep the keywords specific: a generic word such as "smb" or "jwt" would fire
+# on every assessment and turn the hint into noise.
+
+rules:
+  - slug: adcs-esc8-ntlm-relay
+    comment: ADCS web enrollment reachable over HTTP with NTLM.
+    keywords:
+      - "esc8"
+      - "certificateservices"
+      - "/certsrv/"
+      - "ad cs web enrollment"
+
+  - slug: smb-signing-disabled
+    comment: SMB signing not required, which enables relay.
+    keywords:
+      - "message signing enabled but not required"
+      - "signing is not required"
+      - "smb signing: disabled"
+      - "smb2 security mode: 0x"
+
+  - slug: jwt-alg-none
+    comment: A JSON Web Token accepting the none algorithm.
+    keywords:
+      - "alg=none"
+      - "\"alg\":\"none\""
+
+  - slug: lpd-pjl-fsupload
+    comment: Printer job language file read through LPD or JetDirect 9100.
+    keywords:
+      - "jetdirect"
+      - "@pjl"
+      - "fsupload"
+      - "hp laserjet"
+
+  - slug: ldap-anonymous-bind
+    comment: LDAP server accepting an anonymous bind.
+    keywords:
+      - "anonymous bind"
+      - "ldap anonymous"
+    regex:
+      - "(?i)\\[\\+\\]\\s*bind successful.*anonymous"
+
+  - slug: kerberoasting
+    comment: Service accounts with an SPN that can be roasted.
+    keywords:
+      - "kerberoastable"
+      - "kerberoasting"
+      - "serviceprincipalnames"
+
+  - slug: asreproasting
+    comment: Accounts without pre-authentication, roastable with AS-REP.
+    keywords:
+      - "asreproast"
+      - "does not require kerberos preauthentication"
+      - "uf_set_no_preauth"
+
+  - slug: docker-sock-escape
+    comment: Docker socket reachable from the container.
+    keywords:
+      - "/var/run/docker.sock"
+      - "docker sock"
+      - "docker.sock"
+
+  - slug: potato-privesc
+    comment: Windows token impersonation privileges that enable a potato attack.
+    keywords:
+      - "seimpersonateprivilege"
+      - "seassignprimarytokenprivilege"
+      - "potato"
+    regex:
+      - "(?i)enabled\\s+seimpersonate"
+
+  - slug: sudo-nopasswd
+    comment: A sudo rule that needs no password.
+    keywords:
+      - "nopasswd"
+    regex:
+      - "(?i)\\([a-z]*\\)\\s+nopasswd:"
+
+  - slug: llmnr-nbtns-poisoning
+    comment: Name resolution protocols that Responder can poison.
+    keywords:
+      - "llmnr"
+      - "nbt-ns"
+      - "responder"
+
+  - slug: log4shell
+    comment: Log4j lookup injection.
+    keywords:
+      - "cve-2021-44228"
+      - "cve-2021-45046"
+      - "jndi:ldap"
+      - "log4j"
+
+  - slug: spring4shell
+    comment: Spring4Shell class loader injection.
+    keywords:
+      - "cve-2022-22965"
+      - "spring4shell"

@@ -143,6 +143,16 @@ type flowProvider struct {
 	graphitiClient *graphiti.Client
 
 	flowID int64
+	userID int64
+	// flowInput is the initial request. It only steers the skill catalogue, so
+	// it is empty for a flow loaded from the database.
+	flowInput string
+
+	// The skill catalogue is built once per flow and then served from memory,
+	// which keeps every prompt of the flow identical and saves the query.
+	skillCatalogueOnce sync.Once
+	skillCatalogue     string
+	skillCatalogueHash string
 
 	callCounter *atomic.Int64
 
@@ -383,6 +393,7 @@ func (fp *flowProvider) GenerateSubtasks(ctx context.Context, taskID int64) ([]t
 			"N":                       TasksNumberLimit,
 			"ToolPlaceholder":         ToolPlaceholder,
 			"UserFiles":               fp.userFilesListing(),
+			"SkillCatalogue":          fp.skillCatalogueText(ctx),
 		},
 	}
 
@@ -475,6 +486,7 @@ func (fp *flowProvider) RefineSubtasks(ctx context.Context, taskID int64) ([]too
 			"N":                       max(TasksNumberLimit-len(subtasksInfo.Completed), 0),
 			"ToolPlaceholder":         ToolPlaceholder,
 			"UserFiles":               fp.userFilesListing(),
+			"SkillCatalogue":          fp.skillCatalogueText(ctx),
 		},
 	}
 
@@ -688,6 +700,7 @@ func (fp *flowProvider) PrepareAgentChain(ctx context.Context, taskID, subtaskID
 		"CurrentTime":             getCurrentTime(),
 		"ToolPlaceholder":         ToolPlaceholder,
 		"UserFiles":               fp.userFilesListing(),
+		"SkillCatalogue":          fp.skillCatalogueText(ctx),
 	})
 	if err != nil {
 		logger.WithError(err).Error("failed to get system prompt for primary agent template")

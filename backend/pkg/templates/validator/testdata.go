@@ -102,6 +102,11 @@ func CreateDummyTemplateData() map[string]any {
 			"<resources>\n/work/resources/test_file_2.txt\n</resources>\n" +
 			"</user_files>",
 
+		"SkillCatalogue": "<available_skills>\nCurated skills and references stored for this engagement.\n\n" +
+			"- `adcs-esc8` [skill/canonical] ADCS ESC8. Relay HTTP enrollment with NTLM. [adcs, esc8]\n" +
+			"\nUse read_skill(slug=\"...\") to load a full procedure, or one section of it.\n" +
+			"</available_skills>",
+
 		// Input/Output data
 		"Input":    "Test input for the task",
 		"Question": "Test question for processing",

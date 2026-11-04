@@ -191,6 +191,11 @@ type flowToolsExecutor struct {
 
 	definitions map[string]llms.FunctionDefinition
 	handlers    map[string]ExecutorHandler
+
+	// The detector and the surfacer are flow scoped: the "already surfaced"
+	// set must not leak between flows.
+	surfacerOnce  sync.Once
+	skillSurfacer skillSurfacing
 }
 
 type ContextToolsExecutor interface {
@@ -462,6 +467,26 @@ func (fte *flowToolsExecutor) skillTool(taskID, subtaskID *int64) Tool {
 	)
 }
 
+// skillSurface builds the flow scoped surfacer once. It is nil when the skills
+// store or the detector configuration is unavailable, which disables the hint.
+func (fte *flowToolsExecutor) skillSurface() skillSurfacing {
+	if fte.skillStore == nil {
+		return nil
+	}
+
+	fte.surfacerOnce.Do(func() {
+		detector, err := skills.LoadDetector(fte.cfg.SkillDetectorsPath)
+		if err != nil {
+			logrus.WithError(err).Warn("skill detectors disabled: the rules could not be loaded")
+			return
+		}
+
+		fte.skillSurfacer = newSkillSurfacer(fte.userID, fte.skillStore, detector)
+	})
+
+	return fte.skillSurfacer
+}
+
 func (fte *flowToolsExecutor) appendSkillTools(ce *customExecutor, taskID, subtaskID *int64) {
 	tool := fte.skillTool(taskID, subtaskID)
 	if tool == nil || !tool.IsAvailable() {
@@ -477,6 +502,8 @@ func (fte *flowToolsExecutor) appendSkillTools(ce *customExecutor, taskID, subta
 	ce.handlers[SearchSkillsToolName] = tool.Handle
 	ce.handlers[ReadSkillToolName] = tool.Handle
 	ce.handlers[MaterializeSkillToolName] = tool.Handle
+
+	ce.surfacer = fte.skillSurface()
 }
 
 func (fte *flowToolsExecutor) SetFunctions(functions *Functions) {

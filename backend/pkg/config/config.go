@@ -129,6 +129,19 @@ type Config struct {
 	// historical shared store.
 	KnowledgeSharedSearch bool `env:"KNOWLEDGE_SHARED_SEARCH" envDefault:"false"`
 
+	// SkillCatalogueEnabled injects a compact skill catalogue into the system
+	// prompts of the agents that plan and act. Disabling it is the control arm
+	// of an A/B run.
+	SkillCatalogueEnabled bool `env:"SKILL_CATALOGUE_ENABLED" envDefault:"true"`
+	// SkillCatalogueLimit caps the number of entries in that catalogue.
+	SkillCatalogueLimit int `env:"SKILL_CATALOGUE_LIMIT" envDefault:"40"`
+	// SkillCatalogueIncludeDrafts adds draft skills to the catalogue. Keep it
+	// off outside a test instance so unfinished procedures are not advertised.
+	SkillCatalogueIncludeDrafts bool `env:"SKILL_CATALOGUE_INCLUDE_DRAFTS" envDefault:"false"`
+	// SkillDetectorsPath replaces the bundled detection rules with a YAML file.
+	// Empty keeps the rules embedded in the binary.
+	SkillDetectorsPath string `env:"SKILL_DETECTORS_PATH" envDefault:""`
+
 	// === Chain Summarization Engine ===
 	SummarizerPreserveLast   bool `env:"SUMMARIZER_PRESERVE_LAST" envDefault:"true"`
 	SummarizerUseQA          bool `env:"SUMMARIZER_USE_QA" envDefault:"true"`
