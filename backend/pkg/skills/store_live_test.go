@@ -215,3 +215,52 @@ func TestStore_LiveAnotherUserCannotReadAPrivateSkill(t *testing.T) {
 		t.Fatalf("another user found %d private hits", len(hits))
 	}
 }
+
+func TestStore_LiveFileLifecycle(t *testing.T) {
+	pool, _ := openSkillsSchema(t)
+	store := NewStore(pool, unitEmbedder{}, 8192)
+	ctx := context.Background()
+
+	doc, err := store.ImportMarkdown(ctx, 1, ImportInput{Content: "# ADCS\n\nbody\n", Kind: KindReference})
+	if err != nil {
+		t.Fatalf("import: %v", err)
+	}
+
+	file, err := store.AddFile(ctx, 1, doc.ID, File{
+		Path:    "scripts/relay.py",
+		MIME:    "text/x-python",
+		Size:    12,
+		SHA256:  "abc",
+		BlobRef: "0123456789abcdef0123456789abcdef",
+	})
+	if err != nil {
+		t.Fatalf("add file: %v", err)
+	}
+	if file.Path != "scripts/relay.py" {
+		t.Fatalf("added file = %+v", file)
+	}
+
+	files, err := store.Files(ctx, doc.ID)
+	if err != nil || len(files) != 1 || files[0].BlobRef != file.BlobRef {
+		t.Fatalf("files = %+v, %v", files, err)
+	}
+
+	got, err := store.GetFile(ctx, 1, doc.ID, "scripts/relay.py")
+	if err != nil || got.BlobRef != file.BlobRef {
+		t.Fatalf("get file = %+v, %v", got, err)
+	}
+
+	if _, err := store.AddFile(ctx, 2, doc.ID, File{Path: "evil.sh", BlobRef: file.BlobRef}); err != ErrNotFound {
+		t.Fatalf("another user add file = %v, want ErrNotFound", err)
+	}
+
+	blobRef, err := store.DeleteFile(ctx, 1, doc.ID, "scripts/relay.py")
+	if err != nil || blobRef != file.BlobRef {
+		t.Fatalf("delete file = %q, %v", blobRef, err)
+	}
+
+	referenced, err := store.BlobReferenced(ctx, blobRef)
+	if err != nil || referenced {
+		t.Fatalf("blob referenced = %v, %v", referenced, err)
+	}
+}
