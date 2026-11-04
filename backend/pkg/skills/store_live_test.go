@@ -4,11 +4,14 @@ package skills
 
 import (
 	"context"
+	"crypto/md5"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"pentagi/migrations"
@@ -354,5 +357,88 @@ func TestStore_LiveCatalogue(t *testing.T) {
 	}
 	if len(unrelated.Entries) != 2 {
 		t.Fatalf("list-based catalogue = %d, want 2", len(unrelated.Entries))
+	}
+}
+
+func TestStore_LivePackImportAndExport(t *testing.T) {
+	pool, _ := openSkillsSchema(t)
+	store := NewStore(pool, unitEmbedder{}, 8192)
+	ctx := context.Background()
+
+	fsys := fstest.MapFS{
+		"pack.yaml":                     {Data: []byte("name: web-app\ndescription: Playbooks.\nversion: 1.0.0\nvisibility: private\nskills: [ssrf]\nreferences: [wstg]\nmissions: [example]\n")},
+		"skills/ssrf/SKILL.md":          {Data: []byte("# SSRF\n\nStart a listener.\n")},
+		"skills/ssrf/files/probe.py":    {Data: []byte("print('probe')\n")},
+		"references/wstg/chapter-01.md": {Data: []byte("# Chapter one\n\nInjection.\n")},
+		"missions/example.md":           {Data: []byte("# Example\n\nAnonymized.\n")},
+	}
+	pack, err := ParseTreePack(fsys)
+	if err != nil {
+		t.Fatalf("parse pack: %v", err)
+	}
+
+	blobs := map[string][]byte{}
+	attach := func(ctx context.Context, userID int64, documentID, path string, content []byte) error {
+		digest := md5.Sum(content)
+		hash := hex.EncodeToString(digest[:])
+		blobs[hash] = content
+		_, err := store.AddFile(ctx, userID, documentID, File{
+			Path: path, Size: int64(len(content)), SHA256: "sha", BlobRef: hash,
+		})
+		return err
+	}
+
+	result, err := store.ImportPack(ctx, 1, pack, PackImportOptions{AttachFile: attach})
+	if err != nil {
+		t.Fatalf("import pack: %v", err)
+	}
+	if len(result.Created) != 3 || result.Files != 1 {
+		t.Fatalf("import result = %+v", result)
+	}
+
+	again, err := store.ImportPack(ctx, 1, pack, PackImportOptions{AttachFile: attach})
+	if err != nil {
+		t.Fatalf("re-import pack: %v", err)
+	}
+	if len(again.Updated) != 3 || again.PackID != result.PackID {
+		t.Fatalf("re-import result = %+v", again)
+	}
+
+	export, report, err := store.ExportPack(ctx, 1, "web-app", func(hash string) ([]byte, error) {
+		content, ok := blobs[hash]
+		if !ok {
+			return nil, fmt.Errorf("unknown blob %s", hash)
+		}
+		return content, nil
+	})
+	if err != nil {
+		t.Fatalf("export pack: %v", err)
+	}
+	if report.Files != 1 {
+		t.Errorf("exported files = %d, want 1", report.Files)
+	}
+
+	for _, name := range []string{
+		"pack.yaml",
+		"skills/ssrf/SKILL.md",
+		"skills/ssrf/files/probe.py",
+		"references/wstg.md",
+		"missions/example.md",
+	} {
+		if _, ok := export.Files[name]; !ok {
+			t.Errorf("export is missing %s", name)
+		}
+	}
+
+	roundTrip := fstest.MapFS{}
+	for name, content := range export.Files {
+		roundTrip[name] = &fstest.MapFile{Data: content}
+	}
+	reparsed, err := ParseTreePack(roundTrip)
+	if err != nil {
+		t.Fatalf("re-parse the export: %v", err)
+	}
+	if len(reparsed.Documents) != 3 {
+		t.Fatalf("re-parsed documents = %d, want 3", len(reparsed.Documents))
 	}
 }

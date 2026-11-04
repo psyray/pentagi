@@ -83,6 +83,9 @@ type SearchHit struct {
 
 // ImportInput describes one markdown import.
 type ImportInput struct {
+	// Slug overrides the slug derived from the frontmatter, the title or the
+	// first heading. A pack uses it to keep its directory names.
+	Slug        string
 	Content     string
 	Title       string
 	Kind        string

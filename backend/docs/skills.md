@@ -195,6 +195,58 @@ MiB per upload, 2000 PDF pages, 200 ZIP entries, 2 million characters of
 markdown. A scanned PDF with no text layer returns a warning instead of an
 error, since OCR is out of scope.
 
+## Packs (L3.2)
+
+A pack is a directory, or a zip of that directory, with a manifest at its root:
+
+```text
+web-app/
+  pack.yaml
+  skills/ssrf-out-of-band/SKILL.md
+  skills/ssrf-out-of-band/files/ssrf_probe.py
+  references/owasp-wstg/chapter-01.md
+  references/owasp-wstg/chapter-02.md
+  missions/htb-example.md
+```
+
+```yaml
+name: web-app
+description: Web application playbooks.
+version: 1.0.0
+license: private
+visibility: private
+skills: [ssrf-out-of-band]
+references: [owasp-wstg]
+missions: []
+```
+
+Rules:
+
+- a skill is a directory with a `SKILL.md`; anything under its `files/` is
+  stored as an attachment in the shared resource blob store;
+- a reference is one markdown file, or a directory whose files are concatenated
+  into one document so retrieval can cite a chapter heading;
+- a mission is one markdown file, imported as the `engagement` kind;
+- the three manifest lists act as an allowlist when present: anything not listed
+  is left out, which lets a pack ship drafts it does not want imported yet;
+- the directory name is the slug, so a reference stays `wstg` even when its
+  first heading is `Chapter one`.
+
+Import and export run offline, against the live data directory, so attachments
+land in the same blob store the UI reads:
+
+```bash
+docker exec -w /opt/pentagi pentagi /opt/pentagi/bin/skills-import \
+  --user admin@pentagi.com --pack /tmp/web-app --status reviewed
+docker exec -w /opt/pentagi pentagi /opt/pentagi/bin/skills-import \
+  --user admin@pentagi.com --export-pack web-app --out /tmp/export
+```
+
+`--dry-run` prints the documents, their status and their attachment count
+without writing. Imports are idempotent: a second run versions the documents and
+keeps the same pack. A `pack.yaml` that lists `documents:` instead of the three
+lists is the previous flat format, still accepted by the CLI.
+
 ## Limits and current gaps
 
 - Embedding dimension is fixed at 1024 (`bge-m3`). A different model needs a
@@ -205,6 +257,10 @@ error, since OCR is out of scope.
   downloaded and deleted through the REST and GraphQL routes and the skill page.
 - `materialize_skill` copies at most 100 files and 128 MB per call; larger
   skills must be split.
+- A pack import is not transactional across documents: a failure in the middle
+  leaves the documents imported before it. Re-running the same pack converges.
+- Review, diff and publication of a pack are not implemented yet (L3.3), nor is
+  the duplicate report and merge (L3.4).
 - The legacy 958 knowledge documents are not backfilled into the new tables.
   They remain available through `search_guide`, `search_answer` and
   `search_code`; a backfill can import the curated subset later.

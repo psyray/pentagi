@@ -58,11 +58,13 @@ func main() {
 	backfillLegacy := flag.Bool("backfill-legacy", false, "Import agent-generated legacy knowledge into the skill store")
 	backfillLimit := flag.Int("backfill-limit", 0, "Maximum legacy documents to import (0 = all)")
 	backfillMinChars := flag.Int("backfill-min-chars", 200, "Skip legacy documents shorter than this")
+	exportPack := flag.String("export-pack", "", "Export a stored pack by name and exit")
+	outDir := flag.String("out", "", "Output directory for --export-pack")
 	dryRun := flag.Bool("dry-run", false, "Parse the pack and print the plan without writing")
 	flag.Parse()
 
-	if *packPath == "" && *searchQuery == "" && *deleteSlug == "" && !*backfillLegacy {
-		logrus.Fatal("the --pack flag is required unless --search, --delete or --backfill-legacy is set")
+	if *packPath == "" && *searchQuery == "" && *deleteSlug == "" && !*backfillLegacy && *exportPack == "" {
+		logrus.Fatal("the --pack flag is required unless --search, --delete, --export-pack or --backfill-legacy is set")
 	}
 	if *userRef == "" && !*dryRun {
 		logrus.Fatal("the --user flag is required unless --dry-run is set")
@@ -72,16 +74,37 @@ func main() {
 	}
 
 	var manifest *packManifest
+	var treePack *skills.Pack
 	if *packPath != "" {
-		var err error
-		manifest, err = loadManifest(*packPath)
+		fsys, closePack, err := openPackFS(*packPath)
+		if err != nil {
+			logrus.WithError(err).Fatal("unable to open the pack")
+		}
+		defer closePack()
+
+		data, err := readPackManifestBytes(fsys)
 		if err != nil {
 			logrus.WithError(err).Fatal("unable to read the pack manifest")
 		}
 
-		if *dryRun && !*backfillLegacy {
-			printPlan(*packPath, manifest, *status, *visibility)
-			return
+		if skills.ManifestIsTree(data) {
+			treePack, err = skills.ParseTreePack(fsys)
+			if err != nil {
+				logrus.WithError(err).Fatal("unable to read the pack tree")
+			}
+			if *dryRun && !*backfillLegacy {
+				printTreePlan(treePack, *status, *visibility)
+				return
+			}
+		} else {
+			manifest, err = loadManifest(*packPath)
+			if err != nil {
+				logrus.WithError(err).Fatal("unable to read the pack manifest")
+			}
+			if *dryRun && !*backfillLegacy {
+				printPlan(*packPath, manifest, *status, *visibility)
+				return
+			}
 		}
 	}
 
@@ -134,6 +157,13 @@ func main() {
 	if *backfillLegacy {
 		if err := backfillLegacyKnowledge(ctx, pool, store, userID, *backfillLimit, *backfillMinChars, *dryRun); err != nil {
 			logrus.WithError(err).Fatal("unable to backfill legacy knowledge")
+		}
+		return
+	}
+
+	if *exportPack != "" {
+		if err := exportTreePack(ctx, store, cfg, userID, *exportPack, *outDir); err != nil {
+			logrus.WithError(err).Fatal("unable to export the pack")
 		}
 		return
 	}
@@ -200,6 +230,12 @@ func main() {
 			"imported": imported,
 			"failed":   failed,
 		}).Info("import finished")
+	}
+
+	if treePack != nil {
+		if err := importTreePack(ctx, store, cfg, userID, treePack, *status, *visibility); err != nil {
+			logrus.WithError(err).Fatal("unable to import the pack")
+		}
 	}
 
 	if *searchQuery != "" {

@@ -1,0 +1,12 @@
+name: web-app
+description: Web application playbooks, a WSTG reference and one engagement example.
+version: 1.0.0
+license: private
+visibility: private
+skills:
+  - ssrf-out-of-band
+  - jwt-alg-none
+references:
+  - owasp-wstg
+missions:
+  - htb-example
