@@ -339,6 +339,13 @@ type ReadSkillAction struct {
 	Message string `json:"message" jsonschema:"required,title=Read skill message" jsonschema_description:"Engagement-log entry, written in the engagement language declared by your system prompt."`
 }
 
+type MaterializeSkillAction struct {
+	Slug      string   `json:"slug" jsonschema:"required" jsonschema_description:"Exact slug of a skill whose attachments you need to run, copy from read_skill output."`
+	Files     []string `json:"files,omitempty" jsonschema_description:"Optional subset of attachment paths. Omit to materialize every attachment of the skill."`
+	Overwrite Bool     `json:"overwrite,omitempty" jsonschema:"type=boolean" jsonschema_description:"Replace files that already exist in the flow. Keep the default false when you or a previous call edited them."`
+	Message   string   `json:"message" jsonschema:"required,title=Materialize skill message" jsonschema_description:"Engagement-log entry, written in the engagement language declared by your system prompt."`
+}
+
 type MaintenanceAction struct {
 	Question string `json:"question" jsonschema:"required" jsonschema_description:"Technical-channel payload — task description for the DevOps team member to maintain the local environment and tools inside the docker container. Always written in English; never translated."`
 	Message  string `json:"message" jsonschema:"required,title=Maintenance task message" jsonschema_description:"Engagement-log entry — a 1-2 short sentence running commentary summarizing the maintenance task. Written in the engagement language declared by your system prompt."`

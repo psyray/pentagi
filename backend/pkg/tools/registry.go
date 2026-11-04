@@ -43,6 +43,7 @@ const (
 	ListSkillsToolName         = "list_skills"
 	SearchSkillsToolName       = "search_skills"
 	ReadSkillToolName          = "read_skill"
+	MaterializeSkillToolName   = "materialize_skill"
 	GraphitiSearchToolName     = "graphiti_search"
 	ReportResultToolName       = "report_result"
 	SubtaskListToolName        = "subtask_list"
@@ -133,6 +134,7 @@ var toolsTypeMapping = map[string]ToolType{
 	ListSkillsToolName:         SearchVectorDbToolType,
 	SearchSkillsToolName:       SearchVectorDbToolType,
 	ReadSkillToolName:          SearchVectorDbToolType,
+	MaterializeSkillToolName:   EnvironmentToolType,
 	GraphitiSearchToolName:     SearchVectorDbToolType,
 	ReportResultToolName:       StoreAgentResultToolType,
 	SubtaskListToolName:        StoreAgentResultToolType,
@@ -369,6 +371,13 @@ var registryDefinitions = map[string]llms.FunctionDefinition{
 			"Pass section to load only one markdown heading, which keeps long documents out of the context. Attachments are listed but not copied.",
 		Parameters: reflector.Reflect(&ReadSkillAction{}),
 	},
+	MaterializeSkillToolName: {
+		Name: MaterializeSkillToolName,
+		Description: "Copy the attachments of one skill into the flow working directory, under /work/skills/<slug>/, so you can run the provided scripts, " +
+			"wordlists or templates instead of rewriting them. The skill body is written next to them as SKILL.md. " +
+			"Files that already exist are kept unless overwrite is true. Materialize only what you need: the files stay available for the rest of the flow.",
+		Parameters: reflector.Reflect(&MaterializeSkillAction{}),
+	},
 	GraphitiSearchToolName: {
 		Name: GraphitiSearchToolName,
 		Description: "Search the Graphiti temporal knowledge graph for historical penetration testing context, " +
@@ -486,7 +495,7 @@ func getMessageType(name string) database.MsglogType {
 	switch name {
 	case TerminalToolName:
 		return database.MsglogTypeTerminal
-	case FileToolName:
+	case FileToolName, MaterializeSkillToolName:
 		return database.MsglogTypeFile
 	case BrowserToolName:
 		return database.MsglogTypeBrowser

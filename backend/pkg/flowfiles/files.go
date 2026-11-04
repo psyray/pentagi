@@ -23,6 +23,7 @@ const (
 	UploadsDirName   = "uploads"
 	ContainerDirName = "container"
 	ResourcesDirName = "resources"
+	SkillsDirName    = "skills"
 
 	MaxUploadFileSize    = 300 * 1024 * 1024      // 300 MB
 	MaxUploadFiles       = 1000                   // files
@@ -69,8 +70,14 @@ func List(dataDir string, flowID uint64) (Files, error) {
 		return Files{}, fmt.Errorf("reading resources cache: %w", err)
 	}
 
+	skillsEntries, err := ListDirEntriesRecursive(FlowSkillsDir(dataDir, flowID), SkillsDirName)
+	if err != nil {
+		return Files{}, fmt.Errorf("reading skills cache: %w", err)
+	}
+
 	files := append(uploadsEntries, containerEntries...)
 	files = append(files, resourcesEntries...)
+	files = append(files, skillsEntries...)
 	Sort(files)
 	return Files{
 		Files: files,
@@ -94,6 +101,12 @@ func FlowResourcesDir(dataDir string, flowID uint64) string {
 	return filepath.Join(FlowDataDir(dataDir, flowID), ResourcesDirName)
 }
 
+// FlowSkillsDir holds the skill files materialized for this flow by the
+// materialize_skill tool. It is per flow so two flows never share a script copy.
+func FlowSkillsDir(dataDir string, flowID uint64) string {
+	return filepath.Join(FlowDataDir(dataDir, flowID), SkillsDirName)
+}
+
 func ResolveCachedPath(dataDir string, flowID uint64, reqPath string) (string, error) {
 	if strings.TrimSpace(reqPath) == "" {
 		return "", errors.New("path query parameter is required")
@@ -105,8 +118,10 @@ func ResolveCachedPath(dataDir string, flowID uint64, reqPath string) (string, e
 	}
 
 	parts := strings.SplitN(cleaned, string(filepath.Separator), 2)
-	if parts[0] != UploadsDirName && parts[0] != ContainerDirName && parts[0] != ResourcesDirName {
-		return "", fmt.Errorf("path must start with '%s', '%s', or '%s'", UploadsDirName, ContainerDirName, ResourcesDirName)
+	if parts[0] != UploadsDirName && parts[0] != ContainerDirName && parts[0] != ResourcesDirName &&
+		parts[0] != SkillsDirName {
+		return "", fmt.Errorf("path must start with '%s', '%s', '%s' or '%s'",
+			UploadsDirName, ContainerDirName, ResourcesDirName, SkillsDirName)
 	}
 
 	flowDataDir := FlowDataDir(dataDir, flowID)
@@ -750,8 +765,10 @@ func FileListingForPrompt(dataDir string, flowID uint64) string {
 	uploadFiles := collectRelativeFilePaths(FlowUploadsDir(dataDir, flowID))
 	resourcesBase := filepath.Join(docker.WorkFolderPathInContainer, ResourcesDirName)
 	resourceFiles := collectRelativeFilePaths(FlowResourcesDir(dataDir, flowID))
+	skillsBase := filepath.Join(docker.WorkFolderPathInContainer, SkillsDirName)
+	skillFiles := collectRelativeFilePaths(FlowSkillsDir(dataDir, flowID))
 
-	if len(uploadFiles) == 0 && len(resourceFiles) == 0 {
+	if len(uploadFiles) == 0 && len(resourceFiles) == 0 && len(skillFiles) == 0 {
 		return ""
 	}
 
@@ -778,6 +795,17 @@ func FileListingForPrompt(dataDir string, flowID uint64) string {
 			b.WriteByte('\n')
 		}
 		b.WriteString("</resources>\n")
+	}
+
+	if len(skillFiles) > 0 {
+		b.WriteString("<skills base=\"")
+		b.WriteString(skillsBase)
+		b.WriteString("\">\n")
+		for _, p := range skillFiles {
+			b.WriteString(p)
+			b.WriteByte('\n')
+		}
+		b.WriteString("</skills>\n")
 	}
 
 	b.WriteString("</task_files>")

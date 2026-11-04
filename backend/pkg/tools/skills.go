@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path"
 	"strings"
 
 	"pentagi/pkg/database"
+	"pentagi/pkg/docker"
+	"pentagi/pkg/flowfiles"
 	"pentagi/pkg/skills"
 
 	"github.com/sirupsen/logrus"
@@ -22,13 +25,26 @@ type SkillStore interface {
 }
 
 type skillTool struct {
-	userID    int64
-	flowID    int64
-	taskID    *int64
-	subtaskID *int64
-	store     SkillStore
-	vslp      VectorStoreLogProvider
-	replacer  anonymizer.Replacer
+	userID       int64
+	flowID       int64
+	taskID       *int64
+	subtaskID    *int64
+	store        SkillStore
+	vslp         VectorStoreLogProvider
+	replacer     anonymizer.Replacer
+	materializer *skillMaterializer
+}
+
+// SkillToolOption customizes the skill tool. Options are variadic so existing
+// call sites keep working when the tool gains a capability.
+type SkillToolOption func(*skillTool)
+
+// WithSkillMaterializer enables materialize_skill for this tool. Without it the
+// tool stays read only and the materialize call explains why it is refused.
+func WithSkillMaterializer(m *skillMaterializer) SkillToolOption {
+	return func(t *skillTool) {
+		t.materializer = m
+	}
 }
 
 // NewSkillTool builds the read side of the skill layer: list, search and read.
@@ -39,8 +55,9 @@ func NewSkillTool(
 	store SkillStore,
 	vslp VectorStoreLogProvider,
 	replacer anonymizer.Replacer,
+	opts ...SkillToolOption,
 ) Tool {
-	return &skillTool{
+	tool := &skillTool{
 		userID:    userID,
 		flowID:    flowID,
 		taskID:    taskID,
@@ -49,6 +66,10 @@ func NewSkillTool(
 		vslp:      vslp,
 		replacer:  replacer,
 	}
+	for _, opt := range opts {
+		opt(tool)
+	}
+	return tool
 }
 
 func (t *skillTool) IsAvailable() bool {
@@ -149,6 +170,37 @@ func (t *skillTool) Handle(ctx context.Context, name string, args json.RawMessag
 			"version":      doc.Version,
 			"result_bytes": len(result),
 		}).Debug("read skill")
+		return result, nil
+
+	case MaterializeSkillToolName:
+		var action MaterializeSkillAction
+		if err := json.Unmarshal(args, &action); err != nil {
+			return "", fmt.Errorf("failed to unmarshal %s arguments: %w", name, err)
+		}
+
+		if t.materializer == nil {
+			return "", fmt.Errorf("materialize_skill is not available in this flow: no skill cache is mounted")
+		}
+
+		doc, files, err := t.store.Read(ctx, t.userID, action.Slug)
+		if err != nil {
+			return "", err
+		}
+
+		materialized, err := t.materializer.materialize(ctx, doc, files, action.Files, bool(action.Overwrite))
+		if err != nil {
+			return "", err
+		}
+
+		result := formatSkillMaterialization(materialized)
+		t.log(ctx, name, action.Slug, skills.Filter{}, result)
+		logger.WithFields(logrus.Fields{
+			"slug":    materialized.Slug,
+			"files":   len(materialized.Files),
+			"skipped": len(materialized.Skipped),
+			"pushed":  materialized.Pushed,
+			"bytes":   materialized.TotalBytes,
+		}).Debug("materialized skill")
 		return result, nil
 
 	default:
@@ -261,9 +313,18 @@ func formatSkillRead(doc *skills.Document, files []skills.File, section string) 
 		fmt.Fprintf(&b, "Tags: %s\n\n", strings.Join(doc.Tags, ", "))
 	}
 	if len(files) > 0 {
-		b.WriteString("Attachments:\n")
+		fmt.Fprintf(&b, "Attachments (materialize_skill(slug=%q) copies them into %s/%s/):\n",
+			doc.Slug, docker.WorkFolderPathInContainer, path.Join(flowfiles.SkillsDirName, doc.Slug))
 		for _, file := range files {
-			fmt.Fprintf(&b, "- %s (%d bytes)\n", file.Path, file.Size)
+			digest := file.SHA256
+			if len(digest) > 12 {
+				digest = digest[:12]
+			}
+			if digest != "" {
+				fmt.Fprintf(&b, "- %s (%d bytes, sha256 %s)\n", file.Path, file.Size, digest)
+			} else {
+				fmt.Fprintf(&b, "- %s (%d bytes)\n", file.Path, file.Size)
+			}
 		}
 		b.WriteString("\n")
 	}
@@ -283,4 +344,40 @@ func formatSkillRead(doc *skills.Document, files []skills.File, section string) 
 	b.WriteString("\n")
 
 	return b.String(), nil
+}
+
+func formatSkillMaterialization(result *skillMaterializeResult) string {
+	if result == nil {
+		return "no skill was materialized"
+	}
+
+	dir := path.Join(docker.WorkFolderPathInContainer, result.Directory)
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "# Skill `%s` materialized in %s\n\n", result.Slug, dir)
+	b.WriteString("Layout:\n")
+	fmt.Fprintf(&b, "- %s (skill body)\n", path.Join(dir, skillManifestName))
+	for _, file := range result.Files {
+		fmt.Fprintf(&b, "- %s\n", path.Join(dir, file))
+	}
+
+	if len(result.Skipped) > 0 {
+		b.WriteString("\nLeft untouched because they already exist (pass overwrite=true to replace them):\n")
+		for _, file := range result.Skipped {
+			fmt.Fprintf(&b, "- %s\n", path.Join(dir, file))
+		}
+	}
+
+	if len(result.Files) == 0 && len(result.Skipped) == 0 {
+		b.WriteString("\nThis skill has no attachment. Its procedure is available with read_skill.\n")
+		return b.String()
+	}
+
+	if result.Pushed {
+		fmt.Fprintf(&b, "\nThe files are in the flow container. Run them from that directory, for example: cd %s\n", dir)
+		return b.String()
+	}
+
+	fmt.Fprintf(&b, "\nThe flow container is not running yet: the files were cached and will be copied to %s when it starts.\n", dir)
+	return b.String()
 }

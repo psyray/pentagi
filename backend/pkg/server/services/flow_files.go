@@ -1329,7 +1329,7 @@ func (s *FlowFileService) pushResourcePathsToContainer(c *gin.Context, flowID ui
 }
 
 // deleteUploadsFromContainer removes cache paths that mirror the primary container's
-// /work tree (uploads/... and resources/...) in a single Docker exec call.
+// /work tree (uploads/..., resources/... and skills/...) in a single Docker exec call.
 // Container mirror paths (container/...) stay host-only and are not touched inside
 // the running container. When Docker is unavailable or the container is not running,
 // the function returns nil — the cache divergence will be resolved on next container start.
@@ -1343,7 +1343,8 @@ func (s *FlowFileService) deleteUploadsFromContainer(ctx context.Context, flowID
 	for _, reqPath := range reqPaths {
 		cleaned := filepath.Clean(filepath.FromSlash(strings.ReplaceAll(reqPath, "\\", "/")))
 		parts := strings.SplitN(cleaned, string(filepath.Separator), 2)
-		if len(parts) == 0 || (parts[0] != flowfiles.UploadsDirName && parts[0] != flowfiles.ResourcesDirName) {
+		if len(parts) == 0 || (parts[0] != flowfiles.UploadsDirName && parts[0] != flowfiles.ResourcesDirName &&
+			parts[0] != flowfiles.SkillsDirName) {
 			continue
 		}
 		containerPaths = append(containerPaths, path.Join(docker.WorkFolderPathInContainer, filepath.ToSlash(cleaned)))

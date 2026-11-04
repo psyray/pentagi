@@ -129,13 +129,23 @@ Deletion is a soft delete of the parent plus a hard delete of the chunks.
 | `list_skills` | catalogue, or a search when `query` is supplied |
 | `search_skills` | hybrid search, returns cards with an excerpt |
 | `read_skill` | full body or one markdown section, plus the attachment list |
+| `materialize_skill` | copies the attachments of one skill into `/work/skills/<slug>/` |
 
 They are attached to the assistant, primary, generator, refiner, installer,
 coder, pentester, searcher and enricher executors when the shared pgx pool and
 the embedding provider are available.
 
 `read_skill` accepts an optional `section` (a markdown heading). Use it when a
-reference is longer than the 16 KB tool-result budget.
+reference is longer than the 16 KB tool-result budget. It lists each attachment
+with its size and a short sha256, never the bytes.
+
+`materialize_skill(slug, files?, overwrite?)` writes the skill body as
+`SKILL.md` and the requested attachments under `/work/skills/<slug>/` inside
+the flow container, so the agent runs the provided script instead of rewriting
+it. Only the named skill is copied, never the whole catalogue. Files already
+present are kept unless `overwrite` is true, so an edited script survives a
+second call. The host copy lives in `flow-<id>-data/skills/<slug>/`, is listed
+by the flow file browser and is re-synced when the container restarts.
 
 ## Limits and current gaps
 
@@ -143,10 +153,14 @@ reference is longer than the 16 KB tool-result budget.
   migration and a full re-embedding pass.
 - Chunk size is 2 000 characters with 200 characters of overlap, heading-aware
   and code-block aware.
-- Attachment metadata and the files table exist, but there is no upload route
-  yet. `read_skill` lists declared attachments without copying them.
+- Attachment metadata and the files table exist, and attachments are uploaded,
+  downloaded and deleted through the REST and GraphQL routes and the skill page.
+- `materialize_skill` copies at most 100 files and 128 MB per call; larger
+  skills must be split.
 - The legacy 958 knowledge documents are not backfilled into the new tables.
   They remain available through `search_guide`, `search_answer` and
   `search_code`; a backfill can import the curated subset later.
-- There is no GraphQL schema or web screen yet. The REST API is the current
-  import path.
+- The catalogue is not injected into the agent prompts yet, and there is no
+  deterministic detector: agents reach the skills through the tools only.
+- Only markdown is ingested. PDF, DOCX, HTML and ZIP archives need the ingest
+  sidecar.

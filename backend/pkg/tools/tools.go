@@ -448,7 +448,18 @@ func (fte *flowToolsExecutor) skillTool(taskID, subtaskID *int64) Tool {
 	if fte.skillStore == nil {
 		return nil
 	}
-	return NewSkillTool(fte.userID, fte.flowID, taskID, subtaskID, fte.skillStore, fte.vslp, fte.replacer)
+
+	materializer := newSkillMaterializer(
+		fte.cfg.DataDir,
+		fte.flowID,
+		PrimaryTerminalName(fte.cfg.TenantPrefix(), fte.flowID),
+		fte.docker,
+	)
+
+	return NewSkillTool(
+		fte.userID, fte.flowID, taskID, subtaskID, fte.skillStore, fte.vslp, fte.replacer,
+		WithSkillMaterializer(materializer),
+	)
 }
 
 func (fte *flowToolsExecutor) appendSkillTools(ce *customExecutor, taskID, subtaskID *int64) {
@@ -460,10 +471,12 @@ func (fte *flowToolsExecutor) appendSkillTools(ce *customExecutor, taskID, subta
 		registryDefinitions[ListSkillsToolName],
 		registryDefinitions[SearchSkillsToolName],
 		registryDefinitions[ReadSkillToolName],
+		registryDefinitions[MaterializeSkillToolName],
 	)
 	ce.handlers[ListSkillsToolName] = tool.Handle
 	ce.handlers[SearchSkillsToolName] = tool.Handle
 	ce.handlers[ReadSkillToolName] = tool.Handle
+	ce.handlers[MaterializeSkillToolName] = tool.Handle
 }
 
 func (fte *flowToolsExecutor) SetFunctions(functions *Functions) {
@@ -625,6 +638,16 @@ func (fte *flowToolsExecutor) collectSyncEntries() ([]fileSyncEntry, error) {
 		entries = append(entries, resourcesEntries...)
 	}
 
+	skillsDir, err := fte.cachedSkillsDir()
+	if err != nil {
+		return nil, err
+	}
+	if skillEntries, err := collectFileSyncEntries(skillsDir, flowfiles.SkillsDirName); err != nil {
+		return nil, fmt.Errorf("failed to collect materialized skills: %w", err)
+	} else {
+		entries = append(entries, skillEntries...)
+	}
+
 	return entries, nil
 }
 
@@ -768,6 +791,15 @@ func (fte *flowToolsExecutor) cachedResourcesDir() (string, error) {
 	}
 
 	return flowfiles.FlowResourcesDir(dataDir, uint64(fte.flowID)), nil
+}
+
+func (fte *flowToolsExecutor) cachedSkillsDir() (string, error) {
+	dataDir, err := filepath.Abs(fte.cfg.DataDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve data directory: %w", err)
+	}
+
+	return flowfiles.FlowSkillsDir(dataDir, uint64(fte.flowID)), nil
 }
 
 func (fte *flowToolsExecutor) Release(ctx context.Context) error {
