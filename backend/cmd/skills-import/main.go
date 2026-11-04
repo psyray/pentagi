@@ -55,11 +55,14 @@ func main() {
 	searchQuery := flag.String("search", "", "Run a search query and print the hits")
 	deleteSlug := flag.String("delete", "", "Soft-delete a document by slug and exit")
 	onlySlugs := flag.String("only", "", "Comma-separated slugs to import (default: all)")
+	backfillLegacy := flag.Bool("backfill-legacy", false, "Import agent-generated legacy knowledge into the skill store")
+	backfillLimit := flag.Int("backfill-limit", 0, "Maximum legacy documents to import (0 = all)")
+	backfillMinChars := flag.Int("backfill-min-chars", 200, "Skip legacy documents shorter than this")
 	dryRun := flag.Bool("dry-run", false, "Parse the pack and print the plan without writing")
 	flag.Parse()
 
-	if *packPath == "" && *searchQuery == "" && *deleteSlug == "" {
-		logrus.Fatal("the --pack flag is required unless --search or --delete is set")
+	if *packPath == "" && *searchQuery == "" && *deleteSlug == "" && !*backfillLegacy {
+		logrus.Fatal("the --pack flag is required unless --search, --delete or --backfill-legacy is set")
 	}
 	if *userRef == "" && !*dryRun {
 		logrus.Fatal("the --user flag is required unless --dry-run is set")
@@ -76,7 +79,7 @@ func main() {
 			logrus.WithError(err).Fatal("unable to read the pack manifest")
 		}
 
-		if *dryRun {
+		if *dryRun && !*backfillLegacy {
 			printPlan(*packPath, manifest, *status, *visibility)
 			return
 		}
@@ -112,17 +115,27 @@ func main() {
 		logrus.WithError(err).Fatal("unable to resolve the target user")
 	}
 
-	embedder, err := embeddings.New(cfg)
-	if err != nil {
-		logrus.WithError(err).Fatal("unable to build the embedding client")
-	}
-	if !embedder.IsAvailable() {
-		logrus.Fatal("the embedding client is not available")
+	var embedder embeddings.Embedder
+	if !*dryRun {
+		embedder, err = embeddings.New(cfg)
+		if err != nil {
+			logrus.WithError(err).Fatal("unable to build the embedding client")
+		}
+		if !embedder.IsAvailable() {
+			logrus.Fatal("the embedding client is not available")
+		}
 	}
 
 	store := skills.NewStore(pool, embedder, cfg.EmbeddingMaxTextBytes)
-	if !store.IsAvailable() {
+	if !*dryRun && !store.IsAvailable() {
 		logrus.Fatal("the skill store is not available")
+	}
+
+	if *backfillLegacy {
+		if err := backfillLegacyKnowledge(ctx, pool, store, userID, *backfillLimit, *backfillMinChars, *dryRun); err != nil {
+			logrus.WithError(err).Fatal("unable to backfill legacy knowledge")
+		}
+		return
 	}
 
 	if *deleteSlug != "" {
@@ -253,6 +266,97 @@ func resolveUser(ctx context.Context, pool *pgxpool.Pool, ref string) (int64, er
 	}
 
 	return id, nil
+}
+
+const backfillLegacyQuery = `
+SELECT uuid::text,
+       cmetadata->>'doc_type',
+       COALESCE(cmetadata->>'guide_type', cmetadata->>'answer_type', cmetadata->>'code_lang', ''),
+       COALESCE(cmetadata->>'question', ''),
+       document
+FROM langchain_pg_embedding
+WHERE cmetadata->>'doc_type' IN ('guide', 'answer', 'code')
+  AND COALESCE(cmetadata->>'manual', '') <> 'true'
+  AND length(document) >= $1
+ORDER BY length(document) DESC, uuid::text`
+
+// backfillLegacyKnowledge imports agent-generated guide, answer and code rows
+// into the skill store as draft references. It keeps the longest copy of each
+// normalized question and never publishes anything. The curated manual rows are
+// handled by the pack importer, not here.
+func backfillLegacyKnowledge(ctx context.Context, pool *pgxpool.Pool, store *skills.Store, userID int64, limit, minChars int, dryRun bool) error {
+	rows, err := pool.Query(ctx, backfillLegacyQuery, minChars)
+	if err != nil {
+		return fmt.Errorf("query legacy knowledge: %w", err)
+	}
+	defer rows.Close()
+
+	seen := map[string]struct{}{}
+	imported, skipped, failed := 0, 0, 0
+
+	for rows.Next() {
+		var (
+			legacyID, docType, subtype, question, content string
+		)
+		if err := rows.Scan(&legacyID, &docType, &subtype, &question, &content); err != nil {
+			return fmt.Errorf("scan legacy knowledge: %w", err)
+		}
+
+		question = strings.TrimSpace(question)
+		if question == "" {
+			question = docType + " legacy document"
+		}
+		key := strings.ToLower(strings.Join(strings.Fields(question), " "))
+		if _, ok := seen[key]; ok {
+			skipped++
+			continue
+		}
+		seen[key] = struct{}{}
+
+		if limit > 0 && imported >= limit {
+			break
+		}
+
+		if dryRun {
+			imported++
+			if imported <= 20 {
+				fmt.Printf("  %-8s %-13s %7d  %s\n", docType, subtype, len(content), question)
+			}
+			continue
+		}
+
+		_, err := store.ImportMarkdown(ctx, userID, skills.ImportInput{
+			Content:     content,
+			Title:       question,
+			Kind:        skills.KindReference,
+			Status:      skills.StatusDraft,
+			Visibility:  skills.VisibilityPrivate,
+			SourceKind:  "legacy-agent",
+			SourceURI:   "pentagi://langchain_pg_embedding/" + legacyID,
+			Language:    "en",
+			DefaultTags: []string{"legacy-agent", docType, subtype},
+		})
+		if err != nil {
+			logrus.WithError(err).WithField("legacy_id", legacyID).Warn("unable to import legacy knowledge")
+			failed++
+			continue
+		}
+		imported++
+	}
+
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate legacy knowledge: %w", err)
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"dry_run":   dryRun,
+		"failed":    failed,
+		"imported":  imported,
+		"min_chars": minChars,
+		"skipped":   skipped,
+	}).Info("legacy backfill finished")
+
+	return nil
 }
 
 func firstNonEmpty(values ...string) string {
