@@ -33,6 +33,7 @@ type packManifest struct {
 }
 
 type packDocument struct {
+	Slug       string   `yaml:"slug"`
 	File       string   `yaml:"file"`
 	Title      string   `yaml:"title"`
 	Kind       string   `yaml:"kind"`
@@ -52,11 +53,13 @@ func main() {
 	sourceKind := flag.String("source-kind", "", "Override the document source kind")
 	databaseURL := flag.String("database-url", "", "Override DATABASE_URL")
 	searchQuery := flag.String("search", "", "Run a search query and print the hits")
+	deleteSlug := flag.String("delete", "", "Soft-delete a document by slug and exit")
+	onlySlugs := flag.String("only", "", "Comma-separated slugs to import (default: all)")
 	dryRun := flag.Bool("dry-run", false, "Parse the pack and print the plan without writing")
 	flag.Parse()
 
-	if *packPath == "" && *searchQuery == "" {
-		logrus.Fatal("the --pack flag is required unless --search is set")
+	if *packPath == "" && *searchQuery == "" && *deleteSlug == "" {
+		logrus.Fatal("the --pack flag is required unless --search or --delete is set")
 	}
 	if *userRef == "" && !*dryRun {
 		logrus.Fatal("the --user flag is required unless --dry-run is set")
@@ -122,9 +125,29 @@ func main() {
 		logrus.Fatal("the skill store is not available")
 	}
 
+	if *deleteSlug != "" {
+		if err := store.Delete(ctx, userID, *deleteSlug); err != nil {
+			logrus.WithError(err).Fatal("unable to delete the document")
+		}
+		logrus.WithField("slug", *deleteSlug).Info("document deleted")
+		return
+	}
+
+	only := map[string]struct{}{}
+	for _, slug := range strings.Split(*onlySlugs, ",") {
+		if slug = strings.TrimSpace(slug); slug != "" {
+			only[slug] = struct{}{}
+		}
+	}
+
 	imported, failed := 0, 0
 	if manifest != nil {
 		for _, doc := range manifest.Documents {
+			if len(only) > 0 {
+				if _, ok := only[doc.Slug]; !ok {
+					continue
+				}
+			}
 			path := filepath.Join(*packPath, doc.File)
 			content, err := os.ReadFile(path)
 			if err != nil {
