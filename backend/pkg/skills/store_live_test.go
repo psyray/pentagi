@@ -309,3 +309,50 @@ func TestStore_LiveUpdateMetadata(t *testing.T) {
 		t.Fatalf("cleared = %+v", cleared)
 	}
 }
+
+func TestStore_LiveCatalogue(t *testing.T) {
+	pool, _ := openSkillsSchema(t)
+	store := NewStore(pool, unitEmbedder{}, 8192)
+	ctx := context.Background()
+
+	importDoc := func(slug, status, description string) {
+		content := fmt.Sprintf("---\nname: %s\nstatus: %s\ndescription: %s\ntags: [adcs]\n---\n# %s\n\nbody of %s\n",
+			slug, status, description, slug, slug)
+		if _, err := store.ImportMarkdown(ctx, 1, ImportInput{Content: content, Kind: KindSkill}); err != nil {
+			t.Fatalf("import %s: %v", slug, err)
+		}
+	}
+	importDoc("canonical-skill", StatusCanonical, "Canonical procedure.")
+	importDoc("reviewed-skill", StatusReviewed, "Reviewed procedure.")
+	importDoc("draft-skill", StatusDraft, "Draft procedure.")
+
+	catalogue, err := store.BuildCatalogue(ctx, 1, CatalogueOptions{Query: "adcs escalation", Limit: 10})
+	if err != nil {
+		t.Fatalf("build catalogue: %v", err)
+	}
+	if len(catalogue.Entries) != 2 {
+		t.Fatalf("catalogue entries = %d, want 2: %+v", len(catalogue.Entries), catalogue.Entries)
+	}
+	if catalogue.Entries[0].Slug != "canonical-skill" {
+		t.Errorf("canonical skill is not first: %+v", catalogue.Entries)
+	}
+	if catalogue.Hash == "" || !strings.Contains(catalogue.Text, "read_skill") {
+		t.Errorf("catalogue is incomplete: hash=%q text=%q", catalogue.Hash, catalogue.Text)
+	}
+
+	withDrafts, err := store.BuildCatalogue(ctx, 1, CatalogueOptions{Query: "adcs escalation", IncludeDrafts: true})
+	if err != nil {
+		t.Fatalf("build catalogue with drafts: %v", err)
+	}
+	if len(withDrafts.Entries) != 3 {
+		t.Fatalf("catalogue with drafts = %d, want 3", len(withDrafts.Entries))
+	}
+
+	unrelated, err := store.BuildCatalogue(ctx, 1, CatalogueOptions{Limit: 10})
+	if err != nil {
+		t.Fatalf("build catalogue without a query: %v", err)
+	}
+	if len(unrelated.Entries) != 2 {
+		t.Fatalf("list-based catalogue = %d, want 2", len(unrelated.Entries))
+	}
+}
