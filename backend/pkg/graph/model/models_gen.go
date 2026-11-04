@@ -269,6 +269,18 @@ type FunctionToolcallsStats struct {
 	AvgDurationSeconds   float64 `json:"avgDurationSeconds"`
 }
 
+type ImportSkillInput struct {
+	Content    string           `json:"content"`
+	Title      *string          `json:"title,omitempty"`
+	Kind       *SkillKind       `json:"kind,omitempty"`
+	Status     *SkillStatus     `json:"status,omitempty"`
+	Visibility *SkillVisibility `json:"visibility,omitempty"`
+	SourceURI  *string          `json:"sourceUri,omitempty"`
+	Language   *string          `json:"language,omitempty"`
+	PackID     *string          `json:"packId,omitempty"`
+	Tags       []string         `json:"tags,omitempty"`
+}
+
 type KnowledgeDocument struct {
 	ID          string               `json:"id"`
 	DocType     KnowledgeDocType     `json:"docType"`
@@ -484,6 +496,43 @@ type Settings struct {
 	DockerInside       bool   `json:"dockerInside"`
 	IsDevelopMode      bool   `json:"isDevelopMode"`
 	AssistantUseAgents bool   `json:"assistantUseAgents"`
+}
+
+type Skill struct {
+	ID          string                 `json:"id"`
+	UserID      int64                  `json:"userId"`
+	PackID      *string                `json:"packId,omitempty"`
+	Kind        SkillKind              `json:"kind"`
+	Slug        string                 `json:"slug"`
+	Title       string                 `json:"title"`
+	Description string                 `json:"description"`
+	Content     string                 `json:"content"`
+	SourceKind  string                 `json:"sourceKind"`
+	SourceURI   *string                `json:"sourceUri,omitempty"`
+	ContentHash string                 `json:"contentHash"`
+	Language    *string                `json:"language,omitempty"`
+	Version     int                    `json:"version"`
+	Status      SkillStatus            `json:"status"`
+	Visibility  SkillVisibility        `json:"visibility"`
+	Quality     int                    `json:"quality"`
+	Tags        []string               `json:"tags"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	CreatedAt   time.Time              `json:"createdAt"`
+	UpdatedAt   time.Time              `json:"updatedAt"`
+}
+
+type SkillFilter struct {
+	Kinds    []SkillKind   `json:"kinds,omitempty"`
+	Statuses []SkillStatus `json:"statuses,omitempty"`
+	Tags     []string      `json:"tags,omitempty"`
+}
+
+type SkillSearchHit struct {
+	Score       float64 `json:"score"`
+	Excerpt     string  `json:"excerpt"`
+	HeadingPath string  `json:"headingPath"`
+	ChunkIndex  int     `json:"chunkIndex"`
+	Document    *Skill  `json:"document"`
 }
 
 type Subscription struct {
@@ -1440,6 +1489,137 @@ func (e *ResultType) UnmarshalGQL(v interface{}) error {
 }
 
 func (e ResultType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type SkillKind string
+
+const (
+	SkillKindSkill     SkillKind = "skill"
+	SkillKindReference SkillKind = "reference"
+	SkillKindMission   SkillKind = "mission"
+)
+
+var AllSkillKind = []SkillKind{
+	SkillKindSkill,
+	SkillKindReference,
+	SkillKindMission,
+}
+
+func (e SkillKind) IsValid() bool {
+	switch e {
+	case SkillKindSkill, SkillKindReference, SkillKindMission:
+		return true
+	}
+	return false
+}
+
+func (e SkillKind) String() string {
+	return string(e)
+}
+
+func (e *SkillKind) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = SkillKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid SkillKind", str)
+	}
+	return nil
+}
+
+func (e SkillKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type SkillStatus string
+
+const (
+	SkillStatusDraft      SkillStatus = "draft"
+	SkillStatusReviewed   SkillStatus = "reviewed"
+	SkillStatusCanonical  SkillStatus = "canonical"
+	SkillStatusDeprecated SkillStatus = "deprecated"
+)
+
+var AllSkillStatus = []SkillStatus{
+	SkillStatusDraft,
+	SkillStatusReviewed,
+	SkillStatusCanonical,
+	SkillStatusDeprecated,
+}
+
+func (e SkillStatus) IsValid() bool {
+	switch e {
+	case SkillStatusDraft, SkillStatusReviewed, SkillStatusCanonical, SkillStatusDeprecated:
+		return true
+	}
+	return false
+}
+
+func (e SkillStatus) String() string {
+	return string(e)
+}
+
+func (e *SkillStatus) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = SkillStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid SkillStatus", str)
+	}
+	return nil
+}
+
+func (e SkillStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+type SkillVisibility string
+
+const (
+	SkillVisibilityPrivate SkillVisibility = "private"
+	SkillVisibilityShared  SkillVisibility = "shared"
+	SkillVisibilityAdmin   SkillVisibility = "admin"
+)
+
+var AllSkillVisibility = []SkillVisibility{
+	SkillVisibilityPrivate,
+	SkillVisibilityShared,
+	SkillVisibilityAdmin,
+}
+
+func (e SkillVisibility) IsValid() bool {
+	switch e {
+	case SkillVisibilityPrivate, SkillVisibilityShared, SkillVisibilityAdmin:
+		return true
+	}
+	return false
+}
+
+func (e SkillVisibility) String() string {
+	return string(e)
+}
+
+func (e *SkillVisibility) UnmarshalGQL(v interface{}) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = SkillVisibility(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid SkillVisibility", str)
+	}
+	return nil
+}
+
+func (e SkillVisibility) MarshalGQL(w io.Writer) {
 	fmt.Fprint(w, strconv.Quote(e.String()))
 }
 

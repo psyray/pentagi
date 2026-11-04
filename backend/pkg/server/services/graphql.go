@@ -18,6 +18,7 @@ import (
 	"pentagi/pkg/server/auth"
 	"pentagi/pkg/server/logger"
 	"pentagi/pkg/server/update"
+	"pentagi/pkg/skills"
 	"pentagi/pkg/templates"
 	"pentagi/pkg/timezone"
 
@@ -61,6 +62,7 @@ func NewGraphqlService(
 	controller controller.FlowController,
 	subscriptions subscriptions.SubscriptionsController,
 	knowledgeStore knowledge.KnowledgeStore,
+	skillsStore *skills.Store,
 	replacer anonymizer.Replacer,
 	updates *update.Service,
 	timezones *timezone.Catalog,
@@ -75,6 +77,7 @@ func NewGraphqlService(
 		Controller:      controller,
 		Subscriptions:   subscriptions,
 		Knowledge:       knowledgeStore,
+		SkillStore:      skillsStore,
 		Replacer:        replacer,
 		Updates:         updates,
 		Timezones:       timezones,

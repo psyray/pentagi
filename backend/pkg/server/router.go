@@ -234,7 +234,7 @@ func NewRouter(
 	skillsService := services.NewSkillsService(skillStore)
 	anonymizerService := services.NewAnonymizerService(textReplacer)
 	graphqlService := services.NewGraphqlService(
-		db, cfg, baseURL, cfg.CorsOrigins, tokenCache, providers, controller, subscriptions, knowledgeStore, textReplacer,
+		db, cfg, baseURL, cfg.CorsOrigins, tokenCache, providers, controller, subscriptions, knowledgeStore, skillStore, textReplacer,
 		updates, timezones,
 	)
 

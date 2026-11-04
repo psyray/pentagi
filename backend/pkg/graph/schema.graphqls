@@ -1003,6 +1003,83 @@ input UpdateKnowledgeDocumentInput {
   codeLang: String
 }
 
+# ==================== Skills (Curated Knowledge) Types ====================
+
+# Skill kind: curated procedure, reference corpus entry or mission writeup
+enum SkillKind {
+  skill
+  reference
+  mission
+}
+
+# Lifecycle status of a skill
+enum SkillStatus {
+  draft
+  reviewed
+  canonical
+  deprecated
+}
+
+# Who can read a skill
+enum SkillVisibility {
+  private
+  shared
+  admin
+}
+
+# A curated skill, reference or mission stored in the skill tables
+type Skill {
+  id: String!
+  userId: ID!
+  packId: String
+  kind: SkillKind!
+  slug: String!
+  title: String!
+  description: String!
+  content: String!
+  sourceKind: String!
+  sourceUri: String
+  contentHash: String!
+  language: String
+  version: Int!
+  status: SkillStatus!
+  visibility: SkillVisibility!
+  quality: Int!
+  tags: [String!]!
+  metadata: Map
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+# A ranked skill card returned by the hybrid search
+type SkillSearchHit {
+  score: Float!
+  excerpt: String!
+  headingPath: String!
+  chunkIndex: Int!
+  document: Skill!
+}
+
+# Optional filter for listing or searching skills
+input SkillFilter {
+  kinds: [SkillKind!]
+  statuses: [SkillStatus!]
+  tags: [String!]
+}
+
+# Input for importing a markdown skill
+input ImportSkillInput {
+  content: String!
+  title: String
+  kind: SkillKind
+  status: SkillStatus
+  visibility: SkillVisibility
+  sourceUri: String
+  language: String
+  packId: String
+  tags: [String!]
+}
+
 # ==================== GraphQL Operations ====================
 
 type Query {
@@ -1069,6 +1146,11 @@ type Query {
   knowledgeDocuments(filter: KnowledgeFilter, withContent: Boolean!): [KnowledgeDocument!]!
   knowledgeDocument(id: String!): KnowledgeDocument!
   searchKnowledge(query: String!, filter: KnowledgeFilter, limit: Int): [KnowledgeDocumentWithScore!]!
+
+  # Skills (curated knowledge) management
+  skills(filter: SkillFilter, limit: Int): [Skill!]!
+  skill(idOrSlug: String!): Skill!
+  searchSkills(query: String!, filter: SkillFilter, limit: Int): [SkillSearchHit!]!
   
 }
 
@@ -1119,6 +1201,10 @@ type Mutation {
   updateKnowledgeDocument(id: String!, input: UpdateKnowledgeDocumentInput!): KnowledgeDocument!
   renameKnowledgeDocument(id: String!, question: String!): KnowledgeDocument!
   deleteKnowledgeDocument(id: String!): ResultType!
+
+  # Skills (curated knowledge) management
+  importSkill(input: ImportSkillInput!): Skill!
+  deleteSkill(idOrSlug: String!): ResultType!
   anonymizeText(text: String!): String!
 }
 

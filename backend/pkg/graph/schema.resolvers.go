@@ -21,6 +21,7 @@ import (
 	"pentagi/pkg/resources"
 	"pentagi/pkg/server/auth"
 	"pentagi/pkg/server/update"
+	"pentagi/pkg/skills"
 	"pentagi/pkg/templates"
 	"pentagi/pkg/templates/validator"
 	"pentagi/pkg/version"
@@ -1294,6 +1295,65 @@ func (r *mutationResolver) DeleteKnowledgeDocument(ctx context.Context, id strin
 	if deleteErr != nil {
 		return model.ResultTypeError, deleteErr
 	}
+	return model.ResultTypeSuccess, nil
+}
+
+// ImportSkill is the resolver for the importSkill field.
+func (r *mutationResolver) ImportSkill(ctx context.Context, input model.ImportSkillInput) (*model.Skill, error) {
+	uid, _, err := validatePermission(ctx, "skills.create")
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(input.Content) == "" {
+		return nil, fmt.Errorf("content is required")
+	}
+	if r.SkillStore == nil || !r.SkillStore.IsAvailable() {
+		return nil, fmt.Errorf("skill store is not available")
+	}
+
+	r.Logger.WithFields(logrus.Fields{
+		"uid":  uid,
+		"kind": input.Kind,
+	}).Debug("import skill")
+
+	doc, err := r.SkillStore.ImportMarkdown(ctx, uid, skills.ImportInput{
+		Content:     input.Content,
+		Title:       derefString(input.Title),
+		Kind:        enumValue(input.Kind),
+		Status:      enumValue(input.Status),
+		Visibility:  enumValue(input.Visibility),
+		SourceKind:  "api",
+		SourceURI:   derefString(input.SourceURI),
+		Language:    derefString(input.Language),
+		PackID:      input.PackID,
+		DefaultTags: input.Tags,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return skillFromDocument(*doc), nil
+}
+
+// DeleteSkill is the resolver for the deleteSkill field.
+func (r *mutationResolver) DeleteSkill(ctx context.Context, idOrSlug string) (model.ResultType, error) {
+	uid, _, err := validatePermission(ctx, "skills.delete")
+	if err != nil {
+		return model.ResultTypeError, err
+	}
+	if r.SkillStore == nil {
+		return model.ResultTypeError, fmt.Errorf("skill store is not available")
+	}
+
+	r.Logger.WithFields(logrus.Fields{
+		"uid": uid,
+		"id":  idOrSlug,
+	}).Debug("delete skill")
+
+	if err := r.SkillStore.Delete(ctx, uid, idOrSlug); err != nil {
+		return model.ResultTypeError, err
+	}
+
 	return model.ResultTypeSuccess, nil
 }
 
@@ -2629,6 +2689,111 @@ func (r *queryResolver) SearchKnowledge(ctx context.Context, query string, filte
 	return r.Knowledge.SearchUserDocuments(ctx, uid, query, filter, lim)
 }
 
+// Skills is the resolver for the skills field.
+func (r *queryResolver) Skills(ctx context.Context, filter *model.SkillFilter, limit *int) ([]*model.Skill, error) {
+	uid, _, err := validatePermission(ctx, "skills.view")
+	if err != nil {
+		return nil, err
+	}
+	if r.SkillStore == nil {
+		return nil, fmt.Errorf("skill store is not available")
+	}
+
+	storeFilter := skillFilterFromModel(filter)
+	if limit != nil {
+		storeFilter.Limit = *limit
+	}
+
+	r.Logger.WithFields(logrus.Fields{
+		"uid":   uid,
+		"limit": storeFilter.Limit,
+	}).Debug("list skills")
+
+	documents, err := r.SkillStore.List(ctx, uid, storeFilter)
+	if err != nil {
+		return nil, err
+	}
+
+	skillsOut := make([]*model.Skill, 0, len(documents))
+	for _, document := range documents {
+		skillsOut = append(skillsOut, skillFromDocument(document))
+	}
+
+	return skillsOut, nil
+}
+
+// Skill is the resolver for the skill field.
+func (r *queryResolver) Skill(ctx context.Context, idOrSlug string) (*model.Skill, error) {
+	uid, _, err := validatePermission(ctx, "skills.view")
+	if err != nil {
+		return nil, err
+	}
+	if r.SkillStore == nil {
+		return nil, fmt.Errorf("skill store is not available")
+	}
+
+	if strings.TrimSpace(idOrSlug) == "" {
+		return nil, fmt.Errorf("id or slug is required")
+	}
+
+	r.Logger.WithFields(logrus.Fields{
+		"uid": uid,
+		"id":  idOrSlug,
+	}).Debug("get skill")
+
+	document, err := r.SkillStore.Get(ctx, uid, idOrSlug)
+	if err != nil {
+		if errors.Is(err, skills.ErrNotFound) {
+			return nil, fmt.Errorf("skill not found")
+		}
+		return nil, err
+	}
+
+	return skillFromDocument(*document), nil
+}
+
+// SearchSkills is the resolver for the searchSkills field.
+func (r *queryResolver) SearchSkills(ctx context.Context, query string, filter *model.SkillFilter, limit *int) ([]*model.SkillSearchHit, error) {
+	uid, _, err := validatePermission(ctx, "skills.search")
+	if err != nil {
+		return nil, err
+	}
+	if r.SkillStore == nil || !r.SkillStore.IsAvailable() {
+		return nil, fmt.Errorf("skill store is not available")
+	}
+	if strings.TrimSpace(query) == "" {
+		return nil, fmt.Errorf("query is required")
+	}
+
+	r.Logger.WithFields(logrus.Fields{
+		"uid":   uid,
+		"query": query[:min(len(query), 200)],
+	}).Debug("search skills")
+
+	searchLimit := 0
+	if limit != nil {
+		searchLimit = *limit
+	}
+
+	hits, err := r.SkillStore.Search(ctx, uid, query, skillFilterFromModel(filter), searchLimit)
+	if err != nil {
+		return nil, err
+	}
+
+	hitsOut := make([]*model.SkillSearchHit, 0, len(hits))
+	for _, hit := range hits {
+		hitsOut = append(hitsOut, &model.SkillSearchHit{
+			Score:       hit.Score,
+			Excerpt:     hit.Excerpt,
+			HeadingPath: hit.HeadingPath,
+			ChunkIndex:  hit.ChunkIndex,
+			Document:    skillFromDocument(hit.Document),
+		})
+	}
+
+	return hitsOut, nil
+}
+
 // FlowCreated is the resolver for the flowCreated field.
 func (r *subscriptionResolver) FlowCreated(ctx context.Context) (<-chan *model.Flow, error) {
 	uid, admin, err := validatePermission(ctx, "flows.subscribe")
@@ -3123,3 +3288,69 @@ func (r *Resolver) Subscription() SubscriptionResolver { return &subscriptionRes
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type subscriptionResolver struct{ *Resolver }
+
+func skillFromDocument(doc skills.Document) *model.Skill {
+	tags := doc.Tags
+	if tags == nil {
+		tags = []string{}
+	}
+
+	return &model.Skill{
+		ID:          doc.ID,
+		UserID:      doc.UserID,
+		PackID:      doc.PackID,
+		Kind:        model.SkillKind(doc.Kind),
+		Slug:        doc.Slug,
+		Title:       doc.Title,
+		Description: doc.Description,
+		Content:     doc.Content,
+		SourceKind:  doc.SourceKind,
+		SourceURI:   doc.SourceURI,
+		ContentHash: doc.ContentHash,
+		Language:    optionalString(doc.Language),
+		Version:     doc.Version,
+		Status:      model.SkillStatus(doc.Status),
+		Visibility:  model.SkillVisibility(doc.Visibility),
+		Quality:     doc.Quality,
+		Tags:        tags,
+		Metadata:    doc.Metadata,
+		CreatedAt:   doc.CreatedAt,
+		UpdatedAt:   doc.UpdatedAt,
+	}
+}
+
+func skillFilterFromModel(filter *model.SkillFilter) skills.Filter {
+	var out skills.Filter
+	if filter == nil {
+		return out
+	}
+	for _, kind := range filter.Kinds {
+		out.Kinds = append(out.Kinds, string(kind))
+	}
+	for _, status := range filter.Statuses {
+		out.Statuses = append(out.Statuses, string(status))
+	}
+	out.Tags = filter.Tags
+	return out
+}
+
+func derefString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
+func optionalString(value string) *string {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return &value
+}
+
+func enumValue[T ~string](value *T) string {
+	if value == nil {
+		return ""
+	}
+	return string(*value)
+}

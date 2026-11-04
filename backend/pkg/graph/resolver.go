@@ -9,6 +9,7 @@ import (
 	"pentagi/pkg/providers"
 	"pentagi/pkg/server/auth"
 	"pentagi/pkg/server/update"
+	"pentagi/pkg/skills"
 	"pentagi/pkg/templates"
 	"pentagi/pkg/timezone"
 
@@ -30,6 +31,7 @@ type Resolver struct {
 	Controller      controller.FlowController
 	Subscriptions   subscriptions.SubscriptionsController
 	Knowledge       knowledge.KnowledgeStore
+	SkillStore      *skills.Store
 	Replacer        anonymizer.Replacer
 	Updates         *update.Service
 	Timezones       *timezone.Catalog

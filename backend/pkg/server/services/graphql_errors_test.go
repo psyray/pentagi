@@ -304,7 +304,7 @@ func askGraphqlForMissingFlow(t *testing.T) (*httptest.ResponseRecorder, gqlErro
 
 	svc := NewGraphqlService(
 		database.New(noRowsDBTX{db: sqlDB}),
-		nil, "", nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, "", nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 
 	gin.SetMode(gin.TestMode)
