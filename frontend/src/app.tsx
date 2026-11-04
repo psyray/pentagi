@@ -45,6 +45,9 @@ const NewFlow = lazy(() => import('@/pages/flows/new-flow'));
 const Login = lazy(() => import('@/pages/login'));
 const Knowledge = lazy(() => import('@/pages/knowledges/knowledge'));
 const Knowledges = lazy(() => import('@/pages/knowledges/knowledges'));
+const Skill = lazy(() => import('@/pages/skills/skill'));
+const SkillForm = lazy(() => import('@/pages/skills/skill-form'));
+const Skills = lazy(() => import('@/pages/skills/skills'));
 const Resources = lazy(() => import('@/pages/resources/resources'));
 const Template = lazy(() => import('@/pages/templates/template'));
 const Templates = lazy(() => import('@/pages/templates/templates'));
@@ -185,6 +188,22 @@ const router = createBrowserRouter(
                             path="knowledges/:knowledgeId"
                         />
                     </Route>
+
+                    <Route
+                        element={<Skills />}
+                        handle={routeTitles.skills}
+                        path="skills"
+                    />
+                    <Route
+                        element={<SkillForm />}
+                        handle={routeTitles.newSkill}
+                        path="skills/new"
+                    />
+                    <Route
+                        element={<Skill />}
+                        handle={routeTitles.skill}
+                        path="skills/:skillId"
+                    />
 
                     <Route
                         element={<Resources />}

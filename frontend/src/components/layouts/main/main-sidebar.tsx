@@ -13,6 +13,7 @@ import {
     Plus,
     Settings,
     Settings2,
+    Sparkles,
     Star,
     Sun,
     UserIcon,
@@ -71,6 +72,7 @@ export function MainSidebar() {
     const isFlowsActive = useMatch('/flows/*');
     const isTemplatesActive = useMatch('/templates/*');
     const isKnowledgesActive = useMatch('/knowledges/*');
+    const isSkillsActive = useMatch('/skills/*');
     const isResourcesActive = useMatch('/resources/*');
     const isSettingsActive = useMatch('/settings/*');
     const { flowId: flowIdParam } = useParams<{ flowId: string }>();
@@ -221,6 +223,29 @@ export function MainSidebar() {
                                     <Link
                                         aria-label="New knowledge"
                                         to={routes.newKnowledge}
+                                    >
+                                        <Plus />
+                                    </Link>
+                                </SidebarMenuAction>
+                            </SidebarMenuItem>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton
+                                    asChild
+                                    isActive={!!isSkillsActive}
+                                >
+                                    <Link to={routes.skills}>
+                                        <Sparkles />
+                                        Skills
+                                    </Link>
+                                </SidebarMenuButton>
+                                <SidebarMenuAction
+                                    asChild
+                                    className="data-[state=open]:bg-accent rounded-sm"
+                                    showOnHover
+                                >
+                                    <Link
+                                        aria-label="New skill"
+                                        to={routes.newSkill}
                                     >
                                         <Plus />
                                     </Link>

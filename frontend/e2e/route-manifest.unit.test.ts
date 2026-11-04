@@ -26,6 +26,8 @@ const EXCLUDED: Record<string, string> = {
     '/oauth/result': 'OAuth popup landing; only meaningful mid-OAuth-roundtrip',
     '/settings': 'redirects to /settings/account',
     '/settings/account': 'needs an account cassette + visual baseline before joining the sweep',
+    '/skills': 'new skills surface; unit-covered, no e2e cassette or visual baseline yet',
+    '/skills/new': 'create form; no stable list/detail ready-state to sweep',
     '/templates/new': 'create-mode variant of the template detail page',
 };
 
@@ -38,6 +40,7 @@ const DYNAMIC_ROUTES: Record<string, string> = {
     'settings.newProvider': 'specs/settings/providers.spec.ts — opened from the empty state',
     'settings.prompt': 'specs/settings/prompt-detail.spec.ts',
     'settings.provider': 'not swept: provider form; unit-covered by settings-provider.test.tsx',
+    skill: 'unit-covered by src/pages/skills; no e2e cassette yet',
     template: 'specs/crud/template-detail.spec.ts',
 };
 

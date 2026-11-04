@@ -550,6 +550,39 @@ fragment knowledgeDocumentWithScoreFragment on KnowledgeDocumentWithScore {
     }
 }
 
+fragment skillFragment on Skill {
+    id
+    userId
+    packId
+    kind
+    slug
+    title
+    description
+    content
+    sourceKind
+    sourceUri
+    contentHash
+    language
+    version
+    status
+    visibility
+    quality
+    tags
+    metadata
+    createdAt
+    updatedAt
+}
+
+fragment skillSearchHitFragment on SkillSearchHit {
+    score
+    excerpt
+    headingPath
+    chunkIndex
+    document {
+        ...skillFragment
+    }
+}
+
 # ==================== Queries ====================
 
 query flows {
@@ -1042,6 +1075,24 @@ query searchKnowledge($query: String!, $filter: KnowledgeFilter, $limit: Int) {
     }
 }
 
+query skills($filter: SkillFilter, $limit: Int) {
+    skills(filter: $filter, limit: $limit) {
+        ...skillFragment
+    }
+}
+
+query skill($idOrSlug: String!) {
+    skill(idOrSlug: $idOrSlug) {
+        ...skillFragment
+    }
+}
+
+query searchSkills($query: String!, $filter: SkillFilter, $limit: Int) {
+    searchSkills(query: $query, filter: $filter, limit: $limit) {
+        ...skillSearchHitFragment
+    }
+}
+
 fragment userPreferencesFragment on UserPreferences {
     id
     favoriteFlows
@@ -1127,8 +1178,20 @@ mutation renameFlow($flowId: ID!, $title: String!) {
     renameFlow(flowId: $flowId, title: $title)
 }
 
-mutation createAssistant($flowId: ID!, $modelProvider: String!, $input: String!, $useAgents: Boolean!, $resourceIds: [ID!]) {
-    createAssistant(flowId: $flowId, modelProvider: $modelProvider, input: $input, useAgents: $useAgents, resourceIds: $resourceIds) {
+mutation createAssistant(
+    $flowId: ID!
+    $modelProvider: String!
+    $input: String!
+    $useAgents: Boolean!
+    $resourceIds: [ID!]
+) {
+    createAssistant(
+        flowId: $flowId
+        modelProvider: $modelProvider
+        input: $input
+        useAgents: $useAgents
+        resourceIds: $resourceIds
+    ) {
         flow {
             ...flowFragment
         }
@@ -1139,7 +1202,13 @@ mutation createAssistant($flowId: ID!, $modelProvider: String!, $input: String!,
 }
 
 mutation callAssistant($flowId: ID!, $assistantId: ID!, $input: String!, $useAgents: Boolean!, $resourceIds: [ID!]) {
-    callAssistant(flowId: $flowId, assistantId: $assistantId, input: $input, useAgents: $useAgents, resourceIds: $resourceIds)
+    callAssistant(
+        flowId: $flowId
+        assistantId: $assistantId
+        input: $input
+        useAgents: $useAgents
+        resourceIds: $resourceIds
+    )
 }
 
 mutation stopAssistant($flowId: ID!, $assistantId: ID!) {
@@ -1152,7 +1221,12 @@ mutation deleteAssistant($flowId: ID!, $assistantId: ID!) {
     deleteAssistant(flowId: $flowId, assistantId: $assistantId)
 }
 
-mutation testAgent($type: ProviderType!, $agentType: AgentConfigType!, $agent: AgentConfigInput!, $simple: AgentConfigInput) {
+mutation testAgent(
+    $type: ProviderType!
+    $agentType: AgentConfigType!
+    $agent: AgentConfigInput!
+    $simple: AgentConfigInput
+) {
     testAgent(type: $type, agentType: $agentType, agent: $agent, simple: $simple) {
         ...agentTestResultFragment
     }
@@ -1238,6 +1312,16 @@ mutation renameKnowledgeDocument($id: String!, $question: String!) {
 
 mutation deleteKnowledgeDocument($id: String!) {
     deleteKnowledgeDocument(id: $id)
+}
+
+mutation importSkill($input: ImportSkillInput!) {
+    importSkill(input: $input) {
+        ...skillFragment
+    }
+}
+
+mutation deleteSkill($idOrSlug: String!) {
+    deleteSkill(idOrSlug: $idOrSlug)
 }
 
 # ==================== Subscriptions ====================

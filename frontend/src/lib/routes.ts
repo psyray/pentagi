@@ -25,11 +25,12 @@ export const routes = {
 
     knowledge: (id: number | string) => `/knowledges/${id}`,
     knowledges: '/knowledges',
+
     login: (fromPath?: string) => `/login${fromPath ? getReturnUrlParam(fromPath) : ''}`,
     newFlow: '/flows/new',
     newKnowledge: '/knowledges/new',
+    newSkill: '/skills/new',
     newTemplate: '/templates/new',
-
     oauthResult: '/oauth/result',
     resources: '/resources',
 
@@ -45,6 +46,9 @@ export const routes = {
         providers: '/settings/providers',
         root: '/settings',
     },
+
+    skill: (idOrSlug: number | string) => `/skills/${idOrSlug}`,
+    skills: '/skills',
 
     template: (id: number | string) => `/templates/${id}`,
 

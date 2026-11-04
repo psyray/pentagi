@@ -5,6 +5,7 @@ import {
     FlowTemplateDocument,
     KnowledgeDocumentDocument,
     SettingsProvidersDocument,
+    SkillDocument,
 } from '@/graphql/types';
 
 import { apolloTitle } from './apollo-title';
@@ -58,6 +59,7 @@ export const routeTitles = {
     knowledges: { title: 'Knowledges' },
     login: { title: 'Login' },
     newFlow: { title: 'New flow' },
+    newSkill: { title: 'New skill' },
     oauth: { title: 'OAuth' },
     prompt: {
         title: (params: RouteParams) => (params.promptId ? formatPromptId(params.promptId) : 'Prompt'),
@@ -85,6 +87,16 @@ export const routeTitles = {
     providers: { title: 'Providers' },
 
     resources: { title: 'Resources' },
+
+    skill: {
+        title: apolloTitle({
+            document: SkillDocument,
+            select: (data, { skillId }) => (skillId === 'new' ? 'New skill' : data?.skill?.title || 'Skill'),
+            variables: ({ skillId }) => (!skillId || skillId === 'new' ? null : { idOrSlug: skillId }),
+        }),
+    },
+
+    skills: { title: 'Skills' },
 
     template: {
         title: apolloTitle({

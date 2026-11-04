@@ -93,6 +93,18 @@ export type CreateKnowledgeDocumentInput = {
     question: string;
 };
 
+export type ImportSkillInput = {
+    content: string;
+    kind?: SkillKind | null | undefined;
+    language?: string | null | undefined;
+    packId?: string | null | undefined;
+    sourceUri?: string | null | undefined;
+    status?: SkillStatus | null | undefined;
+    tags?: Array<string> | null | undefined;
+    title?: string | null | undefined;
+    visibility?: SkillVisibility | null | undefined;
+};
+
 export enum KnowledgeAnswerType {
     Code = 'code',
     Guide = 'guide',
@@ -249,6 +261,31 @@ export enum ResultFormat {
 export enum ResultType {
     Error = 'error',
     Success = 'success',
+}
+
+export type SkillFilter = {
+    kinds?: Array<SkillKind> | null | undefined;
+    statuses?: Array<SkillStatus> | null | undefined;
+    tags?: Array<string> | null | undefined;
+};
+
+export enum SkillKind {
+    Mission = 'mission',
+    Reference = 'reference',
+    Skill = 'skill',
+}
+
+export enum SkillStatus {
+    Canonical = 'canonical',
+    Deprecated = 'deprecated',
+    Draft = 'draft',
+    Reviewed = 'reviewed',
+}
+
+export enum SkillVisibility {
+    Admin = 'admin',
+    Private = 'private',
+    Shared = 'shared',
 }
 
 export enum StatusType {
@@ -734,6 +771,37 @@ export type KnowledgeDocumentFragmentFragment = {
 
 export type KnowledgeDocumentWithScoreFragmentFragment = { score: number; document: KnowledgeDocumentFragmentFragment };
 
+export type SkillFragmentFragment = {
+    id: string;
+    userId: string;
+    packId: string | null;
+    kind: SkillKind;
+    slug: string;
+    title: string;
+    description: string;
+    content: string;
+    sourceKind: string;
+    sourceUri: string | null;
+    contentHash: string;
+    language: string | null;
+    version: number;
+    status: SkillStatus;
+    visibility: SkillVisibility;
+    quality: number;
+    tags: Array<string>;
+    metadata: Record<string, unknown> | null;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type SkillSearchHitFragmentFragment = {
+    score: number;
+    excerpt: string;
+    headingPath: string;
+    chunkIndex: number;
+    document: SkillFragmentFragment;
+};
+
 export type FlowsQueryVariables = Exact<{ [key: string]: never }>;
 
 export type FlowsQuery = { flows: Array<FlowFragmentFragment> | null };
@@ -1028,6 +1096,27 @@ export type SearchKnowledgeQueryVariables = Exact<{
 
 export type SearchKnowledgeQuery = { searchKnowledge: Array<KnowledgeDocumentWithScoreFragmentFragment> };
 
+export type SkillsQueryVariables = Exact<{
+    filter?: SkillFilter | null | undefined;
+    limit?: number | null | undefined;
+}>;
+
+export type SkillsQuery = { skills: Array<SkillFragmentFragment> };
+
+export type SkillQueryVariables = Exact<{
+    idOrSlug: string;
+}>;
+
+export type SkillQuery = { skill: SkillFragmentFragment };
+
+export type SearchSkillsQueryVariables = Exact<{
+    query: string;
+    filter?: SkillFilter | null | undefined;
+    limit?: number | null | undefined;
+}>;
+
+export type SearchSkillsQuery = { searchSkills: Array<SkillSearchHitFragmentFragment> };
+
 export type UserPreferencesFragmentFragment = { id: string; favoriteFlows: Array<string> };
 
 export type SettingsUserQueryVariables = Exact<{ [key: string]: never }>;
@@ -1268,6 +1357,18 @@ export type DeleteKnowledgeDocumentMutationVariables = Exact<{
 }>;
 
 export type DeleteKnowledgeDocumentMutation = { deleteKnowledgeDocument: ResultType };
+
+export type ImportSkillMutationVariables = Exact<{
+    input: ImportSkillInput;
+}>;
+
+export type ImportSkillMutation = { importSkill: SkillFragmentFragment };
+
+export type DeleteSkillMutationVariables = Exact<{
+    idOrSlug: string;
+}>;
+
+export type DeleteSkillMutation = { deleteSkill: ResultType };
 
 export type TerminalLogAddedSubscriptionVariables = Exact<{
     flowId: string | number;
@@ -3416,6 +3517,98 @@ export const KnowledgeDocumentWithScoreFragmentFragmentDoc = {
         },
     ],
 } as unknown as DocumentNode<KnowledgeDocumentWithScoreFragmentFragment, unknown>;
+export const SkillFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'skillFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'Skill' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'userId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'packId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'slug' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'description' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'content' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sourceKind' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sourceUri' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'contentHash' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'language' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'version' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'visibility' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'quality' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tags' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'metadata' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<SkillFragmentFragment, unknown>;
+export const SkillSearchHitFragmentFragmentDoc = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'skillSearchHitFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'SkillSearchHit' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'score' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'excerpt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'headingPath' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'chunkIndex' } },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'document' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [{ kind: 'FragmentSpread', name: { kind: 'Name', value: 'skillFragment' } }],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'skillFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'Skill' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'userId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'packId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'slug' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'description' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'content' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sourceKind' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sourceUri' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'contentHash' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'language' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'version' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'visibility' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'quality' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tags' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'metadata' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<SkillSearchHitFragmentFragment, unknown>;
 export const UserPreferencesFragmentFragmentDoc = {
     kind: 'Document',
     definitions: [
@@ -7483,6 +7676,261 @@ export const SearchKnowledgeDocument = {
         },
     ],
 } as unknown as DocumentNode<SearchKnowledgeQuery, SearchKnowledgeQueryVariables>;
+export const SkillsDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'skills' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'filter' } },
+                    type: { kind: 'NamedType', name: { kind: 'Name', value: 'SkillFilter' } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'limit' } },
+                    type: { kind: 'NamedType', name: { kind: 'Name', value: 'Int' } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'skills' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'filter' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'filter' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'limit' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'limit' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [{ kind: 'FragmentSpread', name: { kind: 'Name', value: 'skillFragment' } }],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'skillFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'Skill' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'userId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'packId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'slug' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'description' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'content' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sourceKind' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sourceUri' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'contentHash' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'language' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'version' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'visibility' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'quality' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tags' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'metadata' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<SkillsQuery, SkillsQueryVariables>;
+export const SkillDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'skill' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'idOrSlug' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'String' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'skill' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'idOrSlug' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'idOrSlug' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [{ kind: 'FragmentSpread', name: { kind: 'Name', value: 'skillFragment' } }],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'skillFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'Skill' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'userId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'packId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'slug' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'description' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'content' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sourceKind' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sourceUri' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'contentHash' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'language' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'version' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'visibility' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'quality' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tags' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'metadata' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<SkillQuery, SkillQueryVariables>;
+export const SearchSkillsDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'query',
+            name: { kind: 'Name', value: 'searchSkills' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'query' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'String' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'filter' } },
+                    type: { kind: 'NamedType', name: { kind: 'Name', value: 'SkillFilter' } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'limit' } },
+                    type: { kind: 'NamedType', name: { kind: 'Name', value: 'Int' } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'searchSkills' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'query' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'query' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'filter' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'filter' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'limit' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'limit' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [
+                                { kind: 'FragmentSpread', name: { kind: 'Name', value: 'skillSearchHitFragment' } },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'skillFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'Skill' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'userId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'packId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'slug' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'description' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'content' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sourceKind' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sourceUri' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'contentHash' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'language' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'version' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'visibility' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'quality' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tags' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'metadata' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'skillSearchHitFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'SkillSearchHit' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'score' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'excerpt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'headingPath' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'chunkIndex' } },
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'document' },
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [{ kind: 'FragmentSpread', name: { kind: 'Name', value: 'skillFragment' } }],
+                        },
+                    },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<SearchSkillsQuery, SearchSkillsQueryVariables>;
 export const SettingsUserDocument = {
     kind: 'Document',
     definitions: [
@@ -10188,6 +10636,109 @@ export const DeleteKnowledgeDocumentDocument = {
         },
     ],
 } as unknown as DocumentNode<DeleteKnowledgeDocumentMutation, DeleteKnowledgeDocumentMutationVariables>;
+export const ImportSkillDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'mutation',
+            name: { kind: 'Name', value: 'importSkill' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'input' } },
+                    type: {
+                        kind: 'NonNullType',
+                        type: { kind: 'NamedType', name: { kind: 'Name', value: 'ImportSkillInput' } },
+                    },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'importSkill' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'input' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'input' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [{ kind: 'FragmentSpread', name: { kind: 'Name', value: 'skillFragment' } }],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'skillFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'Skill' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'userId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'packId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'slug' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'description' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'content' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sourceKind' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sourceUri' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'contentHash' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'language' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'version' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'visibility' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'quality' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tags' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'metadata' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<ImportSkillMutation, ImportSkillMutationVariables>;
+export const DeleteSkillDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'mutation',
+            name: { kind: 'Name', value: 'deleteSkill' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'idOrSlug' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'String' } } },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'deleteSkill' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'idOrSlug' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'idOrSlug' } },
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<DeleteSkillMutation, DeleteSkillMutationVariables>;
 export const TerminalLogAddedDocument = {
     kind: 'Document',
     definitions: [
