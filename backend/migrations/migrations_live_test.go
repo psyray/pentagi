@@ -186,6 +186,43 @@ func TestMigrations_EmbedMigrations_CreateKnowledgeSearchIndexes(t *testing.T) {
 	}
 }
 
+func TestMigrations_EmbedMigrations_CreateSkillTablesAndIndexes(t *testing.T) {
+	db := openSchema(t)
+
+	for _, table := range []string{
+		"knowledge_documents",
+		"knowledge_chunks",
+		"knowledge_files",
+		"knowledge_packs",
+		"knowledge_pack_items",
+		"knowledge_events",
+	} {
+		var exists bool
+		err := db.QueryRow(`
+			SELECT EXISTS (
+				SELECT 1 FROM information_schema.tables
+				WHERE table_schema = current_schema() AND table_name = $1
+			)`, table).Scan(&exists)
+		if err != nil {
+			t.Fatalf("look up table %s: %v", table, err)
+		}
+		if !exists {
+			t.Errorf("%s was not created", table)
+		}
+	}
+
+	for _, index := range []string{
+		"knowledge_documents_owner_kind_slug",
+		"knowledge_documents_tags",
+		"knowledge_chunks_embedding_hnsw",
+		"knowledge_chunks_search_vector",
+	} {
+		if exists, valid := validIndex(t, db, index); !exists || !valid {
+			t.Errorf("%s: exists=%v valid=%v, want a valid index", index, exists, valid)
+		}
+	}
+}
+
 func TestMigrations_EmbedMigrations_DropThePartialIndexAStoreBuiltBefore(t *testing.T) {
 	db := openSchema(t)
 
