@@ -24,14 +24,16 @@ import (
 // embedding provider or the shared pgx pool is unavailable; read endpoints
 // then return 503 instead of failing at query time.
 type SkillsService struct {
-	store   *skills.Store
-	dataDir string
+	store     *skills.Store
+	dataDir   string
+	extractor skills.Extractor
 }
 
-func NewSkillsService(store *skills.Store, dataDir string) *SkillsService {
+func NewSkillsService(store *skills.Store, dataDir string, extractor skills.Extractor) *SkillsService {
 	return &SkillsService{
-		store:   store,
-		dataDir: dataDir,
+		store:     store,
+		dataDir:   dataDir,
+		extractor: extractor,
 	}
 }
 
@@ -154,6 +156,116 @@ func (s *SkillsService) Import(c *gin.Context) {
 	}
 
 	response.Success(c, http.StatusCreated, doc)
+}
+
+// ImportFile converts an uploaded document to markdown with the ingestion
+// sidecar and imports the result as a skill.
+//
+// @Summary Import a skill from a document
+// @Tags Skills
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param file formData file true "document to extract (markdown, text, html, pdf, docx, zip)"
+// @Param kind formData string false "skill, reference or engagement"
+// @Param status formData string false "draft, reviewed, canonical or deprecated"
+// @Param visibility formData string false "private, shared or admin"
+// @Param title formData string false "title override"
+// @Param tags formData string false "comma-separated tags"
+// @Param language formData string false "language code"
+// @Param packId formData string false "pack identifier"
+// @Success 201 {object} response.successResp{data=object}
+// @Router /skills/import/file [post]
+func (s *SkillsService) ImportFile(c *gin.Context) {
+	if !s.available(c) {
+		return
+	}
+	if s.extractor == nil || !s.extractor.IsAvailable() {
+		response.Error(c, response.ErrSkillsIngestUnavailable, nil)
+		return
+	}
+
+	ctx := c.Request.Context()
+	uid := int64(c.GetUint64("uid"))
+
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, skills.MaxImportFileBytes)
+	header, err := c.FormFile("file")
+	if err != nil {
+		response.Error(c, response.ErrKnowledgeInvalidRequest, fmt.Errorf("a file part is required: %w", err))
+		return
+	}
+
+	file, err := header.Open()
+	if err != nil {
+		response.Error(c, response.ErrKnowledgeInvalidRequest, err)
+		return
+	}
+	defer file.Close()
+
+	content, err := io.ReadAll(io.LimitReader(file, skills.MaxImportFileBytes+1))
+	if err != nil {
+		response.Error(c, response.ErrKnowledgeInvalidRequest, err)
+		return
+	}
+	if int64(len(content)) > skills.MaxImportFileBytes {
+		response.Error(c, response.ErrKnowledgeInvalidRequest,
+			fmt.Errorf("the file exceeds %d bytes", skills.MaxImportFileBytes))
+		return
+	}
+
+	filename := strings.TrimSpace(header.Filename)
+	extraction, err := s.extractor.Extract(ctx, filename, content)
+	if err != nil {
+		s.writeStoreError(c, err, "extract document")
+		return
+	}
+
+	doc, err := s.store.ImportMarkdown(ctx, uid, skills.ImportInput{
+		Content:     extraction.Markdown,
+		Title:       firstNonEmpty(c.PostForm("title"), extraction.Title),
+		Kind:        c.PostForm("kind"),
+		Visibility:  c.PostForm("visibility"),
+		Status:      c.PostForm("status"),
+		SourceKind:  "ingest",
+		SourceURI:   filename,
+		Language:    c.PostForm("language"),
+		PackID:      stringPtr(c.PostForm("packId")),
+		DefaultTags: splitTags(c.PostForm("tags")),
+	})
+	if err != nil {
+		s.writeStoreError(c, err, "import extracted document")
+		return
+	}
+
+	response.Success(c, http.StatusCreated, gin.H{"document": doc, "extraction": extraction})
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
+}
+
+func splitTags(value string) []string {
+	parts := strings.Split(value, ",")
+	tags := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			tags = append(tags, trimmed)
+		}
+	}
+	return tags
+}
+
+func stringPtr(value string) *string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
 }
 
 type skillSearchRequest struct {

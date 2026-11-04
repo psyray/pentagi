@@ -142,6 +142,14 @@ type Config struct {
 	// Empty keeps the rules embedded in the binary.
 	SkillDetectorsPath string `env:"SKILL_DETECTORS_PATH" envDefault:""`
 
+	// IngestURL is the base URL of the document ingestion sidecar (PDF, DOCX,
+	// HTML, ZIP to markdown). Empty disables the file import endpoint.
+	IngestURL string `env:"INGEST_URL" envDefault:""`
+	// IngestToken is the shared secret sent as X-Ingest-Token.
+	IngestToken string `env:"INGEST_TOKEN" envDefault:""`
+	// IngestTimeout bounds one extraction call, in seconds.
+	IngestTimeout int `env:"INGEST_TIMEOUT" envDefault:"180"`
+
 	// === Chain Summarization Engine ===
 	SummarizerPreserveLast   bool `env:"SUMMARIZER_PRESERVE_LAST" envDefault:"true"`
 	SummarizerUseQA          bool `env:"SUMMARIZER_USE_QA" envDefault:"true"`

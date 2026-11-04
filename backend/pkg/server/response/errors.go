@@ -165,6 +165,10 @@ var ErrKnowledgeUnauthorized = NewHttpError(403, "Knowledge.Unauthorized", "not 
 var ErrKnowledgeStoreUnavail = NewHttpError(503, "Knowledge.StoreUnavailable", "knowledge store (embedding provider) is not configured")
 var ErrKnowledgeInvalidData = NewHttpError(500, "Knowledge.InvalidData", "invalid knowledge document data")
 
+// skills
+
+var ErrSkillsIngestUnavailable = NewHttpError(503, "Skills.IngestUnavailable", "document ingestion is not configured on this instance")
+
 // toolcalls
 
 var ErrToolcallsInvalidRequest = NewHttpError(400, "Toolcalls.InvalidRequest", "invalid toolcall request data")

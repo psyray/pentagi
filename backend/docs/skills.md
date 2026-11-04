@@ -172,6 +172,29 @@ and each skill surfaced once per flow. A rule whose slug is not imported yet
 stays silent, so the file can announce skills before they exist. Set
 `SKILL_DETECTORS_PATH` to replace the bundled rules without rebuilding.
 
+## Ingestion of documents (L3.1)
+
+`POST /skills/import/file` takes one multipart document (`file` plus optional
+`kind`, `status`, `visibility`, `title`, `tags`, `language`, `packId`), converts
+it to markdown with the ingestion sidecar and imports the result through the
+same pipeline as the markdown import. The response carries the document and the
+extraction report (format, title, warnings).
+
+The sidecar lives in `ingest/` and handles `.md .txt .html .pdf .docx .zip`
+(ZIP entries are extracted recursively and concatenated). It is deliberately
+kept out of the Go backend: no parser runs in the API process. Enable it with
+the overlay:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose-ingest.yml up -d
+```
+
+and set `INGEST_URL=http://ingest:8000` plus a shared `INGEST_TOKEN`. With
+`INGEST_URL` empty the route answers `503` and nothing else changes. Caps: 64
+MiB per upload, 2000 PDF pages, 200 ZIP entries, 2 million characters of
+markdown. A scanned PDF with no text layer returns a warning instead of an
+error, since OCR is out of scope.
+
 ## Limits and current gaps
 
 - Embedding dimension is fixed at 1024 (`bge-m3`). A different model needs a
@@ -185,5 +208,7 @@ stays silent, so the file can announce skills before they exist. Set
 - The legacy 958 knowledge documents are not backfilled into the new tables.
   They remain available through `search_guide`, `search_answer` and
   `search_code`; a backfill can import the curated subset later.
-- Only markdown is ingested. PDF, DOCX, HTML and ZIP archives need the ingest
-  sidecar.
+- Images, scanned PDFs (no text layer) and audio are not converted: OCR is out
+  of scope, attach those files to a skill instead.
+- The ingestion sidecar is not packaged in the installer yet: it is built from
+  the source tree through `docker-compose-ingest.yml`.

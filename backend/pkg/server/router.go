@@ -232,7 +232,9 @@ func NewRouter(
 	analyticsService := services.NewAnalyticsService(orm, timezones)
 	tokenService := services.NewTokenService(orm, cfg.AuthSalt(), tokenCache, subscriptions)
 	knowledgeService := services.NewKnowledgeService(orm, knowledgeStore)
-	skillsService := services.NewSkillsService(skillStore, cfg.DataDir)
+	skillsService := services.NewSkillsService(skillStore, cfg.DataDir, skills.NewHTTPExtractor(
+		cfg.IngestURL, cfg.IngestToken, time.Duration(cfg.IngestTimeout)*time.Second,
+	))
 	anonymizerService := services.NewAnonymizerService(textReplacer)
 	graphqlService := services.NewGraphqlService(
 		db, cfg, baseURL, cfg.CorsOrigins, tokenCache, providers, controller, subscriptions, knowledgeStore, skillStore, textReplacer,
@@ -444,6 +446,7 @@ func setSkillsGroup(parent *gin.RouterGroup, svc *services.SkillsService) {
 	{
 		sg.GET("/", auth.PrivilegesRequired("skills.view"), svc.List)
 		sg.POST("/import", auth.PrivilegesRequired("skills.create"), svc.Import)
+		sg.POST("/import/file", auth.PrivilegesRequired("skills.create"), svc.ImportFile)
 		sg.POST("/search", auth.PrivilegesRequired("skills.search"), svc.Search)
 		sg.GET("/:idOrSlug", auth.PrivilegesRequired("skills.view"), svc.Get)
 		sg.DELETE("/:idOrSlug", auth.PrivilegesRequired("skills.delete"), svc.Delete)
