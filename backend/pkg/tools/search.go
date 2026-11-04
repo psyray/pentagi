@@ -43,6 +43,7 @@ type search struct {
 	knp               KnowledgeProvider
 	sharedSearch      bool
 	deduplicate       bool
+	skillSearcher     SkillSearcher
 }
 
 func NewSearchTool(
@@ -73,6 +74,7 @@ func NewSearchTool(
 		knp:               knp,
 		sharedSearch:      scope.shared,
 		deduplicate:       scope.deduplicate,
+		skillSearcher:     scope.skillSearcher,
 	}
 }
 
@@ -176,7 +178,7 @@ func (s *search) Handle(ctx context.Context, name string, args json.RawMessage) 
 			logKnowledgeOperation(ctx, s.vslp, s.replacer, s.taskID, s.subtaskID, filters,
 				strings.Join(action.Questions, "\n--------------------------------\n"),
 				database.VecstoreActionTypeRetrieve, searchNotFoundMessage)
-			return searchNotFoundMessage, nil
+			return appendSkillSuggestions(ctx, s.skillSearcher, s.userID, strings.Join(action.Questions, " "), searchNotFoundMessage), nil
 		}
 
 		retriever.End(
@@ -201,6 +203,7 @@ func (s *search) Handle(ctx context.Context, name string, args json.RawMessage) 
 		}
 
 		result := clampKnowledgeResult(buffer.String(), DefaultResultSizeLimit)
+		result = appendSkillSuggestions(ctx, s.skillSearcher, s.userID, strings.Join(action.Questions, " "), result)
 
 		logKnowledgeOperation(ctx, s.vslp, s.replacer, s.taskID, s.subtaskID, filters,
 			strings.Join(action.Questions, "\n--------------------------------\n"),

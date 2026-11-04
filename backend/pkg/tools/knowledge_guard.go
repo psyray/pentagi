@@ -35,8 +35,9 @@ const (
 type KnowledgeSearchOption func(*knowledgeSearchOptions)
 
 type knowledgeSearchOptions struct {
-	shared      bool
-	deduplicate bool
+	shared        bool
+	deduplicate   bool
+	skillSearcher SkillSearcher
 }
 
 // WithSharedKnowledgeSearch lets a tool read and deduplicate across every user
@@ -56,6 +57,15 @@ func WithSharedKnowledgeSearch(shared bool) KnowledgeSearchOption {
 func WithKnowledgeDeduplication(enabled bool) KnowledgeSearchOption {
 	return func(o *knowledgeSearchOptions) {
 		o.deduplicate = enabled
+	}
+}
+
+// WithSkillSearcher lets a legacy knowledge tool dual-read the curated skill
+// store and append a <relevant_skills> block to its result. A nil searcher
+// leaves the tool's historical output unchanged.
+func WithSkillSearcher(searcher SkillSearcher) KnowledgeSearchOption {
+	return func(o *knowledgeSearchOptions) {
+		o.skillSearcher = searcher
 	}
 }
 

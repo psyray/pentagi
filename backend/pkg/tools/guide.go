@@ -43,6 +43,7 @@ type guide struct {
 	knp               KnowledgeProvider
 	sharedSearch      bool
 	deduplicate       bool
+	skillSearcher     SkillSearcher
 }
 
 func NewGuideTool(
@@ -71,6 +72,7 @@ func NewGuideTool(
 		knp:               knp,
 		sharedSearch:      scope.shared,
 		deduplicate:       scope.deduplicate,
+		skillSearcher:     scope.skillSearcher,
 	}
 }
 
@@ -178,7 +180,7 @@ func (g *guide) Handle(ctx context.Context, name string, args json.RawMessage) (
 			logKnowledgeOperation(ctx, g.vslp, g.replacer, g.taskID, g.subtaskID, filters,
 				strings.Join(action.Questions, "\n--------------------------------\n"),
 				database.VecstoreActionTypeRetrieve, guideNotFoundMessage)
-			return guideNotFoundMessage, nil
+			return appendSkillSuggestions(ctx, g.skillSearcher, g.userID, strings.Join(action.Questions, " "), guideNotFoundMessage), nil
 		}
 
 		retriever.End(
@@ -203,6 +205,7 @@ func (g *guide) Handle(ctx context.Context, name string, args json.RawMessage) (
 		}
 
 		result := clampKnowledgeResult(buffer.String(), DefaultResultSizeLimit)
+		result = appendSkillSuggestions(ctx, g.skillSearcher, g.userID, strings.Join(action.Questions, " "), result)
 
 		logKnowledgeOperation(ctx, g.vslp, g.replacer, g.taskID, g.subtaskID, filters,
 			strings.Join(action.Questions, "\n--------------------------------\n"),

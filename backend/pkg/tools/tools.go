@@ -934,6 +934,7 @@ func (fte *flowToolsExecutor) GetAssistantExecutor(cfg AssistantExecutorConfig) 
 			fte.vslp,
 			fte.knp,
 			WithSharedKnowledgeSearch(fte.cfg.KnowledgeSharedSearch),
+			WithSkillSearcher(fte.skillStore),
 		)
 		if guide.IsAvailable() {
 			definitions = append(definitions, registryDefinitions[SearchGuideToolName])
@@ -950,6 +951,7 @@ func (fte *flowToolsExecutor) GetAssistantExecutor(cfg AssistantExecutorConfig) 
 			fte.vslp,
 			fte.knp,
 			WithSharedKnowledgeSearch(fte.cfg.KnowledgeSharedSearch),
+			WithSkillSearcher(fte.skillStore),
 		)
 		if search.IsAvailable() {
 			definitions = append(definitions, registryDefinitions[SearchAnswerToolName])
@@ -966,6 +968,7 @@ func (fte *flowToolsExecutor) GetAssistantExecutor(cfg AssistantExecutorConfig) 
 			fte.vslp,
 			fte.knp,
 			WithSharedKnowledgeSearch(fte.cfg.KnowledgeSharedSearch),
+			WithSkillSearcher(fte.skillStore),
 		)
 		if code.IsAvailable() {
 			definitions = append(definitions, registryDefinitions[SearchCodeToolName])
@@ -1196,6 +1199,7 @@ func (fte *flowToolsExecutor) GetInstallerExecutor(cfg InstallerExecutorConfig) 
 		fte.vslp,
 		fte.knp,
 		WithSharedKnowledgeSearch(fte.cfg.KnowledgeSharedSearch),
+		WithSkillSearcher(fte.skillStore),
 	)
 	if guide.IsAvailable() {
 		ce.definitions = append(ce.definitions, registryDefinitions[StoreGuideToolName])
@@ -1309,6 +1313,7 @@ func (fte *flowToolsExecutor) GetCoderExecutor(cfg CoderExecutorConfig) (Context
 		fte.vslp,
 		fte.knp,
 		WithSharedKnowledgeSearch(fte.cfg.KnowledgeSharedSearch),
+		WithSkillSearcher(fte.skillStore),
 	)
 	if code.IsAvailable() {
 		ce.definitions = append(ce.definitions, registryDefinitions[SearchCodeToolName])
@@ -1440,6 +1445,7 @@ func (fte *flowToolsExecutor) GetPentesterExecutor(cfg PentesterExecutorConfig) 
 		fte.vslp,
 		fte.knp,
 		WithSharedKnowledgeSearch(fte.cfg.KnowledgeSharedSearch),
+		WithSkillSearcher(fte.skillStore),
 	)
 	if guide.IsAvailable() {
 		ce.definitions = append(ce.definitions, registryDefinitions[StoreGuideToolName])
@@ -1538,6 +1544,7 @@ func (fte *flowToolsExecutor) GetSearcherExecutor(cfg SearcherExecutorConfig) (C
 		fte.vslp,
 		fte.knp,
 		WithSharedKnowledgeSearch(fte.cfg.KnowledgeSharedSearch),
+		WithSkillSearcher(fte.skillStore),
 	)
 	if search.IsAvailable() {
 		ce.definitions = append(ce.definitions, registryDefinitions[SearchAnswerToolName])
