@@ -119,7 +119,7 @@ func (s *Store) ImportMarkdown(ctx context.Context, userID int64, input ImportIn
 	sourceKind := firstNonEmpty(input.SourceKind, "import")
 	sourceURI := firstNonEmpty(input.SourceURI, fm.Source)
 
-	tags := uniqueStrings(fm.Tags, fm.Platform, input.DefaultTags)
+	tags := uniqueStrings(fm.Tags, []string(fm.Platform), input.DefaultTags)
 	if fm.Category != "" {
 		tags = uniqueStrings(tags, []string{fm.Category})
 	}
@@ -131,7 +131,7 @@ func (s *Store) ImportMarkdown(ctx context.Context, userID int64, input ImportIn
 	putIfNotEmpty(metadata, "source", fm.Source)
 	putIfNotEmpty(metadata, "frontmatter_version", fm.Version)
 	if len(fm.Platform) > 0 {
-		metadata["platform"] = fm.Platform
+		metadata["platform"] = []string(fm.Platform)
 	}
 
 	chunks, err := splitContent(body, s.chunkSize, s.chunkOverlap)

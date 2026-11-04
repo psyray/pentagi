@@ -30,6 +30,22 @@ Relay the enrollment traffic.
 	}
 }
 
+func TestParseMarkdown_AcceptsAScalarPlatform(t *testing.T) {
+	fm, _, found, err := parseMarkdown(`---
+name: htb-example
+platform: HTB
+tags: [lpd]
+---
+# Example
+`)
+	if err != nil || !found {
+		t.Fatalf("parse: %v found=%v", err, found)
+	}
+	if len(fm.Platform) != 1 || fm.Platform[0] != "HTB" {
+		t.Fatalf("platform = %v", fm.Platform)
+	}
+}
+
 func TestParseMarkdown_LeavesPlainMarkdownAlone(t *testing.T) {
 	for name, content := range map[string]string{
 		"no frontmatter":   "# Guide\n\nbody",

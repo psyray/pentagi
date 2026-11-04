@@ -19,20 +19,47 @@ const (
 	maxSlugLen          = 80
 )
 
+// stringList accepts a YAML scalar or a sequence, so a pack can write
+// "platform: HTB" or "platform: [HTB, Windows]" without failing the import.
+type stringList []string
+
+func (l *stringList) UnmarshalYAML(value *yaml.Node) error {
+	if value.Kind == yaml.ScalarNode {
+		var single string
+		if err := value.Decode(&single); err != nil {
+			return err
+		}
+		single = strings.TrimSpace(single)
+		if single == "" {
+			*l = nil
+			return nil
+		}
+		*l = stringList{single}
+		return nil
+	}
+
+	var many []string
+	if err := value.Decode(&many); err != nil {
+		return err
+	}
+	*l = many
+	return nil
+}
+
 type frontMatter struct {
-	Name        string   `yaml:"name"`
-	Description string   `yaml:"description"`
-	Version     string   `yaml:"version"`
-	Category    string   `yaml:"category"`
-	Platform    []string `yaml:"platform"`
-	Tags        []string `yaml:"tags"`
-	Safety      string   `yaml:"safety"`
-	License     string   `yaml:"license"`
-	Source      string   `yaml:"source"`
-	Visibility  string   `yaml:"visibility"`
-	Status      string   `yaml:"status"`
-	Language    string   `yaml:"language"`
-	Kind        string   `yaml:"kind"`
+	Name        string     `yaml:"name"`
+	Description string     `yaml:"description"`
+	Version     string     `yaml:"version"`
+	Category    string     `yaml:"category"`
+	Platform    stringList `yaml:"platform"`
+	Tags        []string   `yaml:"tags"`
+	Safety      string     `yaml:"safety"`
+	License     string     `yaml:"license"`
+	Source      string     `yaml:"source"`
+	Visibility  string     `yaml:"visibility"`
+	Status      string     `yaml:"status"`
+	Language    string     `yaml:"language"`
+	Kind        string     `yaml:"kind"`
 }
 
 // parseMarkdown separates a YAML frontmatter block from the body. A document
