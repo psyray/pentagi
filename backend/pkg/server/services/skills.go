@@ -703,6 +703,68 @@ func (s *SkillsService) Publish(c *gin.Context) {
 	response.Success(c, http.StatusOK, doc)
 }
 
+// Duplicates lists the documents that look like near duplicates.
+//
+// @Summary Duplicate report
+// @Tags Skills
+// @Produce json
+// @Security BearerAuth
+// @Param threshold query number false "cosine similarity threshold (default 0.93)"
+// @Success 200 {object} response.successResp{data=skills.DuplicateReport}
+// @Router /skills/duplicates [get]
+func (s *SkillsService) Duplicates(c *gin.Context) {
+	if !s.available(c) {
+		return
+	}
+
+	threshold, _ := strconv.ParseFloat(c.Query("threshold"), 64)
+
+	uid := int64(c.GetUint64("uid"))
+	report, err := s.store.DuplicateReport(c.Request.Context(), uid, threshold)
+	if err != nil {
+		s.writeStoreError(c, err, "duplicate report")
+		return
+	}
+
+	response.Success(c, http.StatusOK, report)
+}
+
+type skillMergeRequest struct {
+	Target  string   `json:"target" binding:"required"`
+	Sources []string `json:"sources" binding:"required"`
+}
+
+// Merge folds duplicate documents into one canonical document.
+//
+// @Summary Merge skills
+// @Tags Skills
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param json body skillMergeRequest true "target and sources"
+// @Success 200 {object} response.successResp{data=skills.MergeResult}
+// @Router /skills/merge [post]
+func (s *SkillsService) Merge(c *gin.Context) {
+	if !s.available(c) {
+		return
+	}
+
+	var req skillMergeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, response.ErrKnowledgeInvalidRequest, err)
+		return
+	}
+
+	uid := int64(c.GetUint64("uid"))
+	result, err := s.store.MergeDocuments(c.Request.Context(), uid, req.Target, req.Sources)
+	if err != nil {
+		s.writeStoreError(c, err, "merge skills")
+		return
+	}
+
+	response.Success(c, http.StatusOK, result)
+}
+
 func (s *SkillsService) writeStoreError(c *gin.Context, err error, action string) {
 	switch {
 	case errors.Is(err, skills.ErrNotFound):

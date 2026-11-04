@@ -448,6 +448,8 @@ func setSkillsGroup(parent *gin.RouterGroup, svc *services.SkillsService) {
 		sg.POST("/import", auth.PrivilegesRequired("skills.create"), svc.Import)
 		sg.POST("/import/file", auth.PrivilegesRequired("skills.create"), svc.ImportFile)
 		sg.POST("/search", auth.PrivilegesRequired("skills.search"), svc.Search)
+		sg.GET("/duplicates", auth.PrivilegesRequired("skills.view"), svc.Duplicates)
+		sg.POST("/merge", auth.PrivilegesRequired("skills.edit"), svc.Merge)
 		sg.GET(":idOrSlug", auth.PrivilegesRequired("skills.view"), svc.Get)
 		sg.DELETE(":idOrSlug", auth.PrivilegesRequired("skills.delete"), svc.Delete)
 		sg.GET(":idOrSlug/versions", auth.PrivilegesRequired("skills.view"), svc.Versions)

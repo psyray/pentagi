@@ -285,6 +285,48 @@ characters per side. A re-import with identical content still bumps the version
 counter (it counts imports, not revisions): the diff then reports `identical`
 rather than inventing a change.
 
+## Duplicates and merge (L3.4)
+
+The duplicate report pairs the documents of a scope by body similarity, using
+the first chunk of each document as its representative vector (pgvector cosine).
+It also lists the documents that share an exact content hash.
+
+```bash
+GET  /api/v1/skills/duplicates?threshold=0.93
+
+docker exec -w /opt/pentagi pentagi /opt/pentagi/bin/skills-import \
+  --user admin@pentagi.com --duplicates --threshold 0.93
+```
+
+Pairs are grouped into connected components, so a chain of three similar
+skills shows up as one group. The default threshold is 0.93; the report never
+merges anything, which keeps the 0.93 to 0.98 band for a human decision, as the
+plan requires.
+
+A merge folds one or more sources into a target:
+
+```bash
+POST /api/v1/skills/merge   {"target":"adcs-esc8","sources":["adcs-esc8-relay"]}
+
+docker exec -w /opt/pentagi pentagi /opt/pentagi/bin/skills-import \
+  --user admin@pentagi.com --merge adcs-esc8 --merge-from adcs-esc8-relay
+```
+
+- the source bodies are appended to the target under a `## Merged from <slug>`
+  heading and the target is imported again, so it gains a version it can be diffed against;
+- the target description, kind, status, visibility and pack are kept, and the
+  tags are unioned;
+- the target metadata records `merged_from`, the source metadata records
+  `merged_into` and the source status becomes `deprecated`, so it leaves the
+  catalogue without losing its history;
+- the source attachments move under `files/merged/<source-slug>/` to avoid path
+  collisions, and an event `merged` records the operation;
+- merging the same source twice is a no-op (`Skipped`), and a source already
+  merged into another target is refused.
+
+Metadata pointers are used instead of a new column: the document metadata is
+visible in GraphQL and the GIN index already covers it.
+
 ## Limits and current gaps
 
 - Embedding dimension is fixed at 1024 (`bge-m3`). A different model needs a
@@ -297,8 +339,10 @@ rather than inventing a change.
   skills must be split.
 - A pack import is not transactional across documents: a failure in the middle
   leaves the documents imported before it. Re-running the same pack converges.
-- The duplicate report, the merge of two documents and `merged_into` are not
-  implemented yet (L3.4).
+- A merge is not reversible from the UI: undoing it means restoring the source
+  by hand, though its content stays in the version history.
+- Automatic merge at import (similarity 0.98 and above) is not implemented:
+  every merge is explicit.
 - The history starts at the moment the versions table was created: earlier
   revisions of a document are not recoverable.
 - The review lifecycle is enforced by the publish action; the metadata editor

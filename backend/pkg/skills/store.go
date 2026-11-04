@@ -100,7 +100,7 @@ func (s *Store) ImportMarkdown(ctx context.Context, userID int64, input ImportIn
 	}
 
 	title := trimTitle(firstNonEmpty(fm.Name, input.Title, firstHeading(body)), "Untitled skill")
-	description := trimDescription(firstNonEmpty(fm.Description, firstParagraph(body)), "")
+	description := trimDescription(firstNonEmpty(input.Description, fm.Description, firstParagraph(body)), "")
 	slug := slugify(firstNonEmpty(input.Slug, fm.Name, input.Title, title))
 
 	kind := firstNonEmpty(input.Kind, fm.Kind, kindFromFrontmatter(fm))

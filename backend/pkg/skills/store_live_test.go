@@ -518,3 +518,95 @@ WHERE d.slug = 'adcs-esc8' AND e.event = 'published'`).Scan(&events); err != nil
 		t.Fatalf("published events = %d, want 2", events)
 	}
 }
+
+func TestStore_LiveDuplicatesAndMerge(t *testing.T) {
+	pool, _ := openSkillsSchema(t)
+	store := NewStore(pool, unitEmbedder{}, 8192)
+	ctx := context.Background()
+
+	importDoc := func(slug, kind, content string) {
+		front := "---\nname: " + slug + "\ndescription: A " + kind + " for the test.\ntags: [test]\n---\n"
+		if _, err := store.ImportMarkdown(ctx, 1, ImportInput{Content: front + content, Kind: kind}); err != nil {
+			t.Fatalf("import %s: %v", slug, err)
+		}
+	}
+	importDoc("dup-a", KindSkill, "# Dup A\n\nRelay NTLM to the enrollment endpoint.\n")
+	importDoc("dup-b", KindSkill, "# Dup B\n\nRelay NTLM to the enrollment endpoint with certipy.\n")
+	importDoc("ref-c", KindReference, "# Ref C\n\nUnrelated reference.\n")
+
+	report, err := store.DuplicateReport(ctx, 1, 0.9)
+	if err != nil {
+		t.Fatalf("duplicate report: %v", err)
+	}
+	if len(report.Groups) != 1 || len(report.Groups[0].Documents) != 2 {
+		t.Fatalf("groups = %+v", report.Groups)
+	}
+	if report.Groups[0].Documents[0].Kind != KindSkill {
+		t.Fatalf("group kind = %s", report.Groups[0].Documents[0].Kind)
+	}
+
+	// Attach a file to the source so the merge has to move it.
+	digest := md5.Sum([]byte("probe"))
+	hash := hex.EncodeToString(digest[:])
+	source, err := store.Get(ctx, 1, "dup-b")
+	if err != nil {
+		t.Fatalf("read source: %v", err)
+	}
+	if _, err := store.AddFile(ctx, 1, source.ID, File{
+		Path: "files/probe.py", Size: 5, SHA256: "sha", BlobRef: hash,
+	}); err != nil {
+		t.Fatalf("attach: %v", err)
+	}
+
+	result, err := store.MergeDocuments(ctx, 1, "dup-a", []string{"dup-b"})
+	if err != nil {
+		t.Fatalf("merge: %v", err)
+	}
+	if result.Version != 2 || len(result.Sources) != 1 || result.Files != 1 {
+		t.Fatalf("merge result = %+v", result)
+	}
+	if !strings.Contains(result.Target.Content, "## Merged from `dup-b`") {
+		t.Fatalf("target content does not carry the source: %q", result.Target.Content)
+	}
+	if result.Target.Description != "A skill for the test." {
+		t.Fatalf("target description = %q", result.Target.Description)
+	}
+
+	mergedSource, err := store.Get(ctx, 1, "dup-b")
+	if err != nil {
+		t.Fatalf("read merged source: %v", err)
+	}
+	if mergedSource.Status != StatusDeprecated || metadataString(mergedSource.Metadata, mergedIntoKey) != "dup-a" {
+		t.Fatalf("merged source = %+v", mergedSource)
+	}
+	if mergedFrom := metadataStrings(result.Target.Metadata, mergeMetadataKey); len(mergedFrom) != 1 || mergedFrom[0] != "dup-b" {
+		t.Fatalf("merged_from = %v", mergedFrom)
+	}
+
+	files, err := store.Files(ctx, result.Target.ID)
+	if err != nil {
+		t.Fatalf("list target files: %v", err)
+	}
+	if len(files) != 1 || files[0].Path != "files/merged/dup-b/probe.py" {
+		t.Fatalf("target files = %+v", files)
+	}
+
+	again, err := store.MergeDocuments(ctx, 1, "dup-a", []string{"dup-b"})
+	if err != nil {
+		t.Fatalf("merge again: %v", err)
+	}
+	if len(again.Sources) != 0 || len(again.Skipped) != 1 || again.Version != 2 {
+		t.Fatalf("second merge must be a no-op: %+v", again)
+	}
+
+	var events int
+	if err := pool.QueryRow(ctx, `
+SELECT count(*) FROM knowledge_events e
+JOIN knowledge_documents d ON d.id = e.document_id
+WHERE d.slug = 'dup-a' AND e.event = 'merged'`).Scan(&events); err != nil {
+		t.Fatalf("count merge events: %v", err)
+	}
+	if events != 1 {
+		t.Fatalf("merge events = %d, want 1", events)
+	}
+}

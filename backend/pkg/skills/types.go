@@ -88,6 +88,7 @@ type ImportInput struct {
 	Slug        string
 	Content     string
 	Title       string
+	Description string
 	Kind        string
 	Visibility  string
 	Status      string

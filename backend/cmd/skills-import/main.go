@@ -66,12 +66,16 @@ func main() {
 	publishSlug := flag.String("publish", "", "Publish a document by slug to the given status and exit")
 	publishTo := flag.String("publish-to", "", "Target status for --publish")
 	publishNote := flag.String("note", "", "Review note recorded with --publish")
+	duplicates := flag.Bool("duplicates", false, "Print the duplicate report and exit")
+	threshold := flag.Float64("threshold", 0, "Similarity threshold for --duplicates (default 0.93)")
+	mergeTarget := flag.String("merge", "", "Target slug for a merge and exit")
+	mergeSources := flag.String("merge-from", "", "Comma-separated source slugs for --merge")
 	outDir := flag.String("out", "", "Output directory for --export-pack")
 	dryRun := flag.Bool("dry-run", false, "Parse the pack and print the plan without writing")
 	flag.Parse()
 
 	readOnly := *searchQuery != "" || *deleteSlug != "" || *backfillLegacy || *exportPack != "" ||
-		*versionsSlug != "" || *diffSlug != "" || *publishSlug != ""
+		*versionsSlug != "" || *diffSlug != "" || *publishSlug != "" || *duplicates || *mergeTarget != ""
 	if *packPath == "" && !readOnly {
 		logrus.Fatal("the --pack flag is required unless --search, --delete, --export-pack, --versions, --diff, --publish or --backfill-legacy is set")
 	}
@@ -174,6 +178,29 @@ func main() {
 		if err := exportTreePack(ctx, store, cfg, userID, *exportPack, *outDir); err != nil {
 			logrus.WithError(err).Fatal("unable to export the pack")
 		}
+		return
+	}
+
+	if *duplicates {
+		if err := printDuplicates(ctx, store, userID, *threshold); err != nil {
+			logrus.WithError(err).Fatal("unable to build the duplicate report")
+		}
+		return
+	}
+
+	if *mergeTarget != "" {
+		sources := splitList(*mergeSources)
+		result, err := store.MergeDocuments(ctx, userID, *mergeTarget, sources)
+		if err != nil {
+			logrus.WithError(err).Fatal("unable to merge the documents")
+		}
+		logrus.WithFields(logrus.Fields{
+			"target":  result.Target.Slug,
+			"version": result.Version,
+			"sources": len(result.Sources),
+			"skipped": len(result.Skipped),
+			"files":   result.Files,
+		}).Info("documents merged")
 		return
 	}
 
@@ -469,4 +496,41 @@ func printDiff(ctx context.Context, store *skills.Store, userID int64, slug stri
 	fmt.Print(diff.Diff)
 	fmt.Printf("\n%d added, %d removed\n", diff.Added, diff.Removed)
 	return nil
+}
+
+func printDuplicates(ctx context.Context, store *skills.Store, userID int64, threshold float64) error {
+	report, err := store.DuplicateReport(ctx, userID, threshold)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("threshold %.2f, %d similar pairs, %d groups, %d exact groups\n",
+		report.Threshold, len(report.Pairs), len(report.Groups), len(report.Exact))
+
+	for _, group := range report.Groups {
+		fmt.Printf("\n%s group, max %.4f\n", group.Kind, group.MaxSimilarity)
+		for _, doc := range group.Documents {
+			fmt.Printf("  %-50s v%d %s (%d chars)\n", doc.Slug, doc.Version, doc.Status, doc.Chars)
+		}
+	}
+
+	for _, group := range report.Exact {
+		fmt.Printf("\nexact duplicates\n")
+		for _, doc := range group {
+			fmt.Printf("  %-50s %s\n", doc.Slug, doc.Kind)
+		}
+	}
+
+	return nil
+}
+
+func splitList(value string) []string {
+	parts := strings.Split(value, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
 }
