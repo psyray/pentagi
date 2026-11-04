@@ -285,6 +285,7 @@ func (te *toolExecutor) GetTool(ctx context.Context, funcName string) (tools.Too
 			te.cfg.EmbeddingMaxTextBytes,
 			te.proxies.GetVectorStoreLogProvider(),
 			te.proxies.GetKnowledgeProvider(),
+			tools.WithSharedKnowledgeSearch(te.cfg.KnowledgeSharedSearch),
 		), nil
 
 	case tools.SearchAnswerToolName:
@@ -300,6 +301,7 @@ func (te *toolExecutor) GetTool(ctx context.Context, funcName string) (tools.Too
 			te.cfg.EmbeddingMaxTextBytes,
 			te.proxies.GetVectorStoreLogProvider(),
 			te.proxies.GetKnowledgeProvider(),
+			tools.WithSharedKnowledgeSearch(te.cfg.KnowledgeSharedSearch),
 		), nil
 
 	case tools.SearchCodeToolName:
@@ -315,6 +317,7 @@ func (te *toolExecutor) GetTool(ctx context.Context, funcName string) (tools.Too
 			te.cfg.EmbeddingMaxTextBytes,
 			te.proxies.GetVectorStoreLogProvider(),
 			te.proxies.GetKnowledgeProvider(),
+			tools.WithSharedKnowledgeSearch(te.cfg.KnowledgeSharedSearch),
 		), nil
 
 	case tools.GraphitiSearchToolName:

@@ -168,6 +168,24 @@ func TestMigrations_EmbedMigrations_BuildTheEmbeddingMetadataIndex(t *testing.T)
 	}
 }
 
+func TestMigrations_EmbedMigrations_CreateKnowledgeSearchIndexes(t *testing.T) {
+	db := openSchema(t)
+
+	for _, index := range []string{
+		"langchain_pg_embedding_hnsw_1024",
+		"langchain_pg_embedding_meta_user_id",
+		"langchain_pg_embedding_meta_doc_type_user_id",
+		"langchain_pg_embedding_meta_content_hash",
+	} {
+		if exists, valid := validIndex(t, db, index); !exists || !valid {
+			t.Errorf("%s: exists=%v valid=%v, want a valid index", index, exists, valid)
+		}
+	}
+	if exists, _ := validIndex(t, db, "langchain_pg_embedding_hnsw"); exists {
+		t.Error("the invalid generic HNSW index survived the migration")
+	}
+}
+
 func TestMigrations_EmbedMigrations_DropThePartialIndexAStoreBuiltBefore(t *testing.T) {
 	db := openSchema(t)
 

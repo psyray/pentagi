@@ -1146,6 +1146,14 @@ func TestTools_VectorStoreLogProvider_NoDoorLogsARawArgument(t *testing.T) {
 				return true
 			}
 
+			// The knowledge doors log through one helper, which applies the
+			// replacer before it reaches PutLog; count the call rather than the
+			// PutLog it makes so a newly added door stays visible to this sweep.
+			if ident, ok := call.Fun.(*ast.Ident); ok && ident.Name == "logKnowledgeOperation" {
+				calls++
+				return true
+			}
+
 			selector, ok := call.Fun.(*ast.SelectorExpr)
 			if !ok || selector.Sel.Name != "PutLog" || len(call.Args) < 5 {
 				return true

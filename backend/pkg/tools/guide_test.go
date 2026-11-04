@@ -77,7 +77,9 @@ func TestGuide_Handle_StoresAGuideWhereItsSearchLooks(t *testing.T) {
 				"questions": []string{"q"}, "message": "m", "type": tc.want,
 			}))
 
-			filters := rig.conn.search(t, 0).filters
+			// The first query is the pre-insertion duplicate lookup; the second is
+			// the search the test is about.
+			filters := rig.conn.search(t, 1).filters
 			if want := map[string]string{"doc_type": "guide", "guide_type": tc.want}; !maps.Equal(filters, want) {
 				t.Fatalf("search_guide filtered on %v, want %v", filters, want)
 			}

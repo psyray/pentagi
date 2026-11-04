@@ -905,6 +905,7 @@ func (fte *flowToolsExecutor) GetAssistantExecutor(cfg AssistantExecutorConfig) 
 			fte.cfg.EmbeddingMaxTextBytes,
 			fte.vslp,
 			fte.knp,
+			WithSharedKnowledgeSearch(fte.cfg.KnowledgeSharedSearch),
 		)
 		if guide.IsAvailable() {
 			definitions = append(definitions, registryDefinitions[SearchGuideToolName])
@@ -920,6 +921,7 @@ func (fte *flowToolsExecutor) GetAssistantExecutor(cfg AssistantExecutorConfig) 
 			fte.cfg.EmbeddingMaxTextBytes,
 			fte.vslp,
 			fte.knp,
+			WithSharedKnowledgeSearch(fte.cfg.KnowledgeSharedSearch),
 		)
 		if search.IsAvailable() {
 			definitions = append(definitions, registryDefinitions[SearchAnswerToolName])
@@ -935,6 +937,7 @@ func (fte *flowToolsExecutor) GetAssistantExecutor(cfg AssistantExecutorConfig) 
 			fte.cfg.EmbeddingMaxTextBytes,
 			fte.vslp,
 			fte.knp,
+			WithSharedKnowledgeSearch(fte.cfg.KnowledgeSharedSearch),
 		)
 		if code.IsAvailable() {
 			definitions = append(definitions, registryDefinitions[SearchCodeToolName])
@@ -1160,6 +1163,7 @@ func (fte *flowToolsExecutor) GetInstallerExecutor(cfg InstallerExecutorConfig) 
 		fte.cfg.EmbeddingMaxTextBytes,
 		fte.vslp,
 		fte.knp,
+		WithSharedKnowledgeSearch(fte.cfg.KnowledgeSharedSearch),
 	)
 	if guide.IsAvailable() {
 		ce.definitions = append(ce.definitions, registryDefinitions[StoreGuideToolName])
@@ -1270,6 +1274,7 @@ func (fte *flowToolsExecutor) GetCoderExecutor(cfg CoderExecutorConfig) (Context
 		fte.cfg.EmbeddingMaxTextBytes,
 		fte.vslp,
 		fte.knp,
+		WithSharedKnowledgeSearch(fte.cfg.KnowledgeSharedSearch),
 	)
 	if code.IsAvailable() {
 		ce.definitions = append(ce.definitions, registryDefinitions[SearchCodeToolName])
@@ -1398,6 +1403,7 @@ func (fte *flowToolsExecutor) GetPentesterExecutor(cfg PentesterExecutorConfig) 
 		fte.cfg.EmbeddingMaxTextBytes,
 		fte.vslp,
 		fte.knp,
+		WithSharedKnowledgeSearch(fte.cfg.KnowledgeSharedSearch),
 	)
 	if guide.IsAvailable() {
 		ce.definitions = append(ce.definitions, registryDefinitions[StoreGuideToolName])
@@ -1493,6 +1499,7 @@ func (fte *flowToolsExecutor) GetSearcherExecutor(cfg SearcherExecutorConfig) (C
 		fte.cfg.EmbeddingMaxTextBytes,
 		fte.vslp,
 		fte.knp,
+		WithSharedKnowledgeSearch(fte.cfg.KnowledgeSharedSearch),
 	)
 	if search.IsAvailable() {
 		ce.definitions = append(ce.definitions, registryDefinitions[SearchAnswerToolName])

@@ -26,7 +26,8 @@ func TestSearch_Handle_StoresAnAnswerGraphQLCanUpdate(t *testing.T) {
 	obs.InitObserver(context.Background(), nil, nil, []logrus.Level{})
 
 	db := &searchContentDB{}
-	door := tools.NewSearchTool(1, 1, nil, nil, searchKeepReplacer{}, &pgvector.Store{}, searchUnitEmbedder{}, db, 0, nil, nil)
+	door := tools.NewSearchTool(1, 1, nil, nil, searchKeepReplacer{}, &pgvector.Store{}, searchUnitEmbedder{}, db, 0, nil, nil,
+		tools.WithKnowledgeDeduplication(false))
 	args, err := json.Marshal(map[string]any{
 		"answer": strings.Repeat("я", limits.MaxContentLen+1), "message": "m", "question": "q", "type": "tool",
 	})

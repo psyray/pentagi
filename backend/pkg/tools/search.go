@@ -41,6 +41,8 @@ type search struct {
 	maxEmbeddingBytes int
 	vslp              VectorStoreLogProvider
 	knp               KnowledgeProvider
+	sharedSearch      bool
+	deduplicate       bool
 }
 
 func NewSearchTool(
@@ -54,7 +56,9 @@ func NewSearchTool(
 	maxEmbeddingBytes int,
 	vslp VectorStoreLogProvider,
 	knp KnowledgeProvider,
+	opts ...KnowledgeSearchOption,
 ) Tool {
+	scope := resolveKnowledgeSearchOptions(opts)
 	return &search{
 		userID:            userID,
 		flowID:            flowID,
@@ -67,6 +71,8 @@ func NewSearchTool(
 		maxEmbeddingBytes: maxEmbeddingBytes,
 		vslp:              vslp,
 		knp:               knp,
+		sharedSearch:      scope.shared,
+		deduplicate:       scope.deduplicate,
 	}
 }
 
@@ -94,6 +100,7 @@ func (s *search) Handle(ctx context.Context, name string, args json.RawMessage) 
 			"doc_type":    searchVectorStoreDefaultType,
 			"answer_type": action.Type,
 		}
+		maps.Copy(filters, knowledgeScopeFilters(s.userID, s.sharedSearch))
 
 		metadata := langfuse.Metadata{
 			"tool_name":     name,
@@ -166,6 +173,9 @@ func (s *search) Handle(ctx context.Context, name string, args json.RawMessage) 
 				langfuse.WithScoreName("search_answer_result"),
 				langfuse.WithScoreStringValue("not_found"),
 			)
+			logKnowledgeOperation(ctx, s.vslp, s.replacer, s.taskID, s.subtaskID, filters,
+				strings.Join(action.Questions, "\n--------------------------------\n"),
+				database.VecstoreActionTypeRetrieve, searchNotFoundMessage)
 			return searchNotFoundMessage, nil
 		}
 
@@ -190,27 +200,13 @@ func (s *search) Handle(ctx context.Context, name string, args json.RawMessage) 
 			buffer.WriteString("\n\n")
 		}
 
-		if agentCtx, ok := GetAgentContext(ctx); ok {
-			filtersData, err := json.Marshal(filters)
-			if err != nil {
-				logger.WithError(err).Error("failed to marshal filters")
-				return "", fmt.Errorf("failed to marshal filters: %w", err)
-			}
-			queriesText := s.replacer.ReplaceString(strings.Join(action.Questions, "\n--------------------------------\n"))
-			_, _ = s.vslp.PutLog(
-				ctx,
-				agentCtx.ParentAgentType,
-				agentCtx.CurrentAgentType,
-				filtersData,
-				queriesText,
-				database.VecstoreActionTypeRetrieve,
-				buffer.String(),
-				s.taskID,
-				s.subtaskID,
-			)
-		}
+		result := clampKnowledgeResult(buffer.String(), DefaultResultSizeLimit)
 
-		return buffer.String(), nil
+		logKnowledgeOperation(ctx, s.vslp, s.replacer, s.taskID, s.subtaskID, filters,
+			strings.Join(action.Questions, "\n--------------------------------\n"),
+			database.VecstoreActionTypeRetrieve, result)
+
+		return result, nil
 
 	case StoreAnswerToolName:
 		var action StoreAnswerAction
@@ -230,6 +226,7 @@ func (s *search) Handle(ctx context.Context, name string, args json.RawMessage) 
 			anonymizedAnswer   = boundedContent(s.replacer, action.Answer)
 			anonymizedQuestion = limits.TruncateToLimit(s.replacer.ReplaceString(action.Question), limits.MaxQuestionLen)
 		)
+		contentHash := knowledgeFingerprint(anonymizedAnswer)
 
 		eventMetadata := map[string]any{
 			"tool_name":   name,
@@ -251,19 +248,48 @@ func (s *search) Handle(ctx context.Context, name string, args json.RawMessage) 
 		})
 
 		metadata := map[string]any{
-			"user_id":     s.userID,
-			"flow_id":     s.flowID,
-			"doc_type":    searchVectorStoreDefaultType,
-			"answer_type": action.Type,
-			"question":    anonymizedQuestion,
-			"part_size":   len(anonymizedAnswer),
-			"total_size":  len(anonymizedAnswer),
+			"user_id":      s.userID,
+			"flow_id":      s.flowID,
+			"doc_type":     searchVectorStoreDefaultType,
+			"answer_type":  action.Type,
+			"question":     anonymizedQuestion,
+			"content_hash": contentHash,
+			"part_size":    len(anonymizedAnswer),
+			"total_size":   len(anonymizedAnswer),
 		}
 		if s.taskID != nil {
 			metadata["task_id"] = *s.taskID
 		}
 		if s.subtaskID != nil {
 			metadata["subtask_id"] = *s.subtaskID
+		}
+
+		dedupFilters := map[string]any{
+			"doc_type":    searchVectorStoreDefaultType,
+			"answer_type": action.Type,
+		}
+		maps.Copy(dedupFilters, knowledgeScopeFilters(s.userID, s.sharedSearch))
+
+		if s.deduplicate {
+			dup, dedupErr := findKnowledgeDuplicate(ctx, s.store, dedupFilters, anonymizedQuestion, contentHash)
+			if dedupErr != nil {
+				logger.WithError(dedupErr).Warn("knowledge deduplication lookup failed; storing anyway")
+			}
+			if dup != nil {
+				message := describeKnowledgeDuplicate("answer", dup)
+				observation.Event(append(opts,
+					langfuse.WithEventStatus("duplicate"),
+					langfuse.WithEventLevel(langfuse.ObservationLevelDebug),
+					langfuse.WithEventOutput(message),
+				)...)
+				logKnowledgeOperation(ctx, s.vslp, s.replacer, s.taskID, s.subtaskID, dedupFilters,
+					anonymizedQuestion, database.VecstoreActionTypeStore, message)
+				logger.WithFields(logrus.Fields{
+					"duplicate":  true,
+					"similarity": dup.Document.Score,
+				}).Info("answer storage skipped: duplicate")
+				return message, nil
+			}
 		}
 
 		var (
@@ -354,34 +380,18 @@ func (s *search) Handle(ctx context.Context, name string, args json.RawMessage) 
 			}
 		}
 
-		if agentCtx, ok := GetAgentContext(ctx); ok {
-			data := map[string]any{
-				"doc_type":    searchVectorStoreDefaultType,
-				"answer_type": action.Type,
-			}
-			if s.taskID != nil {
-				data["task_id"] = *s.taskID
-			}
-			if s.subtaskID != nil {
-				data["subtask_id"] = *s.subtaskID
-			}
-			filtersData, err := json.Marshal(data)
-			if err != nil {
-				logger.WithError(err).Error("failed to marshal filters")
-				return "", fmt.Errorf("failed to marshal filters: %w", err)
-			}
-			_, _ = s.vslp.PutLog(
-				ctx,
-				agentCtx.ParentAgentType,
-				agentCtx.CurrentAgentType,
-				filtersData,
-				anonymizedQuestion,
-				database.VecstoreActionTypeStore,
-				anonymizedAnswer,
-				s.taskID,
-				s.subtaskID,
-			)
+		storeFilters := map[string]any{
+			"doc_type":    searchVectorStoreDefaultType,
+			"answer_type": action.Type,
 		}
+		if s.taskID != nil {
+			storeFilters["task_id"] = *s.taskID
+		}
+		if s.subtaskID != nil {
+			storeFilters["subtask_id"] = *s.subtaskID
+		}
+		logKnowledgeOperation(ctx, s.vslp, s.replacer, s.taskID, s.subtaskID, storeFilters,
+			anonymizedQuestion, database.VecstoreActionTypeStore, anonymizedAnswer)
 
 		return "answer for question stored successfully", nil
 

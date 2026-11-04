@@ -122,6 +122,13 @@ type Config struct {
 	EmbeddingProvider      string `env:"EMBEDDING_PROVIDER" envDefault:"openai"`
 	EmbeddingMaxTextBytes  int    `env:"EMBEDDING_MAX_TEXT_BYTES" envDefault:"8192"`
 
+	// === Knowledge Base Configuration ===
+	// KnowledgeSharedSearch lets agents read and deduplicate every user's
+	// knowledge documents. The secure default keeps each user's documents
+	// private to that user; a single-user deployment can opt back into the
+	// historical shared store.
+	KnowledgeSharedSearch bool `env:"KNOWLEDGE_SHARED_SEARCH" envDefault:"false"`
+
 	// === Chain Summarization Engine ===
 	SummarizerPreserveLast   bool `env:"SUMMARIZER_PRESERVE_LAST" envDefault:"true"`
 	SummarizerUseQA          bool `env:"SUMMARIZER_USE_QA" envDefault:"true"`

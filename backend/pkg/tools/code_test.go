@@ -100,7 +100,9 @@ func TestCode_Handle_StoresASampleWhereItsSearchLooks(t *testing.T) {
 				"questions": []string{"q"}, "message": "m", "lang": tc.want,
 			}))
 
-			filters := rig.conn.search(t, 0).filters
+			// The first query is the pre-insertion duplicate lookup; the second is
+			// the search the test is about.
+			filters := rig.conn.search(t, 1).filters
 			if want := map[string]string{"doc_type": "code", "code_lang": tc.want}; !maps.Equal(filters, want) {
 				t.Fatalf("search_code filtered on %v, want %v", filters, want)
 			}

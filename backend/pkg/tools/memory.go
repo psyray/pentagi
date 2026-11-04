@@ -193,6 +193,9 @@ func (m *memory) Handle(ctx context.Context, name string, args json.RawMessage) 
 				langfuse.WithScoreName("memory_search_result"),
 				langfuse.WithScoreStringValue("not_found"),
 			)
+			logKnowledgeOperation(ctx, m.vslp, m.replacer, action.TaskID.PtrInt64(), action.SubtaskID.PtrInt64(),
+				filters, strings.Join(action.Questions, "\n--------------------------------\n"),
+				database.VecstoreActionTypeRetrieve, memoryNotFoundMessage)
 			return memoryNotFoundMessage, nil
 		}
 
@@ -225,28 +228,14 @@ func (m *memory) Handle(ctx context.Context, name string, args json.RawMessage) 
 			buffer.WriteString("\n---------------------------\n")
 		}
 
-		if agentCtx, ok := GetAgentContext(ctx); ok {
-			filtersData, err := json.Marshal(filters)
-			if err != nil {
-				logger.WithError(err).Error("failed to marshal filters")
-				return "", fmt.Errorf("failed to marshal filters: %w", err)
-			}
-			// The vector store tab shows the logged query as is, so it is logged anonymized.
-			queriesText := m.replacer.ReplaceString(strings.Join(action.Questions, "\n--------------------------------\n"))
-			_, _ = m.vslp.PutLog(
-				ctx,
-				agentCtx.ParentAgentType,
-				agentCtx.CurrentAgentType,
-				filtersData,
-				queriesText,
-				database.VecstoreActionTypeRetrieve,
-				buffer.String(),
-				action.TaskID.PtrInt64(),
-				action.SubtaskID.PtrInt64(),
-			)
-		}
+		result := clampKnowledgeResult(buffer.String(), DefaultResultSizeLimit)
 
-		return buffer.String(), nil
+		// The vector store tab shows the logged query as is, so it is logged anonymized.
+		logKnowledgeOperation(ctx, m.vslp, m.replacer, action.TaskID.PtrInt64(), action.SubtaskID.PtrInt64(),
+			filters, strings.Join(action.Questions, "\n--------------------------------\n"),
+			database.VecstoreActionTypeRetrieve, result)
+
+		return result, nil
 
 	default:
 		logger.Error("unknown tool")

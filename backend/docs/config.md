@@ -52,6 +52,7 @@ This document serves as a comprehensive guide to the configuration system in Pen
     - [Usage Details](#usage-details-6)
   - [Embedding Settings](#embedding-settings)
     - [Usage Details](#usage-details-7)
+  - [Knowledge Settings](#knowledge-settings)
   - [Summarizer Settings](#summarizer-settings)
     - [Usage Details and Impact on System Behavior](#usage-details-and-impact-on-system-behavior)
       - [Core Summarization Strategies and Their Parameters](#core-summarization-strategies-and-their-parameters)
@@ -1218,6 +1219,14 @@ These settings are essential for:
 - Determining which embedding model to use
 - Optimizing embedding performance and quality
 - Supporting multiple embedding providers for flexibility
+
+## Knowledge Settings
+
+| Setting | Environment Variable | Default | Description |
+|---------|----------------------|---------|-------------|
+| KnowledgeSharedSearch | `KNOWLEDGE_SHARED_SEARCH` | `false` | When `false`, agent knowledge searches and pre-insertion duplicate lookups only read the caller's documents. When `true`, they span every user's documents in the instance, which is the historical behaviour. Keep `false` on multi-user deployments; set `true` only when the knowledge base is intentionally shared, for example on a single-user benchmarking instance. |
+
+The scope applies to `search_guide`, `search_answer`, `search_code` and to the duplicate lookup performed by `store_guide`, `store_answer` and `store_code`. It does not change the flow-scoped execution memory.
 
 ## Summarizer Settings
 

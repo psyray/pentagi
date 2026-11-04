@@ -196,6 +196,7 @@ func TestConfig_NewConfig_FillsDefaultsForAnEmptyEnvironment(t *testing.T) {
 	assert.Equal(t, "openai", config.EmbeddingProvider)
 	assert.Equal(t, 512, config.EmbeddingBatchSize)
 	assert.Equal(t, true, config.EmbeddingStripNewLines)
+	assert.Equal(t, false, config.KnowledgeSharedSearch)
 
 	assert.Equal(t, "https://api.openai.com/v1", config.OpenAIServerURL)
 	assert.Equal(t, "https://api.anthropic.com/v1", config.AnthropicServerURL)

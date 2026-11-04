@@ -41,6 +41,8 @@ type guide struct {
 	maxEmbeddingBytes int
 	vslp              VectorStoreLogProvider
 	knp               KnowledgeProvider
+	sharedSearch      bool
+	deduplicate       bool
 }
 
 func NewGuideTool(
@@ -52,7 +54,9 @@ func NewGuideTool(
 	maxEmbeddingBytes int,
 	vslp VectorStoreLogProvider,
 	knp KnowledgeProvider,
+	opts ...KnowledgeSearchOption,
 ) Tool {
+	scope := resolveKnowledgeSearchOptions(opts)
 	return &guide{
 		userID:            userID,
 		flowID:            flowID,
@@ -65,6 +69,8 @@ func NewGuideTool(
 		maxEmbeddingBytes: maxEmbeddingBytes,
 		vslp:              vslp,
 		knp:               knp,
+		sharedSearch:      scope.shared,
+		deduplicate:       scope.deduplicate,
 	}
 }
 
@@ -96,6 +102,7 @@ func (g *guide) Handle(ctx context.Context, name string, args json.RawMessage) (
 			"doc_type":   guideVectorStoreDefaultType,
 			"guide_type": action.Type,
 		}
+		maps.Copy(filters, knowledgeScopeFilters(g.userID, g.sharedSearch))
 
 		metadata := langfuse.Metadata{
 			"tool_name":     name,
@@ -168,6 +175,9 @@ func (g *guide) Handle(ctx context.Context, name string, args json.RawMessage) (
 				langfuse.WithScoreName("guide_search_result"),
 				langfuse.WithScoreStringValue("not_found"),
 			)
+			logKnowledgeOperation(ctx, g.vslp, g.replacer, g.taskID, g.subtaskID, filters,
+				strings.Join(action.Questions, "\n--------------------------------\n"),
+				database.VecstoreActionTypeRetrieve, guideNotFoundMessage)
 			return guideNotFoundMessage, nil
 		}
 
@@ -192,27 +202,13 @@ func (g *guide) Handle(ctx context.Context, name string, args json.RawMessage) (
 			buffer.WriteString("\n\n")
 		}
 
-		if agentCtx, ok := GetAgentContext(ctx); ok {
-			filtersData, err := json.Marshal(filters)
-			if err != nil {
-				logger.WithError(err).Error("failed to marshal filters")
-				return "", fmt.Errorf("failed to marshal filters: %w", err)
-			}
-			queriesText := g.replacer.ReplaceString(strings.Join(action.Questions, "\n--------------------------------\n"))
-			_, _ = g.vslp.PutLog(
-				ctx,
-				agentCtx.ParentAgentType,
-				agentCtx.CurrentAgentType,
-				filtersData,
-				queriesText,
-				database.VecstoreActionTypeRetrieve,
-				buffer.String(),
-				g.taskID,
-				g.subtaskID,
-			)
-		}
+		result := clampKnowledgeResult(buffer.String(), DefaultResultSizeLimit)
 
-		return buffer.String(), nil
+		logKnowledgeOperation(ctx, g.vslp, g.replacer, g.taskID, g.subtaskID, filters,
+			strings.Join(action.Questions, "\n--------------------------------\n"),
+			database.VecstoreActionTypeRetrieve, result)
+
+		return result, nil
 
 	case StoreGuideToolName:
 		var action StoreGuideAction
@@ -235,6 +231,7 @@ func (g *guide) Handle(ctx context.Context, name string, args json.RawMessage) (
 			anonymizedQuestion  = limits.TruncateToLimit(g.replacer.ReplaceString(action.Question), limits.MaxQuestionLen)
 			anonymizedGuideOnly = g.replacer.ReplaceString(action.Guide) // used in slow-path embedding text
 		)
+		contentHash := knowledgeFingerprint(anonymizedGuide)
 
 		eventMetadata := map[string]any{
 			"tool_name":  name,
@@ -256,19 +253,48 @@ func (g *guide) Handle(ctx context.Context, name string, args json.RawMessage) (
 		})
 
 		metadata := map[string]any{
-			"user_id":    g.userID,
-			"flow_id":    g.flowID,
-			"doc_type":   guideVectorStoreDefaultType,
-			"guide_type": action.Type,
-			"question":   anonymizedQuestion,
-			"part_size":  len(anonymizedGuide),
-			"total_size": len(anonymizedGuide),
+			"user_id":      g.userID,
+			"flow_id":      g.flowID,
+			"doc_type":     guideVectorStoreDefaultType,
+			"guide_type":   action.Type,
+			"question":     anonymizedQuestion,
+			"content_hash": contentHash,
+			"part_size":    len(anonymizedGuide),
+			"total_size":   len(anonymizedGuide),
 		}
 		if g.taskID != nil {
 			metadata["task_id"] = *g.taskID
 		}
 		if g.subtaskID != nil {
 			metadata["subtask_id"] = *g.subtaskID
+		}
+
+		dedupFilters := map[string]any{
+			"doc_type":   guideVectorStoreDefaultType,
+			"guide_type": action.Type,
+		}
+		maps.Copy(dedupFilters, knowledgeScopeFilters(g.userID, g.sharedSearch))
+
+		if g.deduplicate {
+			dup, dedupErr := findKnowledgeDuplicate(ctx, g.store, dedupFilters, anonymizedQuestion, contentHash)
+			if dedupErr != nil {
+				logger.WithError(dedupErr).Warn("knowledge deduplication lookup failed; storing anyway")
+			}
+			if dup != nil {
+				message := describeKnowledgeDuplicate("guide", dup)
+				observation.Event(append(opts,
+					langfuse.WithEventStatus("duplicate"),
+					langfuse.WithEventLevel(langfuse.ObservationLevelDebug),
+					langfuse.WithEventOutput(message),
+				)...)
+				logKnowledgeOperation(ctx, g.vslp, g.replacer, g.taskID, g.subtaskID, dedupFilters,
+					anonymizedQuestion, database.VecstoreActionTypeStore, message)
+				logger.WithFields(logrus.Fields{
+					"duplicate":  true,
+					"similarity": dup.Document.Score,
+				}).Info("guide storage skipped: duplicate")
+				return message, nil
+			}
 		}
 
 		var (
@@ -361,34 +387,18 @@ func (g *guide) Handle(ctx context.Context, name string, args json.RawMessage) (
 			}
 		}
 
-		if agentCtx, ok := GetAgentContext(ctx); ok {
-			data := map[string]any{
-				"doc_type":   guideVectorStoreDefaultType,
-				"guide_type": action.Type,
-			}
-			if g.taskID != nil {
-				data["task_id"] = *g.taskID
-			}
-			if g.subtaskID != nil {
-				data["subtask_id"] = *g.subtaskID
-			}
-			filtersData, err := json.Marshal(data)
-			if err != nil {
-				logger.WithError(err).Error("failed to marshal filters")
-				return "", fmt.Errorf("failed to marshal filters: %w", err)
-			}
-			_, _ = g.vslp.PutLog(
-				ctx,
-				agentCtx.ParentAgentType,
-				agentCtx.CurrentAgentType,
-				filtersData,
-				anonymizedQuestion,
-				database.VecstoreActionTypeStore,
-				anonymizedGuide,
-				g.taskID,
-				g.subtaskID,
-			)
+		storeFilters := map[string]any{
+			"doc_type":   guideVectorStoreDefaultType,
+			"guide_type": action.Type,
 		}
+		if g.taskID != nil {
+			storeFilters["task_id"] = *g.taskID
+		}
+		if g.subtaskID != nil {
+			storeFilters["subtask_id"] = *g.subtaskID
+		}
+		logKnowledgeOperation(ctx, g.vslp, g.replacer, g.taskID, g.subtaskID, storeFilters,
+			anonymizedQuestion, database.VecstoreActionTypeStore, anonymizedGuide)
 
 		return "guide stored successfully", nil
 

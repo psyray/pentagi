@@ -180,6 +180,8 @@ PentAGI uses the collection named `langchain`. Ownership and association are rep
 
 The knowledge query API excludes `doc_type = 'memory'` from user-managed knowledge listings/searches. GraphQL and REST flow-deletion paths issue an explicit best-effort deletion of memory rows (`DeleteFlowMemoryDocuments`); this is application behavior, not a database trigger or foreign-key cascade. The knowledge migration intentionally does not drop the LangChain tables on downgrade because they may contain production data managed by the vector store.
 
+Migration `20261103_120000_knowledge_search_indexes.sql` codifies the search indexes: an HNSW index on the cosine distance (adopted with `IF NOT EXISTS` where a hand-built copy already exists) and expression indexes on `cmetadata->>'user_id'`, `cmetadata->>'content_hash'` and `(doc_type, user_id)`. The lexical GIN index is deferred to the hybrid-search lot, when a reader exists. The server reads `KNOWLEDGE_SHARED_SEARCH` to decide whether agent searches and duplicate lookups span every user or only the caller; see `docs/config.md`.
+
 ### Enums
 
 PostgreSQL enums are migrated explicitly and generated as Go string types in `models.go`. Current values:

@@ -737,6 +737,9 @@ The system maintains multiple types of persistent knowledge with PostgreSQL + pg
 **Technical Parameters**:
 - **Similarity Threshold**: 0.2 for all vector searches
 - **Result Limits**: 3 documents maximum per search
+- **Result Budget**: knowledge and memory retrievals are capped at 16 KB per tool result, with an explicit truncation marker
+- **Write Deduplication**: `store_guide`, `store_answer` and `store_code` look up the same document type and subtype before writing; an exact content hash match or a question similarity at or above 0.93 skips the insert
+- **Read Scope**: agent knowledge searches and duplicate lookups read only the caller's documents by default; `KNOWLEDGE_SHARED_SEARCH=true` restores the historical instance-wide store
 - **Memory Storage Tools**: 18 tools automatically store results (terminal, file, all search engines, all agent tools)
 - **Summarization Eligible**: Only `terminal` and `browser` tools results are auto-summarized when > 16KB
 
