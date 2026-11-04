@@ -247,6 +247,11 @@ VALUES ($1::uuid, $2, $3, $4::jsonb)`,
 		return nil, fmt.Errorf("skills: record import event: %w", err)
 	}
 
+	if err := s.writeVersionRow(ctx, tx, documentID, version, title, description, body, newContentHash,
+		status, visibility, tags, string(metadataJSON), userID); err != nil {
+		return nil, err
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("skills: commit import: %w", err)
 	}
@@ -561,6 +566,31 @@ WHERE id = $1::uuid AND user_id = $7 AND deleted_at IS NULL`,
 		doc.ID, input.Status, input.Visibility, input.Description, input.Quality, tags, userID)
 	if err != nil {
 		return nil, fmt.Errorf("skills: update metadata: %w", err)
+	}
+
+	changed := make(map[string]any)
+	if input.Status != nil {
+		changed["status"] = *input.Status
+	}
+	if input.Visibility != nil {
+		changed["visibility"] = *input.Visibility
+	}
+	if input.Description != nil {
+		changed["description"] = true
+	}
+	if input.Quality != nil {
+		changed["quality"] = *input.Quality
+	}
+	if input.Tags != nil {
+		changed["tags"] = input.Tags
+	}
+	if len(changed) > 0 {
+		details, err := json.Marshal(changed)
+		if err == nil {
+			_, _ = s.db.Exec(ctx, `
+INSERT INTO knowledge_events (document_id, actor_user_id, event, details)
+VALUES ($1::uuid, $2, 'metadata_updated', $3::jsonb)`, doc.ID, userID, string(details))
+		}
 	}
 
 	return s.Get(ctx, userID, doc.ID)

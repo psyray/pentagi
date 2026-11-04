@@ -578,6 +578,131 @@ func fileSHA256(path string) (string, error) {
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
+// Versions lists the stored revisions of a document, newest first.
+//
+// @Summary List skill versions
+// @Tags Skills
+// @Produce json
+// @Security BearerAuth
+// @Param idOrSlug path string true "document id or slug"
+// @Success 200 {object} response.successResp{data=object}
+// @Router /skills/{idOrSlug}/versions [get]
+func (s *SkillsService) Versions(c *gin.Context) {
+	if !s.available(c) {
+		return
+	}
+
+	uid := int64(c.GetUint64("uid"))
+	versions, err := s.store.ListVersions(c.Request.Context(), uid, c.Param("idOrSlug"))
+	if err != nil {
+		s.writeStoreError(c, err, "list skill versions")
+		return
+	}
+
+	response.Success(c, http.StatusOK, gin.H{"versions": versions, "total": len(versions)})
+}
+
+// Version returns one revision of a document, body included.
+//
+// @Summary Read one skill version
+// @Tags Skills
+// @Produce json
+// @Security BearerAuth
+// @Param idOrSlug path string true "document id or slug"
+// @Param version path int true "version number"
+// @Success 200 {object} response.successResp{data=skills.DocumentVersion}
+// @Router /skills/{idOrSlug}/versions/{version} [get]
+func (s *SkillsService) Version(c *gin.Context) {
+	if !s.available(c) {
+		return
+	}
+
+	version, err := strconv.Atoi(c.Param("version"))
+	if err != nil || version <= 0 {
+		response.Error(c, response.ErrKnowledgeInvalidRequest, errors.New("the version must be a positive integer"))
+		return
+	}
+
+	uid := int64(c.GetUint64("uid"))
+	revision, err := s.store.GetVersion(c.Request.Context(), uid, c.Param("idOrSlug"), version)
+	if err != nil {
+		s.writeStoreError(c, err, "read skill version")
+		return
+	}
+
+	response.Success(c, http.StatusOK, revision)
+}
+
+// Diff compares two revisions of a document.
+//
+// @Summary Diff skill versions
+// @Tags Skills
+// @Produce json
+// @Security BearerAuth
+// @Param idOrSlug path string true "document id or slug"
+// @Param from query int true "source version"
+// @Param to query int false "target version, defaults to the current one"
+// @Success 200 {object} response.successResp{data=skills.VersionDiff}
+// @Router /skills/{idOrSlug}/diff [get]
+func (s *SkillsService) Diff(c *gin.Context) {
+	if !s.available(c) {
+		return
+	}
+
+	from, err := strconv.Atoi(c.Query("from"))
+	if err != nil || from <= 0 {
+		response.Error(c, response.ErrKnowledgeInvalidRequest, errors.New("the from query parameter is required"))
+		return
+	}
+	to, _ := strconv.Atoi(c.Query("to"))
+
+	uid := int64(c.GetUint64("uid"))
+	diff, err := s.store.DiffVersions(c.Request.Context(), uid, c.Param("idOrSlug"), from, to)
+	if err != nil {
+		s.writeStoreError(c, err, "diff skill versions")
+		return
+	}
+
+	response.Success(c, http.StatusOK, diff)
+}
+
+type skillPublishRequest struct {
+	Status string `json:"status" binding:"required"`
+	Note   string `json:"note"`
+}
+
+// Publish moves a skill through the review lifecycle.
+//
+// @Summary Publish a skill
+// @Tags Skills
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param idOrSlug path string true "document id or slug"
+// @Param json body skillPublishRequest true "target status and review note"
+// @Success 200 {object} response.successResp{data=skills.Document}
+// @Router /skills/{idOrSlug}/publish [post]
+func (s *SkillsService) Publish(c *gin.Context) {
+	if !s.available(c) {
+		return
+	}
+
+	var req skillPublishRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, response.ErrKnowledgeInvalidRequest, err)
+		return
+	}
+
+	uid := int64(c.GetUint64("uid"))
+	doc, err := s.store.Publish(c.Request.Context(), uid, c.Param("idOrSlug"), req.Status, req.Note)
+	if err != nil {
+		s.writeStoreError(c, err, "publish skill")
+		return
+	}
+
+	response.Success(c, http.StatusOK, doc)
+}
+
 func (s *SkillsService) writeStoreError(c *gin.Context, err error, action string) {
 	switch {
 	case errors.Is(err, skills.ErrNotFound):

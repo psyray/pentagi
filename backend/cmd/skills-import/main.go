@@ -59,12 +59,21 @@ func main() {
 	backfillLimit := flag.Int("backfill-limit", 0, "Maximum legacy documents to import (0 = all)")
 	backfillMinChars := flag.Int("backfill-min-chars", 200, "Skip legacy documents shorter than this")
 	exportPack := flag.String("export-pack", "", "Export a stored pack by name and exit")
+	versionsSlug := flag.String("versions", "", "List the stored versions of a document and exit")
+	diffSlug := flag.String("diff", "", "Print the diff between two versions of a document and exit")
+	fromVersion := flag.Int("from", 0, "Source version for --diff")
+	toVersion := flag.Int("to", 0, "Target version for --diff (0 = current)")
+	publishSlug := flag.String("publish", "", "Publish a document by slug to the given status and exit")
+	publishTo := flag.String("publish-to", "", "Target status for --publish")
+	publishNote := flag.String("note", "", "Review note recorded with --publish")
 	outDir := flag.String("out", "", "Output directory for --export-pack")
 	dryRun := flag.Bool("dry-run", false, "Parse the pack and print the plan without writing")
 	flag.Parse()
 
-	if *packPath == "" && *searchQuery == "" && *deleteSlug == "" && !*backfillLegacy && *exportPack == "" {
-		logrus.Fatal("the --pack flag is required unless --search, --delete, --export-pack or --backfill-legacy is set")
+	readOnly := *searchQuery != "" || *deleteSlug != "" || *backfillLegacy || *exportPack != "" ||
+		*versionsSlug != "" || *diffSlug != "" || *publishSlug != ""
+	if *packPath == "" && !readOnly {
+		logrus.Fatal("the --pack flag is required unless --search, --delete, --export-pack, --versions, --diff, --publish or --backfill-legacy is set")
 	}
 	if *userRef == "" && !*dryRun {
 		logrus.Fatal("the --user flag is required unless --dry-run is set")
@@ -165,6 +174,29 @@ func main() {
 		if err := exportTreePack(ctx, store, cfg, userID, *exportPack, *outDir); err != nil {
 			logrus.WithError(err).Fatal("unable to export the pack")
 		}
+		return
+	}
+
+	if *versionsSlug != "" {
+		if err := printVersions(ctx, store, userID, *versionsSlug); err != nil {
+			logrus.WithError(err).Fatal("unable to list the versions")
+		}
+		return
+	}
+
+	if *diffSlug != "" {
+		if err := printDiff(ctx, store, userID, *diffSlug, *fromVersion, *toVersion); err != nil {
+			logrus.WithError(err).Fatal("unable to diff the versions")
+		}
+		return
+	}
+
+	if *publishSlug != "" {
+		doc, err := store.Publish(ctx, userID, *publishSlug, *publishTo, *publishNote)
+		if err != nil {
+			logrus.WithError(err).Fatal("unable to publish the document")
+		}
+		logrus.WithFields(logrus.Fields{"slug": doc.Slug, "status": doc.Status}).Info("document published")
 		return
 	}
 
@@ -402,4 +434,39 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func printVersions(ctx context.Context, store *skills.Store, userID int64, slug string) error {
+	versions, err := store.ListVersions(ctx, userID, slug)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%-8s %-10s %8s  %-20s %s\n", "version", "status", "chars", "created", "hash")
+	for _, version := range versions {
+		hash := version.ContentHash
+		if len(hash) > 12 {
+			hash = hash[:12]
+		}
+		fmt.Printf("%-8d %-10s %8d  %-20s %s\n",
+			version.Version, version.Status, version.Chars,
+			version.CreatedAt.Format("2006-01-02 15:04:05"), hash)
+	}
+
+	return nil
+}
+
+func printDiff(ctx context.Context, store *skills.Store, userID int64, slug string, from, to int) error {
+	diff, err := store.DiffVersions(ctx, userID, slug, from, to)
+	if err != nil {
+		return err
+	}
+	if !diff.Changed {
+		fmt.Printf("v%d and v%d are identical\n", diff.From, diff.To)
+		return nil
+	}
+
+	fmt.Print(diff.Diff)
+	fmt.Printf("\n%d added, %d removed\n", diff.Added, diff.Removed)
+	return nil
 }

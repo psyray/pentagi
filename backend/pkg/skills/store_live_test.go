@@ -442,3 +442,79 @@ func TestStore_LivePackImportAndExport(t *testing.T) {
 		t.Fatalf("re-parsed documents = %d, want 3", len(reparsed.Documents))
 	}
 }
+
+func TestStore_LiveVersionsAndPublish(t *testing.T) {
+	pool, _ := openSkillsSchema(t)
+	store := NewStore(pool, unitEmbedder{}, 8192)
+	ctx := context.Background()
+
+	first := "---\nname: adcs-esc8\ndescription: Relay NTLM to the CA.\ntags: [adcs]\n---\n# ADCS ESC8\n\nRun certipy.\n"
+	doc, err := store.ImportMarkdown(ctx, 1, ImportInput{Content: first, Kind: KindSkill})
+	if err != nil {
+		t.Fatalf("import v1: %v", err)
+	}
+	if doc.Version != 1 {
+		t.Fatalf("first import version = %d", doc.Version)
+	}
+
+	second := strings.Replace(first, "Run certipy.", "Run certipy relay.", 1)
+	updated, err := store.ImportMarkdown(ctx, 1, ImportInput{Content: second, Kind: KindSkill})
+	if err != nil {
+		t.Fatalf("import v2: %v", err)
+	}
+	if updated.Version != 2 {
+		t.Fatalf("second import version = %d, want 2", updated.Version)
+	}
+
+	versions, err := store.ListVersions(ctx, 1, "adcs-esc8")
+	if err != nil {
+		t.Fatalf("list versions: %v", err)
+	}
+	if len(versions) != 2 || versions[0].Version != 2 || versions[1].Version != 1 {
+		t.Fatalf("versions = %+v", versions)
+	}
+
+	revision, err := store.GetVersion(ctx, 1, "adcs-esc8", 1)
+	if err != nil {
+		t.Fatalf("read v1: %v", err)
+	}
+	if !strings.Contains(revision.Content, "Run certipy.") || strings.Contains(revision.Content, "relay") {
+		t.Fatalf("v1 content = %q", revision.Content)
+	}
+
+	diff, err := store.DiffVersions(ctx, 1, "adcs-esc8", 1, 0)
+	if err != nil {
+		t.Fatalf("diff: %v", err)
+	}
+	if !diff.Changed || !strings.Contains(diff.Diff, "+Run certipy relay.") {
+		t.Fatalf("diff = %+v", diff)
+	}
+
+	if _, err := store.Publish(ctx, 1, "adcs-esc8", StatusCanonical, "skip the review"); err == nil {
+		t.Fatal("a draft reached canonical in one step")
+	}
+	if _, err := store.Publish(ctx, 1, "adcs-esc8", StatusReviewed, "reviewed by the test"); err != nil {
+		t.Fatalf("publish reviewed: %v", err)
+	}
+	canonical, err := store.Publish(ctx, 1, "adcs-esc8", StatusCanonical, "")
+	if err != nil {
+		t.Fatalf("publish canonical: %v", err)
+	}
+	if canonical.Status != StatusCanonical {
+		t.Fatalf("status = %s", canonical.Status)
+	}
+	if _, err := store.Publish(ctx, 2, "adcs-esc8", StatusDeprecated, ""); err != ErrNotFound {
+		t.Fatalf("another user publish = %v, want ErrNotFound", err)
+	}
+
+	var events int
+	if err := pool.QueryRow(ctx, `
+SELECT count(*) FROM knowledge_events e
+JOIN knowledge_documents d ON d.id = e.document_id
+WHERE d.slug = 'adcs-esc8' AND e.event = 'published'`).Scan(&events); err != nil {
+		t.Fatalf("count events: %v", err)
+	}
+	if events != 2 {
+		t.Fatalf("published events = %d, want 2", events)
+	}
+}

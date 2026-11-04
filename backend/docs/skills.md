@@ -247,6 +247,40 @@ without writing. Imports are idempotent: a second run versions the documents and
 keeps the same pack. A `pack.yaml` that lists `documents:` instead of the three
 lists is the previous flat format, still accepted by the CLI.
 
+## Review, versions and diff (L3.3)
+
+Each import now appends a row to `knowledge_document_versions` (title,
+description, body, hash, status, visibility, tags, actor), so the history starts
+at the current state of every document and grows from there. A status change is
+recorded in `knowledge_events` as `published`, with the actor, the previous
+status and the note.
+
+The lifecycle is enforced: `draft` to `reviewed`, `reviewed` to `canonical` or
+back to `draft`, `canonical` to `deprecated` or back to `reviewed`, `deprecated`
+to `reviewed` or `draft`. A direct `draft` to `canonical` is refused, a reviewed
+document needs a description and a canonical one needs at least one tag.
+
+```bash
+# REST
+GET  /api/v1/skills/{idOrSlug}/versions
+GET  /api/v1/skills/{idOrSlug}/versions/{version}
+GET  /api/v1/skills/{idOrSlug}/diff?from=1&to=2
+POST /api/v1/skills/{idOrSlug}/publish   {"status":"reviewed","note":"..."}
+
+# CLI, against the live data directory
+docker exec -w /opt/pentagi pentagi /opt/pentagi/bin/skills-import \
+  --user admin@pentagi.com --versions adcs-esc8
+docker exec -w /opt/pentagi pentagi /opt/pentagi/bin/skills-import \
+  --user admin@pentagi.com --diff adcs-esc8 --from 1 --to 2
+docker exec -w /opt/pentagi pentagi /opt/pentagi/bin/skills-import \
+  --user admin@pentagi.com --publish adcs-esc8 --publish-to reviewed --note "relu"
+```
+
+The diff is a unified patch with three lines of context, capped at 500 000
+characters per side. A re-import with identical content still bumps the version
+counter (it counts imports, not revisions): the diff then reports `identical`
+rather than inventing a change.
+
 ## Limits and current gaps
 
 - Embedding dimension is fixed at 1024 (`bge-m3`). A different model needs a
@@ -259,8 +293,12 @@ lists is the previous flat format, still accepted by the CLI.
   skills must be split.
 - A pack import is not transactional across documents: a failure in the middle
   leaves the documents imported before it. Re-running the same pack converges.
-- Review, diff and publication of a pack are not implemented yet (L3.3), nor is
-  the duplicate report and merge (L3.4).
+- The duplicate report, the merge of two documents and `merged_into` are not
+  implemented yet (L3.4).
+- The history starts at the moment the versions table was created: earlier
+  revisions of a document are not recoverable.
+- The skill page shows the current metadata only; the history and the diff are
+  available through the REST API and the CLI, not yet in the UI.
 - The legacy 958 knowledge documents are not backfilled into the new tables.
   They remain available through `search_guide`, `search_answer` and
   `search_code`; a backfill can import the curated subset later.
