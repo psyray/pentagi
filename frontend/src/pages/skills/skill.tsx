@@ -25,6 +25,7 @@ import { formatDate } from '@/lib/utils/format';
 
 import { skillKindBadgeVariant, skillStatusBadgeVariant } from './skill-badges';
 import { SkillFiles } from './skill-files';
+import { SkillMetadata } from './skill-metadata';
 
 function Skill() {
     const navigate = useNavigate();
@@ -160,6 +161,10 @@ function Skill() {
                 <Separator />
 
                 <Markdown>{skill.content}</Markdown>
+
+                <Separator />
+
+                <SkillMetadata skill={skill} />
 
                 <Separator />
 

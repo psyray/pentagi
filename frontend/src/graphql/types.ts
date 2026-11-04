@@ -270,7 +270,7 @@ export type SkillFilter = {
 };
 
 export enum SkillKind {
-    Mission = 'mission',
+    Engagement = 'engagement',
     Reference = 'reference',
     Skill = 'skill',
 }
@@ -331,6 +331,14 @@ export type UpdateKnowledgeDocumentInput = {
     docType?: KnowledgeDocType | null | undefined;
     guideType?: KnowledgeGuideType | null | undefined;
     question?: string | null | undefined;
+};
+
+export type UpdateSkillInput = {
+    description?: string | null | undefined;
+    quality?: number | null | undefined;
+    status?: SkillStatus | null | undefined;
+    tags?: Array<string> | null | undefined;
+    visibility?: SkillVisibility | null | undefined;
 };
 
 export enum UpdateState {
@@ -1363,6 +1371,13 @@ export type ImportSkillMutationVariables = Exact<{
 }>;
 
 export type ImportSkillMutation = { importSkill: SkillFragmentFragment };
+
+export type UpdateSkillMutationVariables = Exact<{
+    idOrSlug: string;
+    input: UpdateSkillInput;
+}>;
+
+export type UpdateSkillMutation = { updateSkill: SkillFragmentFragment };
 
 export type DeleteSkillMutationVariables = Exact<{
     idOrSlug: string;
@@ -10706,6 +10721,86 @@ export const ImportSkillDocument = {
         },
     ],
 } as unknown as DocumentNode<ImportSkillMutation, ImportSkillMutationVariables>;
+export const UpdateSkillDocument = {
+    kind: 'Document',
+    definitions: [
+        {
+            kind: 'OperationDefinition',
+            operation: 'mutation',
+            name: { kind: 'Name', value: 'updateSkill' },
+            variableDefinitions: [
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'idOrSlug' } },
+                    type: { kind: 'NonNullType', type: { kind: 'NamedType', name: { kind: 'Name', value: 'String' } } },
+                },
+                {
+                    kind: 'VariableDefinition',
+                    variable: { kind: 'Variable', name: { kind: 'Name', value: 'input' } },
+                    type: {
+                        kind: 'NonNullType',
+                        type: { kind: 'NamedType', name: { kind: 'Name', value: 'UpdateSkillInput' } },
+                    },
+                },
+            ],
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    {
+                        kind: 'Field',
+                        name: { kind: 'Name', value: 'updateSkill' },
+                        arguments: [
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'idOrSlug' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'idOrSlug' } },
+                            },
+                            {
+                                kind: 'Argument',
+                                name: { kind: 'Name', value: 'input' },
+                                value: { kind: 'Variable', name: { kind: 'Name', value: 'input' } },
+                            },
+                        ],
+                        selectionSet: {
+                            kind: 'SelectionSet',
+                            selections: [{ kind: 'FragmentSpread', name: { kind: 'Name', value: 'skillFragment' } }],
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            kind: 'FragmentDefinition',
+            name: { kind: 'Name', value: 'skillFragment' },
+            typeCondition: { kind: 'NamedType', name: { kind: 'Name', value: 'Skill' } },
+            selectionSet: {
+                kind: 'SelectionSet',
+                selections: [
+                    { kind: 'Field', name: { kind: 'Name', value: 'id' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'userId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'packId' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'kind' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'slug' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'title' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'description' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'content' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sourceKind' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'sourceUri' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'contentHash' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'language' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'version' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'status' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'visibility' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'quality' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'tags' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'metadata' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'createdAt' } },
+                    { kind: 'Field', name: { kind: 'Name', value: 'updatedAt' } },
+                ],
+            },
+        },
+    ],
+} as unknown as DocumentNode<UpdateSkillMutation, UpdateSkillMutationVariables>;
 export const DeleteSkillDocument = {
     kind: 'Document',
     definitions: [

@@ -3,7 +3,7 @@
 PentAGI agents can list, search and read curated skills instead of guessing
 from a raw vector store. A skill is a versioned markdown procedure with a short
 trigger description, tags and a body. A reference is imported documentation
-that has no procedure contract. A mission is a write-up tied to a target.
+that has no procedure contract. An engagement is a write-up tied to a target.
 
 The legacy knowledge store (`langchain_pg_embedding`) keeps its current
 meaning: flow memory plus agent-generated guides, answers and code. Skills live
@@ -13,7 +13,7 @@ in dedicated tables so the legacy Knowledges screen stays unchanged.
 
 | Table | Purpose |
 |---|---|
-| `knowledge_documents` | one row per skill, reference or mission: slug, title, description, body, status, visibility, tags, metadata |
+| `knowledge_documents` | one row per skill, reference or engagement: slug, title, description, body, status, visibility, tags, metadata |
 | `knowledge_chunks` | chunked body, embedding (`vector(1024)`, bge-m3), generated `tsvector` for lexical search |
 | `knowledge_files` | attachment metadata; the bytes live in the user resources blob store |
 | `knowledge_packs` / `knowledge_pack_items` | optional grouping of documents |

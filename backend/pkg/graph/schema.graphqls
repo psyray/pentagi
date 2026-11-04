@@ -1005,11 +1005,11 @@ input UpdateKnowledgeDocumentInput {
 
 # ==================== Skills (Curated Knowledge) Types ====================
 
-# Skill kind: curated procedure, reference corpus entry or mission writeup
+# Skill kind: curated procedure, reference corpus entry or engagement writeup
 enum SkillKind {
   skill
   reference
-  mission
+  engagement
 }
 
 # Lifecycle status of a skill
@@ -1027,7 +1027,7 @@ enum SkillVisibility {
   admin
 }
 
-# A curated skill, reference or mission stored in the skill tables
+# A curated skill, reference or engagement stored in the skill tables
 type Skill {
   id: String!
   userId: ID!
@@ -1077,6 +1077,15 @@ input ImportSkillInput {
   sourceUri: String
   language: String
   packId: String
+  tags: [String!]
+}
+
+# Input for changing the lifecycle fields of an existing skill
+input UpdateSkillInput {
+  status: SkillStatus
+  visibility: SkillVisibility
+  description: String
+  quality: Int
   tags: [String!]
 }
 
@@ -1204,6 +1213,7 @@ type Mutation {
 
   # Skills (curated knowledge) management
   importSkill(input: ImportSkillInput!): Skill!
+  updateSkill(idOrSlug: String!, input: UpdateSkillInput!): Skill!
   deleteSkill(idOrSlug: String!): ResultType!
   anonymizeText(text: String!): String!
 }

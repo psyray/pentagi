@@ -88,9 +88,9 @@ function SkillForm() {
                     </Button>
                 </AppHeaderActions>
             </AppHeader>
-            <div className="flex flex-1 flex-col overflow-auto p-4">
+            <div className="flex min-h-0 flex-1 flex-col overflow-auto p-4">
                 <form
-                    className="mx-auto flex w-full max-w-3xl flex-col gap-4"
+                    className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4"
                     id="skill-form"
                     onSubmit={handleSubmit}
                 >
@@ -120,7 +120,7 @@ function SkillForm() {
                                 <SelectContent>
                                     <SelectItem value={SkillKind.Skill}>Skill</SelectItem>
                                     <SelectItem value={SkillKind.Reference}>Reference</SelectItem>
-                                    <SelectItem value={SkillKind.Mission}>Mission</SelectItem>
+                                    <SelectItem value={SkillKind.Engagement}>Engagement</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -177,10 +177,10 @@ function SkillForm() {
                         <p className="text-muted-foreground text-xs">Comma-separated. Used by the skill filter.</p>
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex min-h-0 flex-1 flex-col gap-1.5">
                         <Label htmlFor="skill-content">Markdown</Label>
                         <Textarea
-                            className="min-h-[420px] font-mono text-xs"
+                            className="min-h-[80vh] flex-1 resize-none font-mono text-xs"
                             id="skill-content"
                             onChange={(event) => setContent(event.target.value)}
                             placeholder={'# Skill title\n\n## When to use\n\n...\n\n## Procedure\n\n...'}

@@ -129,7 +129,7 @@ function Skills() {
                         <SelectItem value={ALL}>All kinds</SelectItem>
                         <SelectItem value={SkillKind.Skill}>Skill</SelectItem>
                         <SelectItem value={SkillKind.Reference}>Reference</SelectItem>
-                        <SelectItem value={SkillKind.Mission}>Mission</SelectItem>
+                        <SelectItem value={SkillKind.Engagement}>Engagement</SelectItem>
                     </SelectContent>
                 </Select>
                 <Select

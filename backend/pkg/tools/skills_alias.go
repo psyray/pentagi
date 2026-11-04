@@ -27,7 +27,7 @@ func appendSkillSuggestions(ctx context.Context, searcher SkillSearcher, userID 
 	}
 
 	hits, err := searcher.Search(ctx, userID, query, skills.Filter{
-		Kinds: []string{skills.KindSkill, skills.KindReference, skills.KindMission},
+		Kinds: []string{skills.KindSkill, skills.KindReference, skills.KindEngagement},
 		Limit: skillSuggestionLimit,
 	}, skillSuggestionLimit)
 	if err != nil || len(hits) == 0 {

@@ -11,9 +11,9 @@ package skills
 import "time"
 
 const (
-	KindSkill     = "skill"
-	KindReference = "reference"
-	KindMission   = "mission"
+	KindSkill      = "skill"
+	KindReference  = "reference"
+	KindEngagement = "engagement"
 
 	StatusDraft      = "draft"
 	StatusReviewed   = "reviewed"
@@ -29,7 +29,7 @@ const (
 	DefaultVisibility = VisibilityPrivate
 )
 
-// Document is one skill, reference or mission.
+// Document is one skill, reference or engagement.
 type Document struct {
 	ID          string
 	UserID      int64
@@ -93,6 +93,16 @@ type ImportInput struct {
 	Language    string
 	PackID      *string
 	DefaultTags []string
+}
+
+// MetadataInput updates the non-content fields of a document. A nil pointer
+// keeps the current value; an empty Tags slice clears the tags.
+type MetadataInput struct {
+	Status      *string
+	Visibility  *string
+	Description *string
+	Quality     *int
+	Tags        []string
 }
 
 // Section is a markdown heading slice of a document body.

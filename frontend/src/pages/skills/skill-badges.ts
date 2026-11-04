@@ -3,7 +3,7 @@ import type { BadgeVariant } from '@/components/ui/badge';
 import { SkillKind, SkillStatus } from '@/graphql/types';
 
 export const skillKindBadgeVariant: Record<SkillKind, BadgeVariant> = {
-    [SkillKind.Mission]: 'purple',
+    [SkillKind.Engagement]: 'purple',
     [SkillKind.Reference]: 'blue',
     [SkillKind.Skill]: 'green',
 };

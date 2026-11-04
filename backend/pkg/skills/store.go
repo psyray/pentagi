@@ -521,6 +521,51 @@ func (s *Store) BlobReferenced(ctx context.Context, blobRef string) (bool, error
 	return exists, nil
 }
 
+// UpdateMetadata changes the lifecycle fields of a document owned by the
+// caller. Content and embeddings are untouched, so no re-embedding is needed.
+func (s *Store) UpdateMetadata(ctx context.Context, userID int64, idOrSlug string, input MetadataInput) (*Document, error) {
+	if s.db == nil {
+		return nil, fmt.Errorf("skills: database is not configured")
+	}
+	if input.Status != nil && !validStatus(*input.Status) {
+		return nil, fmt.Errorf("%w: unknown status %q", ErrInvalidInput, *input.Status)
+	}
+	if input.Visibility != nil && !validVisibility(*input.Visibility) {
+		return nil, fmt.Errorf("%w: unknown visibility %q", ErrInvalidInput, *input.Visibility)
+	}
+	if input.Quality != nil && (*input.Quality < 0 || *input.Quality > 100) {
+		return nil, fmt.Errorf("%w: quality must be between 0 and 100", ErrInvalidInput)
+	}
+
+	doc, err := s.Get(ctx, userID, idOrSlug)
+	if err != nil {
+		return nil, err
+	}
+	if doc.UserID != userID {
+		return nil, ErrNotFound
+	}
+
+	var tags any
+	if input.Tags != nil {
+		tags = input.Tags
+	}
+
+	_, err = s.db.Exec(ctx, `
+UPDATE knowledge_documents
+SET status = COALESCE($2, status),
+    visibility = COALESCE($3, visibility),
+    description = COALESCE($4, description),
+    quality = COALESCE($5, quality),
+    tags = COALESCE($6::text[], tags)
+WHERE id = $1::uuid AND user_id = $7 AND deleted_at IS NULL`,
+		doc.ID, input.Status, input.Visibility, input.Description, input.Quality, tags, userID)
+	if err != nil {
+		return nil, fmt.Errorf("skills: update metadata: %w", err)
+	}
+
+	return s.Get(ctx, userID, doc.ID)
+}
+
 // Delete soft-deletes a document and removes its chunks.
 func (s *Store) Delete(ctx context.Context, userID int64, idOrSlug string) error {
 	if s.db == nil {
@@ -668,7 +713,7 @@ func kindFromFrontmatter(fm frontMatter) string {
 
 func validKind(kind string) bool {
 	switch kind {
-	case KindSkill, KindReference, KindMission:
+	case KindSkill, KindReference, KindEngagement:
 		return true
 	default:
 		return false

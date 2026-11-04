@@ -661,6 +661,14 @@ type UpdateKnowledgeDocumentInput struct {
 	CodeLang    *string              `json:"codeLang,omitempty"`
 }
 
+type UpdateSkillInput struct {
+	Status      *SkillStatus     `json:"status,omitempty"`
+	Visibility  *SkillVisibility `json:"visibility,omitempty"`
+	Description *string          `json:"description,omitempty"`
+	Quality     *int             `json:"quality,omitempty"`
+	Tags        []string         `json:"tags,omitempty"`
+}
+
 type UsageStats struct {
 	TotalUsageIn       int     `json:"totalUsageIn"`
 	TotalUsageOut      int     `json:"totalUsageOut"`
@@ -1495,20 +1503,20 @@ func (e ResultType) MarshalGQL(w io.Writer) {
 type SkillKind string
 
 const (
-	SkillKindSkill     SkillKind = "skill"
-	SkillKindReference SkillKind = "reference"
-	SkillKindMission   SkillKind = "mission"
+	SkillKindSkill      SkillKind = "skill"
+	SkillKindReference  SkillKind = "reference"
+	SkillKindEngagement SkillKind = "engagement"
 )
 
 var AllSkillKind = []SkillKind{
 	SkillKindSkill,
 	SkillKindReference,
-	SkillKindMission,
+	SkillKindEngagement,
 }
 
 func (e SkillKind) IsValid() bool {
 	switch e {
-	case SkillKindSkill, SkillKindReference, SkillKindMission:
+	case SkillKindSkill, SkillKindReference, SkillKindEngagement:
 		return true
 	}
 	return false

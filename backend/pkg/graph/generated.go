@@ -401,6 +401,7 @@ type ComplexityRoot struct {
 		UpdateKnowledgeDocument func(childComplexity int, id string, input model.UpdateKnowledgeDocumentInput) int
 		UpdatePrompt            func(childComplexity int, promptID int64, template string) int
 		UpdateProvider          func(childComplexity int, providerID int64, name string, agents model.AgentsConfig) int
+		UpdateSkill             func(childComplexity int, idOrSlug string, input model.UpdateSkillInput) int
 		ValidatePrompt          func(childComplexity int, typeArg model.PromptType, template string) int
 	}
 
@@ -845,6 +846,7 @@ type MutationResolver interface {
 	RenameKnowledgeDocument(ctx context.Context, id string, question string) (*model.KnowledgeDocument, error)
 	DeleteKnowledgeDocument(ctx context.Context, id string) (model.ResultType, error)
 	ImportSkill(ctx context.Context, input model.ImportSkillInput) (*model.Skill, error)
+	UpdateSkill(ctx context.Context, idOrSlug string, input model.UpdateSkillInput) (*model.Skill, error)
 	DeleteSkill(ctx context.Context, idOrSlug string) (model.ResultType, error)
 	AnonymizeText(ctx context.Context, text string) (string, error)
 }
@@ -2857,6 +2859,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.Mutation.UpdateProvider(childComplexity, args["providerId"].(int64), args["name"].(string), args["agents"].(model.AgentsConfig)), true
+
+	case "Mutation.updateSkill":
+		if e.complexity.Mutation.UpdateSkill == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateSkill_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateSkill(childComplexity, args["idOrSlug"].(string), args["input"].(model.UpdateSkillInput)), true
 
 	case "Mutation.validatePrompt":
 		if e.complexity.Mutation.ValidatePrompt == nil {
@@ -5297,6 +5311,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputUpdateAPITokenInput,
 		ec.unmarshalInputUpdateFlowTemplateInput,
 		ec.unmarshalInputUpdateKnowledgeDocumentInput,
+		ec.unmarshalInputUpdateSkillInput,
 	)
 	first := true
 
@@ -7293,6 +7308,65 @@ func (ec *executionContext) field_Mutation_updateProvider_argsAgents(
 	}
 
 	var zeroVal model.AgentsConfig
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateSkill_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Mutation_updateSkill_argsIDOrSlug(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["idOrSlug"] = arg0
+	arg1, err := ec.field_Mutation_updateSkill_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_updateSkill_argsIDOrSlug(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (string, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["idOrSlug"]
+	if !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("idOrSlug"))
+	if tmp, ok := rawArgs["idOrSlug"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateSkill_argsInput(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (model.UpdateSkillInput, error) {
+	// We won't call the directive if the argument is null.
+	// Set call_argument_directives_with_null to true to call directives
+	// even if the argument is null.
+	_, ok := rawArgs["input"]
+	if !ok {
+		var zeroVal model.UpdateSkillInput
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNUpdateSkillInput2pentagiᚋpkgᚋgraphᚋmodelᚐUpdateSkillInput(ctx, tmp)
+	}
+
+	var zeroVal model.UpdateSkillInput
 	return zeroVal, nil
 }
 
@@ -21826,6 +21900,103 @@ func (ec *executionContext) fieldContext_Mutation_importSkill(ctx context.Contex
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_importSkill_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateSkill(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateSkill(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateSkill(rctx, fc.Args["idOrSlug"].(string), fc.Args["input"].(model.UpdateSkillInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Skill)
+	fc.Result = res
+	return ec.marshalNSkill2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐSkill(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateSkill(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Skill_id(ctx, field)
+			case "userId":
+				return ec.fieldContext_Skill_userId(ctx, field)
+			case "packId":
+				return ec.fieldContext_Skill_packId(ctx, field)
+			case "kind":
+				return ec.fieldContext_Skill_kind(ctx, field)
+			case "slug":
+				return ec.fieldContext_Skill_slug(ctx, field)
+			case "title":
+				return ec.fieldContext_Skill_title(ctx, field)
+			case "description":
+				return ec.fieldContext_Skill_description(ctx, field)
+			case "content":
+				return ec.fieldContext_Skill_content(ctx, field)
+			case "sourceKind":
+				return ec.fieldContext_Skill_sourceKind(ctx, field)
+			case "sourceUri":
+				return ec.fieldContext_Skill_sourceUri(ctx, field)
+			case "contentHash":
+				return ec.fieldContext_Skill_contentHash(ctx, field)
+			case "language":
+				return ec.fieldContext_Skill_language(ctx, field)
+			case "version":
+				return ec.fieldContext_Skill_version(ctx, field)
+			case "status":
+				return ec.fieldContext_Skill_status(ctx, field)
+			case "visibility":
+				return ec.fieldContext_Skill_visibility(ctx, field)
+			case "quality":
+				return ec.fieldContext_Skill_quality(ctx, field)
+			case "tags":
+				return ec.fieldContext_Skill_tags(ctx, field)
+			case "metadata":
+				return ec.fieldContext_Skill_metadata(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Skill_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Skill_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Skill", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateSkill_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -41187,6 +41358,61 @@ func (ec *executionContext) unmarshalInputUpdateKnowledgeDocumentInput(ctx conte
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputUpdateSkillInput(ctx context.Context, obj interface{}) (model.UpdateSkillInput, error) {
+	var it model.UpdateSkillInput
+	asMap := map[string]interface{}{}
+	for k, v := range obj.(map[string]interface{}) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"status", "visibility", "description", "quality", "tags"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "status":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("status"))
+			data, err := ec.unmarshalOSkillStatus2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐSkillStatus(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Status = data
+		case "visibility":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("visibility"))
+			data, err := ec.unmarshalOSkillVisibility2ᚖpentagiᚋpkgᚋgraphᚋmodelᚐSkillVisibility(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Visibility = data
+		case "description":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Description = data
+		case "quality":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("quality"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Quality = data
+		case "tags":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tags"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Tags = data
+		}
+	}
+
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -43494,6 +43720,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "importSkill":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_importSkill(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateSkill":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateSkill(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -49096,6 +49329,11 @@ func (ec *executionContext) unmarshalNUpdateFlowTemplateInput2pentagiᚋpkgᚋgr
 
 func (ec *executionContext) unmarshalNUpdateKnowledgeDocumentInput2pentagiᚋpkgᚋgraphᚋmodelᚐUpdateKnowledgeDocumentInput(ctx context.Context, v interface{}) (model.UpdateKnowledgeDocumentInput, error) {
 	res, err := ec.unmarshalInputUpdateKnowledgeDocumentInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNUpdateSkillInput2pentagiᚋpkgᚋgraphᚋmodelᚐUpdateSkillInput(ctx context.Context, v interface{}) (model.UpdateSkillInput, error) {
+	res, err := ec.unmarshalInputUpdateSkillInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 

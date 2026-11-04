@@ -264,3 +264,48 @@ func TestStore_LiveFileLifecycle(t *testing.T) {
 		t.Fatalf("blob referenced = %v, %v", referenced, err)
 	}
 }
+
+func TestStore_LiveUpdateMetadata(t *testing.T) {
+	pool, _ := openSkillsSchema(t)
+	store := NewStore(pool, unitEmbedder{}, 8192)
+	ctx := context.Background()
+
+	doc, err := store.ImportMarkdown(ctx, 1, ImportInput{Content: "# Update\n\nbody\n", Kind: KindReference})
+	if err != nil {
+		t.Fatalf("import: %v", err)
+	}
+
+	status := StatusReviewed
+	visibility := VisibilityShared
+	description := "reviewed reference"
+	tags := []string{"adcs", "esc8"}
+
+	updated, err := store.UpdateMetadata(ctx, 1, doc.Slug, MetadataInput{
+		Status:      &status,
+		Visibility:  &visibility,
+		Description: &description,
+		Tags:        tags,
+	})
+	if err != nil {
+		t.Fatalf("update metadata: %v", err)
+	}
+	if updated.Status != StatusReviewed || updated.Visibility != VisibilityShared || updated.Description != description {
+		t.Fatalf("updated = %+v", updated)
+	}
+	if len(updated.Tags) != 2 || updated.Tags[0] != "adcs" {
+		t.Fatalf("updated tags = %v", updated.Tags)
+	}
+
+	if _, err := store.UpdateMetadata(ctx, 2, doc.Slug, MetadataInput{Status: &status}); err != ErrNotFound {
+		t.Fatalf("another user update = %v, want ErrNotFound", err)
+	}
+
+	draft := StatusDraft
+	cleared, err := store.UpdateMetadata(ctx, 1, doc.Slug, MetadataInput{Status: &draft, Tags: []string{}})
+	if err != nil {
+		t.Fatalf("clear metadata: %v", err)
+	}
+	if cleared.Status != StatusDraft || len(cleared.Tags) != 0 {
+		t.Fatalf("cleared = %+v", cleared)
+	}
+}

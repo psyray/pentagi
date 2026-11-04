@@ -1335,6 +1335,38 @@ func (r *mutationResolver) ImportSkill(ctx context.Context, input model.ImportSk
 	return skillFromDocument(*doc), nil
 }
 
+// UpdateSkill is the resolver for the updateSkill field.
+func (r *mutationResolver) UpdateSkill(ctx context.Context, idOrSlug string, input model.UpdateSkillInput) (*model.Skill, error) {
+	uid, _, err := validatePermission(ctx, "skills.edit")
+	if err != nil {
+		return nil, err
+	}
+	if r.SkillStore == nil {
+		return nil, fmt.Errorf("skill store is not available")
+	}
+
+	r.Logger.WithFields(logrus.Fields{
+		"uid": uid,
+		"id":  idOrSlug,
+	}).Debug("update skill metadata")
+
+	doc, err := r.SkillStore.UpdateMetadata(ctx, uid, idOrSlug, skills.MetadataInput{
+		Status:      enumPtr(input.Status),
+		Visibility:  enumPtr(input.Visibility),
+		Description: input.Description,
+		Quality:     input.Quality,
+		Tags:        input.Tags,
+	})
+	if err != nil {
+		if errors.Is(err, skills.ErrNotFound) {
+			return nil, fmt.Errorf("skill not found")
+		}
+		return nil, err
+	}
+
+	return skillFromDocument(*doc), nil
+}
+
 // DeleteSkill is the resolver for the deleteSkill field.
 func (r *mutationResolver) DeleteSkill(ctx context.Context, idOrSlug string) (model.ResultType, error) {
 	uid, _, err := validatePermission(ctx, "skills.delete")
@@ -3288,69 +3320,3 @@ func (r *Resolver) Subscription() SubscriptionResolver { return &subscriptionRes
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type subscriptionResolver struct{ *Resolver }
-
-func skillFromDocument(doc skills.Document) *model.Skill {
-	tags := doc.Tags
-	if tags == nil {
-		tags = []string{}
-	}
-
-	return &model.Skill{
-		ID:          doc.ID,
-		UserID:      doc.UserID,
-		PackID:      doc.PackID,
-		Kind:        model.SkillKind(doc.Kind),
-		Slug:        doc.Slug,
-		Title:       doc.Title,
-		Description: doc.Description,
-		Content:     doc.Content,
-		SourceKind:  doc.SourceKind,
-		SourceURI:   doc.SourceURI,
-		ContentHash: doc.ContentHash,
-		Language:    optionalString(doc.Language),
-		Version:     doc.Version,
-		Status:      model.SkillStatus(doc.Status),
-		Visibility:  model.SkillVisibility(doc.Visibility),
-		Quality:     doc.Quality,
-		Tags:        tags,
-		Metadata:    doc.Metadata,
-		CreatedAt:   doc.CreatedAt,
-		UpdatedAt:   doc.UpdatedAt,
-	}
-}
-
-func skillFilterFromModel(filter *model.SkillFilter) skills.Filter {
-	var out skills.Filter
-	if filter == nil {
-		return out
-	}
-	for _, kind := range filter.Kinds {
-		out.Kinds = append(out.Kinds, string(kind))
-	}
-	for _, status := range filter.Statuses {
-		out.Statuses = append(out.Statuses, string(status))
-	}
-	out.Tags = filter.Tags
-	return out
-}
-
-func derefString(value *string) string {
-	if value == nil {
-		return ""
-	}
-	return *value
-}
-
-func optionalString(value string) *string {
-	if strings.TrimSpace(value) == "" {
-		return nil
-	}
-	return &value
-}
-
-func enumValue[T ~string](value *T) string {
-	if value == nil {
-		return ""
-	}
-	return string(*value)
-}

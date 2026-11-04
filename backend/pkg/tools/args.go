@@ -317,7 +317,7 @@ type StoreCodeAction struct {
 
 type ListSkillsAction struct {
 	Query   string   `json:"query,omitempty" jsonschema_description:"Optional technical-channel English search query. When set, the tool runs a hybrid skill search; when empty, it lists the catalogue."`
-	Kind    string   `json:"kind,omitempty" jsonschema:"type=string,enum=skill,enum=reference,enum=mission" jsonschema_description:"Optional document kind filter."`
+	Kind    string   `json:"kind,omitempty" jsonschema:"type=string,enum=skill,enum=reference,enum=engagement" jsonschema_description:"Optional document kind filter."`
 	Status  string   `json:"status,omitempty" jsonschema:"type=string,enum=draft,enum=reviewed,enum=canonical,enum=deprecated" jsonschema_description:"Optional publication status filter."`
 	Tags    []string `json:"tags,omitempty" jsonschema_description:"Optional tags that must all be relevant; matching documents carry at least one of them."`
 	Limit   *Int64   `json:"limit,omitempty" jsonschema:"title=Limit,type=integer" jsonschema_description:"Optional maximum number of results (default 20, max 50)."`
@@ -326,7 +326,7 @@ type ListSkillsAction struct {
 
 type SearchSkillsAction struct {
 	Query   string   `json:"query" jsonschema:"required" jsonschema_description:"Technical-channel payload, always English: one focused, context-rich query describing the procedure or reference you need. Include the target technology, the vulnerability class and the intended outcome."`
-	Kind    string   `json:"kind,omitempty" jsonschema:"type=string,enum=skill,enum=reference,enum=mission" jsonschema_description:"Optional document kind filter."`
+	Kind    string   `json:"kind,omitempty" jsonschema:"type=string,enum=skill,enum=reference,enum=engagement" jsonschema_description:"Optional document kind filter."`
 	Status  string   `json:"status,omitempty" jsonschema:"type=string,enum=draft,enum=reviewed,enum=canonical,enum=deprecated" jsonschema_description:"Optional publication status filter."`
 	Tags    []string `json:"tags,omitempty" jsonschema_description:"Optional tags that narrow the search."`
 	Limit   *Int64   `json:"limit,omitempty" jsonschema:"title=Limit,type=integer" jsonschema_description:"Optional maximum number of skill cards (default 5, max 50)."`

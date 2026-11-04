@@ -1320,6 +1320,12 @@ mutation importSkill($input: ImportSkillInput!) {
     }
 }
 
+mutation updateSkill($idOrSlug: String!, $input: UpdateSkillInput!) {
+    updateSkill(idOrSlug: $idOrSlug, input: $input) {
+        ...skillFragment
+    }
+}
+
 mutation deleteSkill($idOrSlug: String!) {
     deleteSkill(idOrSlug: $idOrSlug)
 }
