@@ -25,6 +25,7 @@ import { formatDate } from '@/lib/utils/format';
 
 import { skillKindBadgeVariant, skillStatusBadgeVariant } from './skill-badges';
 import { SkillFiles } from './skill-files';
+import { SkillHistory } from './skill-history';
 import { SkillMetadata } from './skill-metadata';
 
 function Skill() {
@@ -165,6 +166,10 @@ function Skill() {
                 <Separator />
 
                 <SkillMetadata skill={skill} />
+
+                <Separator />
+
+                <SkillHistory skillSlug={skill.slug} />
 
                 <Separator />
 

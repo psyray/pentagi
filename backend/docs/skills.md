@@ -276,6 +276,10 @@ docker exec -w /opt/pentagi pentagi /opt/pentagi/bin/skills-import \
   --user admin@pentagi.com --publish adcs-esc8 --publish-to reviewed --note "relu"
 ```
 
+The skill page carries a **History** section: every stored version with its
+status, size and hash, two selectors to pick the pair to compare, and the
+unified patch in a dialog where additions and removals are coloured.
+
 The diff is a unified patch with three lines of context, capped at 500 000
 characters per side. A re-import with identical content still bumps the version
 counter (it counts imports, not revisions): the diff then reports `identical`
@@ -297,8 +301,9 @@ rather than inventing a change.
   implemented yet (L3.4).
 - The history starts at the moment the versions table was created: earlier
   revisions of a document are not recoverable.
-- The skill page shows the current metadata only; the history and the diff are
-  available through the REST API and the CLI, not yet in the UI.
+- The review lifecycle is enforced by the publish action; the metadata editor
+  still lets an owner set any status directly, which is the escape hatch for an
+  operator.
 - The legacy 958 knowledge documents are not backfilled into the new tables.
   They remain available through `search_guide`, `search_answer` and
   `search_code`; a backfill can import the curated subset later.
