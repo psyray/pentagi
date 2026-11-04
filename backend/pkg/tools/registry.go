@@ -40,6 +40,9 @@ const (
 	StoreAnswerToolName        = "store_answer"
 	SearchCodeToolName         = "search_code"
 	StoreCodeToolName          = "store_code"
+	ListSkillsToolName         = "list_skills"
+	SearchSkillsToolName       = "search_skills"
+	ReadSkillToolName          = "read_skill"
 	GraphitiSearchToolName     = "graphiti_search"
 	ReportResultToolName       = "report_result"
 	SubtaskListToolName        = "subtask_list"
@@ -127,6 +130,9 @@ var toolsTypeMapping = map[string]ToolType{
 	StoreAnswerToolName:        StoreVectorDbToolType,
 	SearchCodeToolName:         SearchVectorDbToolType,
 	StoreCodeToolName:          StoreVectorDbToolType,
+	ListSkillsToolName:         SearchVectorDbToolType,
+	SearchSkillsToolName:       SearchVectorDbToolType,
+	ReadSkillToolName:          SearchVectorDbToolType,
 	GraphitiSearchToolName:     SearchVectorDbToolType,
 	ReportResultToolName:       StoreAgentResultToolType,
 	SubtaskListToolName:        StoreAgentResultToolType,
@@ -344,6 +350,25 @@ var registryDefinitions = map[string]llms.FunctionDefinition{
 			"Anonymize all sensitive data (IPs, domains, credentials, API keys) using descriptive placeholders",
 		Parameters: reflector.Reflect(&StoreCodeAction{}),
 	},
+	ListSkillsToolName: {
+		Name: ListSkillsToolName,
+		Description: "List the reusable skills and references available to this engagement, or search them when a query is supplied. " +
+			"A skill is a curated procedure with a trigger description, optional attachments and a verification path; a reference is imported documentation. " +
+			"Call this before planning a technique so you know what already exists. Returns short cards, never whole documents.",
+		Parameters: reflector.Reflect(&ListSkillsAction{}),
+	},
+	SearchSkillsToolName: {
+		Name: SearchSkillsToolName,
+		Description: "Search skills and references with a hybrid semantic and lexical query. Use it when you know the technology, vulnerability class or CVE " +
+			"and need the matching procedure. Returns ranked cards with an excerpt and a read_skill hint; it never returns the whole body.",
+		Parameters: reflector.Reflect(&SearchSkillsAction{}),
+	},
+	ReadSkillToolName: {
+		Name: ReadSkillToolName,
+		Description: "Read one skill or reference by the exact slug returned by list_skills or search_skills. " +
+			"Pass section to load only one markdown heading, which keeps long documents out of the context. Attachments are listed but not copied.",
+		Parameters: reflector.Reflect(&ReadSkillAction{}),
+	},
 	GraphitiSearchToolName: {
 		Name: GraphitiSearchToolName,
 		Description: "Search the Graphiti temporal knowledge graph for historical penetration testing context, " +
@@ -467,7 +492,8 @@ func getMessageType(name string) database.MsglogType {
 		return database.MsglogTypeBrowser
 	case MemoristToolName, SearchToolName, GoogleToolName, DuckDuckGoToolName, TavilyToolName, FirecrawlToolName,
 		TraversaalToolName, PerplexityToolName, SearxngToolName, SploitusToolName, WebSearchToolName,
-		SearchGuideToolName, SearchAnswerToolName, SearchCodeToolName, SearchInMemoryToolName, GraphitiSearchToolName:
+		SearchGuideToolName, SearchAnswerToolName, SearchCodeToolName, SearchInMemoryToolName, GraphitiSearchToolName,
+		ListSkillsToolName, SearchSkillsToolName, ReadSkillToolName:
 		return database.MsglogTypeSearch
 	case AdviceToolName:
 		return database.MsglogTypeAdvice

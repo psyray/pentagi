@@ -27,6 +27,7 @@ import (
 	"pentagi/pkg/server/oauth"
 	"pentagi/pkg/server/services"
 	"pentagi/pkg/server/update"
+	"pentagi/pkg/skills"
 	"pentagi/pkg/timezone"
 
 	_ "pentagi/pkg/server/docs" // swagger docs
@@ -173,6 +174,10 @@ func NewRouter(
 		}
 	}
 	var knowledgeStore = knowledge.NewKnowledgeStore(db, pgStore, embedder, subscriptions.NewKnowledgePublisher, cfg.EmbeddingMaxTextBytes)
+	var skillStore *skills.Store
+	if embedder.IsAvailable() && cfg.PgxPool != nil {
+		skillStore = skills.NewStore(cfg.PgxPool, embedder, cfg.EmbeddingMaxTextBytes)
+	}
 
 	// ---- Anonymizer replacer ------------------------------------------------
 	// Shared singleton used by the GraphQL anonymizeText mutation.
@@ -226,6 +231,7 @@ func NewRouter(
 	analyticsService := services.NewAnalyticsService(orm, timezones)
 	tokenService := services.NewTokenService(orm, cfg.AuthSalt(), tokenCache, subscriptions)
 	knowledgeService := services.NewKnowledgeService(orm, knowledgeStore)
+	skillsService := services.NewSkillsService(skillStore)
 	anonymizerService := services.NewAnonymizerService(textReplacer)
 	graphqlService := services.NewGraphqlService(
 		db, cfg, baseURL, cfg.CorsOrigins, tokenCache, providers, controller, subscriptions, knowledgeStore, textReplacer,
@@ -322,6 +328,7 @@ func NewRouter(
 		flowFile:     flowFileService,
 		graphql:      graphqlService,
 		knowledge:    knowledgeService,
+		skills:       skillsService,
 		msglog:       msglogService,
 		prompt:       promptService,
 		provider:     providerService,
@@ -431,6 +438,17 @@ func setKnowledgeGroup(parent *gin.RouterGroup, svc *services.KnowledgeService) 
 	}
 }
 
+func setSkillsGroup(parent *gin.RouterGroup, svc *services.SkillsService) {
+	sg := parent.Group("/skills")
+	{
+		sg.GET("/", auth.PrivilegesRequired("skills.view"), svc.List)
+		sg.POST("/import", auth.PrivilegesRequired("skills.create"), svc.Import)
+		sg.POST("/search", auth.PrivilegesRequired("skills.search"), svc.Search)
+		sg.GET("/:idOrSlug", auth.PrivilegesRequired("skills.view"), svc.Get)
+		sg.DELETE("/:idOrSlug", auth.PrivilegesRequired("skills.delete"), svc.Delete)
+	}
+}
+
 func setProvidersGroup(parent *gin.RouterGroup, svc *services.ProviderService) {
 	providersGroup := parent.Group("/providers")
 	{
@@ -464,6 +482,7 @@ type privateServices struct {
 	screenshot   *services.ScreenshotService
 	searchlog    *services.SearchlogService
 	settings     *services.SettingsService
+	skills       *services.SkillsService
 	subtask      *services.SubtaskService
 	task         *services.TaskService
 	termlog      *services.TermlogService
@@ -488,6 +507,7 @@ func registerPrivateRoutes(tokenTier, userTier *gin.RouterGroup, svc privateServ
 	setGraphqlGroup(tokenTier, svc.graphql)
 
 	setKnowledgeGroup(tokenTier, svc.knowledge)
+	setSkillsGroup(tokenTier, svc.skills)
 	setProvidersGroup(tokenTier, svc.provider)
 	setSettingsGroup(tokenTier, svc.settings)
 	setFlowsGroup(tokenTier, svc.flow)

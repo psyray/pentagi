@@ -180,7 +180,21 @@ PentAGI uses the collection named `langchain`. Ownership and association are rep
 
 The knowledge query API excludes `doc_type = 'memory'` from user-managed knowledge listings/searches. GraphQL and REST flow-deletion paths issue an explicit best-effort deletion of memory rows (`DeleteFlowMemoryDocuments`); this is application behavior, not a database trigger or foreign-key cascade. The knowledge migration intentionally does not drop the LangChain tables on downgrade because they may contain production data managed by the vector store.
 
-Migration `20261103_120000_knowledge_search_indexes.sql` codifies the search indexes: an HNSW index on the cosine distance (adopted with `IF NOT EXISTS` where a hand-built copy already exists) and expression indexes on `cmetadata->>'user_id'`, `cmetadata->>'content_hash'` and `(doc_type, user_id)`. The lexical GIN index is deferred to the hybrid-search lot, when a reader exists. The server reads `KNOWLEDGE_SHARED_SEARCH` to decide whether agent searches and duplicate lookups span every user or only the caller; see `docs/config.md`.
+Migration `20261103_120000_knowledge_search_indexes.sql` codifies the search indexes: the legacy `embedding` column is an untyped `vector`, so the valid HNSW index is the expression index `(embedding::vector(1024))` (the production database carries the same expression, and the generic index name is left `INVALID` and dropped), plus expression indexes on `cmetadata->>'user_id'`, `cmetadata->>'content_hash'` and `(doc_type, user_id)`. The lexical GIN index is deferred to the hybrid-search lot, when a reader exists. The server reads `KNOWLEDGE_SHARED_SEARCH` to decide whether agent searches and duplicate lookups span every user or only the caller; see `docs/config.md`.
+
+#### Skills and references
+
+Skills do not live in `langchain_pg_embedding`. The migration `20261104_120000_knowledge_skills.sql` adds:
+
+| Table | Purpose |
+|---|---|
+| `knowledge_documents` | skill, reference or mission parent: slug, title, description, body, status, visibility, tags, metadata, version |
+| `knowledge_chunks` | chunk body, `vector(1024)` embedding, generated `tsvector` for lexical search, HNSW and GIN indexes |
+| `knowledge_files` | attachment metadata, with the bytes addressed through the user resources blob hash |
+| `knowledge_packs` / `knowledge_pack_items` | optional document grouping |
+| `knowledge_events` | import, update, delete and retrieval audit |
+
+The store, import and hybrid search implementation is in `backend/pkg/skills`; the REST surface and the operator-facing documentation are in `docs/skills.md`.
 
 ### Enums
 

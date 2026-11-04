@@ -24,6 +24,7 @@ import (
 	"pentagi/pkg/graphiti"
 	"pentagi/pkg/providers/embeddings"
 	"pentagi/pkg/schema"
+	"pentagi/pkg/skills"
 
 	"github.com/moby/moby/client"
 	"github.com/sirupsen/logrus"
@@ -179,6 +180,7 @@ type flowToolsExecutor struct {
 	cfg            *config.Config
 	embedder       embeddings.Embedder
 	store          *pgvector.Store
+	skillStore     SkillStore
 	graphitiClient *graphiti.Client
 	image          string
 	docker         docker.DockerClient
@@ -436,6 +438,32 @@ func (fte *flowToolsExecutor) SetEmbedder(embedder embeddings.Embedder) {
 		return
 	}
 	fte.store = &store
+
+	if fte.cfg.PgxPool != nil {
+		fte.skillStore = skills.NewStore(fte.cfg.PgxPool, embedder, fte.cfg.EmbeddingMaxTextBytes)
+	}
+}
+
+func (fte *flowToolsExecutor) skillTool(taskID, subtaskID *int64) Tool {
+	if fte.skillStore == nil {
+		return nil
+	}
+	return NewSkillTool(fte.userID, fte.flowID, taskID, subtaskID, fte.skillStore, fte.vslp, fte.replacer)
+}
+
+func (fte *flowToolsExecutor) appendSkillTools(ce *customExecutor, taskID, subtaskID *int64) {
+	tool := fte.skillTool(taskID, subtaskID)
+	if tool == nil || !tool.IsAvailable() {
+		return
+	}
+	ce.definitions = append(ce.definitions,
+		registryDefinitions[ListSkillsToolName],
+		registryDefinitions[SearchSkillsToolName],
+		registryDefinitions[ReadSkillToolName],
+	)
+	ce.handlers[ListSkillsToolName] = tool.Handle
+	ce.handlers[SearchSkillsToolName] = tool.Handle
+	ce.handlers[ReadSkillToolName] = tool.Handle
 }
 
 func (fte *flowToolsExecutor) SetFunctions(functions *Functions) {
@@ -994,6 +1022,8 @@ func (fte *flowToolsExecutor) GetAssistantExecutor(cfg AssistantExecutorConfig) 
 		summarizer:  cfg.Summarizer,
 	}
 
+	fte.appendSkillTools(ce, nil, nil)
+
 	return ce, nil
 }
 
@@ -1066,6 +1096,8 @@ func (fte *flowToolsExecutor) GetPrimaryExecutor(cfg PrimaryExecutorConfig) (Con
 		ce.handlers[AskUserToolName] = cfg.Barrier
 		ce.barriers[AskUserToolName] = struct{}{}
 	}
+
+	fte.appendSkillTools(ce, &cfg.TaskID, &cfg.SubtaskID)
 
 	return ce, nil
 }
@@ -1171,6 +1203,8 @@ func (fte *flowToolsExecutor) GetInstallerExecutor(cfg InstallerExecutorConfig) 
 		ce.handlers[StoreGuideToolName] = guide.Handle
 		ce.handlers[SearchGuideToolName] = guide.Handle
 	}
+
+	fte.appendSkillTools(ce, cfg.TaskID, cfg.SubtaskID)
 
 	return ce, nil
 }
@@ -1294,6 +1328,8 @@ func (fte *flowToolsExecutor) GetCoderExecutor(cfg CoderExecutorConfig) (Context
 		ce.definitions = append(ce.definitions, registryDefinitions[GraphitiSearchToolName])
 		ce.handlers[GraphitiSearchToolName] = graphitiSearch.Handle
 	}
+
+	fte.appendSkillTools(ce, cfg.TaskID, cfg.SubtaskID)
 
 	return ce, nil
 }
@@ -1430,6 +1466,8 @@ func (fte *flowToolsExecutor) GetPentesterExecutor(cfg PentesterExecutorConfig) 
 		ce.handlers[WebSearchToolName] = webSearch.Handle
 	}
 
+	fte.appendSkillTools(ce, cfg.TaskID, cfg.SubtaskID)
+
 	return ce, nil
 }
 
@@ -1508,6 +1546,8 @@ func (fte *flowToolsExecutor) GetSearcherExecutor(cfg SearcherExecutorConfig) (C
 		ce.handlers[StoreAnswerToolName] = search.Handle
 	}
 
+	fte.appendSkillTools(ce, cfg.TaskID, cfg.SubtaskID)
+
 	return ce, nil
 }
 
@@ -1578,6 +1618,8 @@ func (fte *flowToolsExecutor) GetGeneratorExecutor(cfg GeneratorExecutorConfig) 
 		ce.handlers[BrowserToolName] = browser.Handle
 	}
 
+	fte.appendSkillTools(ce, &cfg.TaskID, nil)
+
 	return ce, nil
 }
 
@@ -1647,6 +1689,8 @@ func (fte *flowToolsExecutor) GetRefinerExecutor(cfg RefinerExecutorConfig) (Con
 		ce.definitions = append(ce.definitions, registryDefinitions[BrowserToolName])
 		ce.handlers[BrowserToolName] = browser.Handle
 	}
+
+	fte.appendSkillTools(ce, &cfg.TaskID, nil)
 
 	return ce, nil
 }
@@ -1811,6 +1855,8 @@ func (fte *flowToolsExecutor) GetEnricherExecutor(cfg EnricherExecutorConfig) (C
 		ce.definitions = append(ce.definitions, registryDefinitions[BrowserToolName])
 		ce.handlers[BrowserToolName] = browser.Handle
 	}
+
+	fte.appendSkillTools(ce, cfg.TaskID, cfg.SubtaskID)
 
 	return ce, nil
 }

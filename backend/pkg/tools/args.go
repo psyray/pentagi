@@ -315,6 +315,30 @@ type StoreCodeAction struct {
 	Message     string   `json:"message" jsonschema:"required,title=Store code message" jsonschema_description:"Engagement-log entry — a 1-2 short sentence running commentary summarizing the code sample. Written in the engagement language declared by your system prompt."`
 }
 
+type ListSkillsAction struct {
+	Query   string   `json:"query,omitempty" jsonschema_description:"Optional technical-channel English search query. When set, the tool runs a hybrid skill search; when empty, it lists the catalogue."`
+	Kind    string   `json:"kind,omitempty" jsonschema:"type=string,enum=skill,enum=reference,enum=mission" jsonschema_description:"Optional document kind filter."`
+	Status  string   `json:"status,omitempty" jsonschema:"type=string,enum=draft,enum=reviewed,enum=canonical,enum=deprecated" jsonschema_description:"Optional publication status filter."`
+	Tags    []string `json:"tags,omitempty" jsonschema_description:"Optional tags that must all be relevant; matching documents carry at least one of them."`
+	Limit   *Int64   `json:"limit,omitempty" jsonschema:"title=Limit,type=integer" jsonschema_description:"Optional maximum number of results (default 20, max 50)."`
+	Message string   `json:"message" jsonschema:"required,title=List skills message" jsonschema_description:"Engagement-log entry, written in the engagement language declared by your system prompt."`
+}
+
+type SearchSkillsAction struct {
+	Query   string   `json:"query" jsonschema:"required" jsonschema_description:"Technical-channel payload, always English: one focused, context-rich query describing the procedure or reference you need. Include the target technology, the vulnerability class and the intended outcome."`
+	Kind    string   `json:"kind,omitempty" jsonschema:"type=string,enum=skill,enum=reference,enum=mission" jsonschema_description:"Optional document kind filter."`
+	Status  string   `json:"status,omitempty" jsonschema:"type=string,enum=draft,enum=reviewed,enum=canonical,enum=deprecated" jsonschema_description:"Optional publication status filter."`
+	Tags    []string `json:"tags,omitempty" jsonschema_description:"Optional tags that narrow the search."`
+	Limit   *Int64   `json:"limit,omitempty" jsonschema:"title=Limit,type=integer" jsonschema_description:"Optional maximum number of skill cards (default 5, max 50)."`
+	Message string   `json:"message" jsonschema:"required,title=Search skills message" jsonschema_description:"Engagement-log entry, written in the engagement language declared by your system prompt."`
+}
+
+type ReadSkillAction struct {
+	Slug    string `json:"slug" jsonschema:"required" jsonschema_description:"Exact slug returned by list_skills or search_skills."`
+	Section string `json:"section,omitempty" jsonschema_description:"Optional markdown heading. Returns only that section, which keeps a long document out of the context."`
+	Message string `json:"message" jsonschema:"required,title=Read skill message" jsonschema_description:"Engagement-log entry, written in the engagement language declared by your system prompt."`
+}
+
 type MaintenanceAction struct {
 	Question string `json:"question" jsonschema:"required" jsonschema_description:"Technical-channel payload — task description for the DevOps team member to maintain the local environment and tools inside the docker container. Always written in English; never translated."`
 	Message  string `json:"message" jsonschema:"required,title=Maintenance task message" jsonschema_description:"Engagement-log entry — a 1-2 short sentence running commentary summarizing the maintenance task. Written in the engagement language declared by your system prompt."`
