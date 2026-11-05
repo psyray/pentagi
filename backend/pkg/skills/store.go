@@ -21,7 +21,9 @@ import (
 const (
 	embeddingDimension = 1024
 	defaultListLimit   = 100
-	maxListLimit       = 500
+	// MaxListLimit is the largest list the store returns in one call.
+	MaxListLimit       = 500
+	maxListLimit       = MaxListLimit
 	defaultSearchLimit = 5
 	maxSearchLimit     = 50
 	embeddingBatchSize = 32
@@ -132,6 +134,33 @@ func (s *Store) ImportMarkdown(ctx context.Context, userID int64, input ImportIn
 	putIfNotEmpty(metadata, "frontmatter_version", fm.Version)
 	if len(fm.Platform) > 0 {
 		metadata["platform"] = []string(fm.Platform)
+	}
+
+	// Mission fields. They are stored for every kind so a skill that starts as a
+	// write-up keeps its fingerprint, but only an engagement is scored on them.
+	putIfNotEmpty(metadata, "machine", strings.ToLower(strings.TrimSpace(fm.Machine)))
+	putIfNotEmpty(metadata, "os", strings.ToLower(strings.TrimSpace(fm.OS)))
+	putIfNotEmpty(metadata, "outcome", strings.ToLower(strings.TrimSpace(fm.Outcome)))
+	if services := NormalizeServices(fm.Services); len(services) > 0 {
+		metadata["services"] = services
+	}
+	if cves := normalizeCVEs(fm.CVEs); len(cves) > 0 {
+		metadata["cves"] = cves
+	}
+	if fm.Anonymized.Set {
+		metadata["anonymized"] = fm.Anonymized.Value
+	}
+
+	// Extra metadata wins only where the frontmatter said nothing: the document
+	// keeps its derived identity, the caller keeps its audit pointers.
+	for key, value := range input.Metadata {
+		if value == nil {
+			continue
+		}
+		if _, exists := metadata[key]; exists {
+			continue
+		}
+		metadata[key] = value
 	}
 
 	chunks, err := splitContent(body, s.chunkSize, s.chunkOverlap)

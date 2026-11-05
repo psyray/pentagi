@@ -22,6 +22,7 @@ type SkillStore interface {
 	List(ctx context.Context, userID int64, filter skills.Filter) ([]skills.Document, error)
 	Search(ctx context.Context, userID int64, query string, filter skills.Filter, limit int) ([]skills.SearchHit, error)
 	Read(ctx context.Context, userID int64, idOrSlug string) (*skills.Document, []skills.File, error)
+	SearchEngagements(ctx context.Context, userID int64, query skills.EngagementQuery) ([]skills.EngagementMatch, error)
 }
 
 type skillTool struct {
@@ -172,6 +173,32 @@ func (t *skillTool) Handle(ctx context.Context, name string, args json.RawMessag
 		}).Debug("read skill")
 		return result, nil
 
+	case SearchEngagementsToolName:
+		var action SearchEngagementsAction
+		if err := json.Unmarshal(args, &action); err != nil {
+			return "", fmt.Errorf("failed to unmarshal %s arguments: %w", name, err)
+		}
+
+		query := skills.EngagementQuery{
+			Services: action.Services,
+			OS:       action.OS,
+			Platform: action.Platform,
+			Tags:     action.Tags,
+			Limit:    intValue(action.Limit, skills.DefaultEngagementLimit),
+		}
+		matches, err := t.store.SearchEngagements(ctx, t.userID, query)
+		if err != nil {
+			return "", err
+		}
+
+		result := clampKnowledgeResult(formatEngagementMatches(matches), DefaultResultSizeLimit)
+		t.log(ctx, name, strings.Join(query.Services, ", "), skills.Filter{Tags: query.Tags}, result)
+		logger.WithFields(logrus.Fields{
+			"matches":      len(matches),
+			"result_bytes": len(result),
+		}).Debug("searched engagements")
+		return result, nil
+
 	case MaterializeSkillToolName:
 		var action MaterializeSkillAction
 		if err := json.Unmarshal(args, &action); err != nil {
@@ -279,6 +306,77 @@ func formatSkillHits(hits []skills.SearchHit) string {
 		fmt.Fprintf(&b, "Next: read_skill(slug=%q)\n\n", doc.Slug)
 	}
 	return b.String()
+}
+
+func formatEngagementMatches(matches []skills.EngagementMatch) string {
+	if len(matches) == 0 {
+		return "no past engagement matches this target fingerprint"
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "# Engagement matches (%d)\n\n", len(matches))
+	for i, match := range matches {
+		doc := match.Document
+		if match.Score > 0 {
+			fmt.Fprintf(&b, "## %d. `%s` (score %.2f)\n", i+1, doc.Slug, match.Score)
+		} else {
+			fmt.Fprintf(&b, "## %d. `%s`\n", i+1, doc.Slug)
+		}
+		fmt.Fprintf(&b, "%s [%s/%s]\n", doc.Title, doc.Kind, doc.Status)
+		if doc.Description != "" {
+			b.WriteString(doc.Description)
+			b.WriteString("\n")
+		}
+
+		if fingerprint := engagementFingerprint(match); fingerprint != "" {
+			fmt.Fprintf(&b, "Fingerprint: %s\n", fingerprint)
+		}
+		if len(doc.Tags) > 0 {
+			fmt.Fprintf(&b, "Tags: %s\n", strings.Join(doc.Tags, ", "))
+		}
+		fmt.Fprintf(&b, "Next: read_skill(slug=%q)\n\n", doc.Slug)
+	}
+
+	return b.String()
+}
+
+// engagementFingerprint renders the mission metadata on one line, marking the
+// services that matched so the agent sees why the card surfaced.
+func engagementFingerprint(match skills.EngagementMatch) string {
+	doc := match.Document
+	parts := make([]string, 0, 5)
+
+	if platform := strings.Join(doc.MetadataStrings("platform"), ", "); platform != "" {
+		parts = append(parts, "platform "+platform)
+	}
+	if os := doc.MetadataString("os"); os != "" {
+		parts = append(parts, "os "+os)
+	}
+	if machine := doc.MetadataString("machine"); machine != "" {
+		parts = append(parts, "machine "+machine)
+	}
+
+	if services := doc.MetadataStrings("services"); len(services) > 0 {
+		matched := make(map[string]struct{}, len(match.MatchedServices))
+		for _, service := range match.MatchedServices {
+			matched[service] = struct{}{}
+		}
+
+		rendered := make([]string, 0, len(services))
+		for _, service := range services {
+			if _, ok := matched[service]; ok {
+				service += "*"
+			}
+			rendered = append(rendered, service)
+		}
+		parts = append(parts, "services "+strings.Join(rendered, ", "))
+	}
+
+	if outcome := doc.MetadataString("outcome"); outcome != "" {
+		parts = append(parts, "outcome "+outcome)
+	}
+
+	return strings.Join(parts, " | ")
 }
 
 func formatSkillRead(doc *skills.Document, files []skills.File, section string) (string, error) {

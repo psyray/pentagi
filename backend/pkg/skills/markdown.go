@@ -19,6 +19,35 @@ const (
 	maxSlugLen          = 80
 )
 
+// looseBool accepts a YAML boolean or its scalar spelling, so a mission can
+// write "anonymized: true" or "anonymized: yes" without failing the import.
+type looseBool struct {
+	Value bool
+	Set   bool
+}
+
+func (b *looseBool) UnmarshalYAML(value *yaml.Node) error {
+	if value.Kind != yaml.ScalarNode {
+		return fmt.Errorf("expected a boolean, got %s", value.Tag)
+	}
+
+	var text string
+	if err := value.Decode(&text); err != nil {
+		return err
+	}
+
+	switch strings.ToLower(strings.TrimSpace(text)) {
+	case "true", "yes", "on", "1":
+		b.Value, b.Set = true, true
+	case "false", "no", "off", "0", "":
+		b.Value, b.Set = false, true
+	default:
+		return fmt.Errorf("expected a boolean, got %q", text)
+	}
+
+	return nil
+}
+
 // stringList accepts a YAML scalar or a sequence, so a pack can write
 // "platform: HTB" or "platform: [HTB, Windows]" without failing the import.
 type stringList []string
@@ -60,6 +89,15 @@ type frontMatter struct {
 	Status      string     `yaml:"status"`
 	Language    string     `yaml:"language"`
 	Kind        string     `yaml:"kind"`
+
+	// Mission fields. A reference or a skill may leave them empty; an
+	// engagement uses them as its service fingerprint.
+	Machine    string     `yaml:"machine"`
+	OS         string     `yaml:"os"`
+	Services   stringList `yaml:"services"`
+	CVEs       stringList `yaml:"cves"`
+	Outcome    string     `yaml:"outcome"`
+	Anonymized looseBool  `yaml:"anonymized"`
 }
 
 // parseMarkdown separates a YAML frontmatter block from the body. A document

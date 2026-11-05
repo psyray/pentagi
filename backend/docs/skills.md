@@ -70,6 +70,31 @@ The frontmatter is optional. Without it, the first `#` heading becomes the
 title, the first paragraph becomes the description, the kind defaults to
 `reference`, and the slug is derived from the title.
 
+An engagement (a mission write-up) carries a service fingerprint on top of the
+common fields. Every field is optional except `name`:
+
+```yaml
+---
+name: printer-job-language
+platform: HTB
+machine: dc01
+os: linux
+services: [22/ssh, 80/http, 9100/jetdirect]
+cves: [CVE-2021-44228]
+outcome: user
+anonymized: true
+tags: [lpd, pjl, fsupload]
+---
+```
+
+`platform` and `services` accept a scalar or a list. A service is written
+`port/service`, in either order (`9100/jetdirect` or `jetdirect/9100`): the
+stored form is always lowercase with the port first, so a query and a document
+cannot disagree on the spelling. `os` and `outcome` are lowercased, `cves` are
+upper-cased and deduplicated, `anonymized` accepts `true`, `yes`, `on`, `1` and
+their negatives. The fields land in the document metadata, next to `category`,
+`platform` and `license`.
+
 ## REST API
 
 All routes require a bearer token or a session, like the rest of the API.
@@ -130,6 +155,7 @@ Deletion is a soft delete of the parent plus a hard delete of the chunks.
 | `search_skills` | hybrid search, returns cards with an excerpt |
 | `read_skill` | full body or one markdown section, plus the attachment list |
 | `materialize_skill` | copies the attachments of one skill into `/work/skills/<slug>/` |
+| `search_missions` | ranks past engagements against the target fingerprint |
 
 They are attached to the assistant, primary, generator, refiner, installer,
 coder, pentester, searcher and enricher executors when the shared pgx pool and
@@ -247,6 +273,45 @@ without writing. Imports are idempotent: a second run versions the documents and
 keeps the same pack. A `pack.yaml` that lists `documents:` instead of the three
 lists is the previous flat format, still accepted by the CLI.
 
+## Missions and fingerprint search (L3.5)
+
+An engagement is a mission write-up: a markdown document of kind `engagement`,
+imported from a pack under `missions/` or through the REST route, with the
+service fingerprint described above. It is not a procedure, so it never enters
+the catalogue; the agent reaches it on purpose.
+
+`search_missions` ranks the engagements of the scope against the target in
+front of the agent. The score rewards the fingerprint rather than the prose:
+
+| Criterion | Weight |
+|---|---|
+| same `port/service` | 3.0 |
+| same port, different service name | 1.5 |
+| same service name, different port | 1.5 |
+| same `os` | 2.0 |
+| same `platform` | 1.0 |
+| each shared tag | 0.5 |
+
+Each query service contributes its best candidate, so a document cannot gain
+more than one match per queried service, and a repeated service is deduplicated.
+A query with at least one criterion drops the documents that score nothing; an
+empty query lists the most recently updated engagements. The response is a
+small card per mission (score, platform, OS, machine, services with the matched
+ones starred, outcome) and a `read_skill(slug=...)` hint, never the write-up.
+
+```bash
+# CLI, against the live data directory
+docker exec -w /opt/pentagi pentagi /opt/pentagi/bin/skills-import \
+  --user admin@pentagi.com --missions --services 9100/jetdirect,80/http --os linux
+docker exec -w /opt/pentagi pentagi /opt/pentagi/bin/skills-import \
+  --user admin@pentagi.com --missions --platform HTB --tags lpd
+```
+
+A mission imported before L3.5 has no fingerprint in its metadata: re-importing
+its pack versions it and fills `machine`, `os`, `services`, `cves`, `outcome`
+and `anonymized` without touching the body. A mission with no `services` can
+still match on `os`, `platform` or tags.
+
 ## Review, versions and diff (L3.3)
 
 Each import now appends a row to `knowledge_document_versions` (title,
@@ -327,6 +392,38 @@ docker exec -w /opt/pentagi pentagi /opt/pentagi/bin/skills-import \
 Metadata pointers are used instead of a new column: the document metadata is
 visible in GraphQL and the GIN index already covers it.
 
+## Re-anonymisation (L3.6)
+
+A document imported from a pack, or written before the tools anonymised their
+output, may still carry hosts, credentials or a submitted flag. The CLI applies
+the same anonymiser the agent tools use, built from the bundled pattern set plus
+the secrets of the running configuration:
+
+```bash
+docker exec -w /opt/pentagi pentagi /opt/pentagi/bin/skills-import \
+  --user admin@pentagi.com --reanonymize --dry-run
+docker exec -w /opt/pentagi pentagi /opt/pentagi/bin/skills-import \
+  --user admin@pentagi.com --reanonymize --only printer-run,adcs-esc8
+```
+
+A real run imports a new version per changed document, so every edit stays
+diffable and the previous text remains in the history. The slug, kind, status,
+visibility, tags and pack are kept, and the metadata the frontmatter cannot
+carry is preserved (`merged_from`, `merged_into`, custom keys) with
+`anonymized_at` added. A document with nothing left to redact is skipped, so a
+second pass is a no-op.
+
+An engagement also has its flag token redacted: a 32 character hexadecimal
+string becomes `<REDACTED-FLAG>`, because such a token is only meaningful for
+the machine that issued it and no secret pattern knows about it. A reference
+keeps a 32 character hex string, which may be a legitimate hash.
+
+`--dry-run` prints what would change without writing. Review it before a real
+run: the generic pattern set masks IPv4 addresses, domain names, URLs and
+e-mail addresses, so a vendor domain quoted in a reference (`microsoft.com`)
+is masked too. Use `--only` to scope a campaign to the documents that matter,
+and remember that `--dry-run` still needs a `--user`.
+
 ## Limits and current gaps
 
 - Embedding dimension is fixed at 1024 (`bge-m3`). A different model needs a
@@ -341,6 +438,12 @@ visible in GraphQL and the GIN index already covers it.
   leaves the documents imported before it. Re-running the same pack converges.
 - A merge is not reversible from the UI: undoing it means restoring the source
   by hand, though its content stays in the version history.
+- `search_missions` reads metadata only: a mission imported before L3.5 stays
+  invisible to the fingerprint search until its pack is re-imported. The score
+  is a heuristic, not a ranking trained on outcomes.
+- Re-anonymisation masks with the generic pattern set: it can over-redact a
+  vendor domain in a reference. The dry run is the review gate, and there is no
+  per-pattern allow list yet.
 - Automatic merge at import (similarity 0.98 and above) is not implemented:
   every merge is explicit.
 - The history starts at the moment the versions table was created: earlier

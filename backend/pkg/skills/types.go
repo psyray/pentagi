@@ -97,6 +97,10 @@ type ImportInput struct {
 	Language    string
 	PackID      *string
 	DefaultTags []string
+	// Metadata carries extra metadata merged after the frontmatter-derived
+	// keys. A key already derived from the frontmatter keeps that value, so a
+	// re-anonymisation can preserve the merge pointers and the audit trail.
+	Metadata map[string]any
 }
 
 // MetadataInput updates the non-content fields of a document. A nil pointer
@@ -115,4 +119,14 @@ type Section struct {
 	Level   int
 	Content string
 	Offset  int
+}
+
+// MetadataString returns a trimmed string metadata value.
+func (d Document) MetadataString(key string) string {
+	return metadataString(d.Metadata, key)
+}
+
+// MetadataStrings returns a string list metadata value.
+func (d Document) MetadataStrings(key string) []string {
+	return metadataStrings(d.Metadata, key)
 }

@@ -10,13 +10,15 @@ import (
 )
 
 type fakeSkillStore struct {
-	docs  []skills.Document
-	hits  []skills.SearchHit
-	files []skills.File
-	err   error
+	docs        []skills.Document
+	hits        []skills.SearchHit
+	files       []skills.File
+	engagements []skills.EngagementMatch
+	err         error
 
-	lastQuery  string
-	lastFilter skills.Filter
+	lastQuery           string
+	lastFilter          skills.Filter
+	lastEngagementQuery skills.EngagementQuery
 }
 
 func (f *fakeSkillStore) List(_ context.Context, _ int64, filter skills.Filter) ([]skills.Document, error) {
@@ -40,6 +42,11 @@ func (f *fakeSkillStore) Read(_ context.Context, _ int64, idOrSlug string) (*ski
 		}
 	}
 	return nil, nil, skills.ErrNotFound
+}
+
+func (f *fakeSkillStore) SearchEngagements(_ context.Context, _ int64, query skills.EngagementQuery) ([]skills.EngagementMatch, error) {
+	f.lastEngagementQuery = query
+	return f.engagements, f.err
 }
 
 func newSkillDoor(t *testing.T, store SkillStore, log VectorStoreLogProvider) Tool {
@@ -181,6 +188,65 @@ func TestSkillTool_LogsTheAnonymizedQuery(t *testing.T) {
 	}
 	if log.entries[0].action != database.VecstoreActionTypeRetrieve {
 		t.Errorf("skill read logged as %s", log.entries[0].action)
+	}
+}
+
+func TestSkillTool_SearchEngagements_RendersTheFingerprint(t *testing.T) {
+	store := &fakeSkillStore{engagements: []skills.EngagementMatch{{
+		Document: skills.Document{
+			ID: "m1", Slug: "htb-example", Kind: skills.KindEngagement, Status: skills.StatusReviewed,
+			Title: "Printer job language", Tags: []string{"lpd"},
+			Metadata: map[string]any{
+				"platform": []string{"HTB"},
+				"os":       "linux",
+				"machine":  "example",
+				"services": []string{"22/ssh", "9100/jetdirect"},
+				"outcome":  "user",
+			},
+		},
+		Score:           3,
+		MatchedServices: []string{"9100/jetdirect"},
+	}}}
+	door := newSkillDoor(t, store, &recordingVectorStoreLog{})
+
+	got, err := door.Handle(PutAgentContext(t.Context(), database.MsgchainTypePentester), SearchEngagementsToolName,
+		mustJSON(map[string]any{
+			"message":  "m",
+			"services": []string{"9100/JetDirect"},
+			"os":       "linux",
+			"limit":    3,
+		}))
+	if err != nil {
+		t.Fatalf("search_missions: %v", err)
+	}
+
+	for _, want := range []string{
+		"Engagement matches (1)", "`htb-example` (score 3.00)", "9100/jetdirect*",
+		"platform HTB", "os linux", "outcome user", `read_skill(slug="htb-example")`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("card misses %q:\n%s", want, got)
+		}
+	}
+
+	if len(store.lastEngagementQuery.Services) != 1 || store.lastEngagementQuery.Services[0] != "9100/JetDirect" {
+		t.Errorf("query services = %v", store.lastEngagementQuery.Services)
+	}
+	if store.lastEngagementQuery.OS != "linux" || store.lastEngagementQuery.Limit != 3 {
+		t.Errorf("query = %+v", store.lastEngagementQuery)
+	}
+}
+
+func TestSkillTool_SearchEngagements_ExplainsAnEmptyResult(t *testing.T) {
+	door := newSkillDoor(t, &fakeSkillStore{}, &recordingVectorStoreLog{})
+
+	got, err := door.Handle(PutAgentContext(t.Context(), database.MsgchainTypePentester), SearchEngagementsToolName,
+		mustJSON(map[string]any{"message": "m"}))
+	if err != nil {
+		t.Fatalf("search_missions: %v", err)
+	}
+	if !strings.Contains(got, "no past engagement") {
+		t.Fatalf("empty result is not actionable: %q", got)
 	}
 }
 

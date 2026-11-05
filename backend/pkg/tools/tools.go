@@ -497,11 +497,13 @@ func (fte *flowToolsExecutor) appendSkillTools(ce *customExecutor, taskID, subta
 		registryDefinitions[SearchSkillsToolName],
 		registryDefinitions[ReadSkillToolName],
 		registryDefinitions[MaterializeSkillToolName],
+		registryDefinitions[SearchEngagementsToolName],
 	)
 	ce.handlers[ListSkillsToolName] = tool.Handle
 	ce.handlers[SearchSkillsToolName] = tool.Handle
 	ce.handlers[ReadSkillToolName] = tool.Handle
 	ce.handlers[MaterializeSkillToolName] = tool.Handle
+	ce.handlers[SearchEngagementsToolName] = tool.Handle
 
 	ce.surfacer = fte.skillSurface()
 }

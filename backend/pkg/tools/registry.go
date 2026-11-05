@@ -44,6 +44,7 @@ const (
 	SearchSkillsToolName       = "search_skills"
 	ReadSkillToolName          = "read_skill"
 	MaterializeSkillToolName   = "materialize_skill"
+	SearchEngagementsToolName  = "search_missions"
 	GraphitiSearchToolName     = "graphiti_search"
 	ReportResultToolName       = "report_result"
 	SubtaskListToolName        = "subtask_list"
@@ -135,6 +136,7 @@ var toolsTypeMapping = map[string]ToolType{
 	SearchSkillsToolName:       SearchVectorDbToolType,
 	ReadSkillToolName:          SearchVectorDbToolType,
 	MaterializeSkillToolName:   EnvironmentToolType,
+	SearchEngagementsToolName:  SearchVectorDbToolType,
 	GraphitiSearchToolName:     SearchVectorDbToolType,
 	ReportResultToolName:       StoreAgentResultToolType,
 	SubtaskListToolName:        StoreAgentResultToolType,
@@ -378,6 +380,14 @@ var registryDefinitions = map[string]llms.FunctionDefinition{
 			"Files that already exist are kept unless overwrite is true. Materialize only what you need: the files stay available for the rest of the flow.",
 		Parameters: reflector.Reflect(&MaterializeSkillAction{}),
 	},
+	SearchEngagementsToolName: {
+		Name: SearchEngagementsToolName,
+		Description: "Search past engagements (anonymised write-ups of machines and missions) whose service fingerprint matches the target in front of you. " +
+			"Pass the ports and services the scan already showed, the operating system if known, and optionally the platform or a theme tag. " +
+			"The score rewards a shared service fingerprint over a shared platform or tag; documents with no criterion match are dropped. " +
+			"Returns short cards, never whole write-ups: use read_skill(slug=\"...\") to load the procedure that worked.",
+		Parameters: reflector.Reflect(&SearchEngagementsAction{}),
+	},
 	GraphitiSearchToolName: {
 		Name: GraphitiSearchToolName,
 		Description: "Search the Graphiti temporal knowledge graph for historical penetration testing context, " +
@@ -502,7 +512,7 @@ func getMessageType(name string) database.MsglogType {
 	case MemoristToolName, SearchToolName, GoogleToolName, DuckDuckGoToolName, TavilyToolName, FirecrawlToolName,
 		TraversaalToolName, PerplexityToolName, SearxngToolName, SploitusToolName, WebSearchToolName,
 		SearchGuideToolName, SearchAnswerToolName, SearchCodeToolName, SearchInMemoryToolName, GraphitiSearchToolName,
-		ListSkillsToolName, SearchSkillsToolName, ReadSkillToolName:
+		ListSkillsToolName, SearchSkillsToolName, ReadSkillToolName, SearchEngagementsToolName:
 		return database.MsglogTypeSearch
 	case AdviceToolName:
 		return database.MsglogTypeAdvice

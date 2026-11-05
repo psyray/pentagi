@@ -610,3 +610,191 @@ WHERE d.slug = 'dup-a' AND e.event = 'merged'`).Scan(&events); err != nil {
 		t.Fatalf("merge events = %d, want 1", events)
 	}
 }
+
+func TestStore_LiveSearchEngagements(t *testing.T) {
+	pool, _ := openSkillsSchema(t)
+	store := NewStore(pool, unitEmbedder{}, 8192)
+	ctx := context.Background()
+
+	importMission := func(content string) {
+		t.Helper()
+		if _, err := store.ImportMarkdown(ctx, 1, ImportInput{
+			Content: content, Kind: KindEngagement, Status: StatusReviewed,
+		}); err != nil {
+			t.Fatalf("import mission: %v", err)
+		}
+	}
+
+	importMission(`---
+name: lpd-host
+description: Printer job language host.
+platform: HTB
+os: Linux
+services: [22/ssh, 80/http, 9100/JetDirect]
+cves: [cve-2021-44228]
+outcome: user
+anonymized: true
+tags: [lpd]
+---
+
+# LPD host
+
+The printer shares the filesystem of the web application.
+`)
+	importMission(`---
+name: https-host
+description: TLS host.
+platform: htb
+os: windows
+services: [443/https]
+---
+
+# HTTPS host
+
+A TLS portal without a printer.
+`)
+
+	doc, err := store.Get(ctx, 1, "lpd-host")
+	if err != nil {
+		t.Fatalf("read mission: %v", err)
+	}
+	if doc.MetadataString("os") != "linux" {
+		t.Fatalf("os metadata = %q, want linux", doc.MetadataString("os"))
+	}
+	if services := doc.MetadataStrings("services"); len(services) != 3 || services[2] != "9100/jetdirect" {
+		t.Fatalf("services metadata = %v", services)
+	}
+	if cves := doc.MetadataStrings("cves"); len(cves) != 1 || cves[0] != "CVE-2021-44228" {
+		t.Fatalf("cves metadata = %v", cves)
+	}
+	if anonymized, ok := doc.Metadata["anonymized"].(bool); !ok || !anonymized {
+		t.Fatalf("anonymized metadata = %#v", doc.Metadata["anonymized"])
+	}
+
+	matches, err := store.SearchEngagements(ctx, 1, EngagementQuery{
+		Services: []string{"9100/jetdirect"}, OS: "linux",
+	})
+	if err != nil {
+		t.Fatalf("search engagements: %v", err)
+	}
+	if len(matches) != 1 || matches[0].Document.Slug != "lpd-host" {
+		t.Fatalf("matches = %+v", matches)
+	}
+	if matches[0].Score != engagementServiceExactWeight+engagementOSWeight {
+		t.Fatalf("score = %v", matches[0].Score)
+	}
+	if len(matches[0].MatchedServices) != 1 || matches[0].MatchedServices[0] != "9100/jetdirect" {
+		t.Fatalf("matched services = %v", matches[0].MatchedServices)
+	}
+
+	byOS, err := store.SearchEngagements(ctx, 1, EngagementQuery{OS: "windows"})
+	if err != nil {
+		t.Fatalf("search by os: %v", err)
+	}
+	if len(byOS) != 1 || byOS[0].Document.Slug != "https-host" {
+		t.Fatalf("os matches = %+v", byOS)
+	}
+
+	byPlatform, err := store.SearchEngagements(ctx, 1, EngagementQuery{Platform: "HTB"})
+	if err != nil {
+		t.Fatalf("search by platform: %v", err)
+	}
+	if len(byPlatform) != 2 {
+		t.Fatalf("platform matches = %+v", byPlatform)
+	}
+
+	all, err := store.SearchEngagements(ctx, 1, EngagementQuery{})
+	if err != nil {
+		t.Fatalf("list engagements: %v", err)
+	}
+	if len(all) != 2 {
+		t.Fatalf("all engagements = %+v", all)
+	}
+
+	other, err := store.SearchEngagements(ctx, 2, EngagementQuery{})
+	if err != nil {
+		t.Fatalf("search as another user: %v", err)
+	}
+	if len(other) != 0 {
+		t.Fatalf("another user sees %d missions", len(other))
+	}
+}
+
+func TestStore_LiveReanonymize(t *testing.T) {
+	pool, _ := openSkillsSchema(t)
+	store := NewStore(pool, unitEmbedder{}, 8192)
+	ctx := context.Background()
+
+	const flag = "0123456789abcdef0123456789abcdef"
+	doc, err := store.ImportMarkdown(ctx, 1, ImportInput{
+		Content: `---
+name: printer-run
+description: Reach 10.0.0.5 through the printer.
+machine: DC01
+os: linux
+services: [9100/jetdirect]
+outcome: user
+anonymized: true
+tags: [lpd]
+---
+
+# Printer run
+
+The host 10.0.0.5 returned ` + flag + `.
+`,
+		Kind:   KindEngagement,
+		Status: StatusReviewed,
+	})
+	if err != nil {
+		t.Fatalf("import: %v", err)
+	}
+
+	// A pointer the frontmatter cannot carry, like the one a merge writes.
+	if _, err := pool.Exec(ctx, `
+UPDATE knowledge_documents SET metadata = metadata || '{"custom":"kept"}'::jsonb
+WHERE slug = $1`, doc.Slug); err != nil {
+		t.Fatalf("seed custom metadata: %v", err)
+	}
+
+	replacer := literalReplacer{{from: "10.0.0.5", to: "§*IP*§"}}
+	result, err := store.Reanonymize(ctx, 1, "printer-run", replacer)
+	if err != nil {
+		t.Fatalf("re-anonymise: %v", err)
+	}
+	if !result.Changed || result.Skipped || result.Version != 2 || result.Flags != 1 {
+		t.Fatalf("result = %+v", result)
+	}
+	if strings.Contains(result.Document.Content, "10.0.0.5") || strings.Contains(result.Document.Content, flag) {
+		t.Fatalf("content still leaks: %q", result.Document.Content)
+	}
+	if !strings.Contains(result.Document.Content, RedactedFlag) {
+		t.Fatalf("flag placeholder missing: %q", result.Document.Content)
+	}
+	if !strings.Contains(result.Document.Description, "§*IP*§") {
+		t.Fatalf("description = %q", result.Document.Description)
+	}
+	if result.Document.MetadataString("machine") != "dc01" {
+		t.Fatalf("machine metadata = %q", result.Document.MetadataString("machine"))
+	}
+	if services := result.Document.MetadataStrings("services"); len(services) != 1 || services[0] != "9100/jetdirect" {
+		t.Fatalf("services metadata = %v", services)
+	}
+	if kept, _ := result.Document.Metadata["custom"].(string); kept != "kept" {
+		t.Fatalf("custom metadata = %#v", result.Document.Metadata["custom"])
+	}
+	if result.Document.MetadataString("anonymized_at") == "" {
+		t.Fatal("anonymized_at is missing")
+	}
+
+	again, err := store.Reanonymize(ctx, 1, "printer-run", replacer)
+	if err != nil {
+		t.Fatalf("second pass: %v", err)
+	}
+	if !again.Skipped || again.Changed || again.Version != 2 {
+		t.Fatalf("second pass is not a no-op: %+v", again)
+	}
+
+	if _, err := store.Reanonymize(ctx, 2, "printer-run", replacer); err != ErrNotFound {
+		t.Fatalf("another user re-anonymised the document: %v", err)
+	}
+}

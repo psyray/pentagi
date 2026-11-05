@@ -16,6 +16,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
+	"github.com/vxcontrol/cloud/anonymizer"
+	"github.com/vxcontrol/cloud/anonymizer/patterns"
 	"gopkg.in/yaml.v3"
 )
 
@@ -70,16 +72,23 @@ func main() {
 	threshold := flag.Float64("threshold", 0, "Similarity threshold for --duplicates (default 0.93)")
 	mergeTarget := flag.String("merge", "", "Target slug for a merge and exit")
 	mergeSources := flag.String("merge-from", "", "Comma-separated source slugs for --merge")
+	missions := flag.Bool("missions", false, "Rank the stored engagements against a target fingerprint and exit")
+	missionServices := flag.String("services", "", "Comma-separated service fingerprints for --missions, such as 22/ssh,443/https")
+	missionOS := flag.String("os", "", "Operating system filter for --missions")
+	missionPlatform := flag.String("platform", "", "Platform filter for --missions")
+	missionTags := flag.String("tags", "", "Comma-separated tags for --missions")
+	reanonymize := flag.Bool("reanonymize", false, "Re-anonymise the stored documents with the current anonymiser and exit")
 	outDir := flag.String("out", "", "Output directory for --export-pack")
 	dryRun := flag.Bool("dry-run", false, "Parse the pack and print the plan without writing")
 	flag.Parse()
 
 	readOnly := *searchQuery != "" || *deleteSlug != "" || *backfillLegacy || *exportPack != "" ||
-		*versionsSlug != "" || *diffSlug != "" || *publishSlug != "" || *duplicates || *mergeTarget != ""
+		*versionsSlug != "" || *diffSlug != "" || *publishSlug != "" || *duplicates || *mergeTarget != "" ||
+		*missions || *reanonymize
 	if *packPath == "" && !readOnly {
-		logrus.Fatal("the --pack flag is required unless --search, --delete, --export-pack, --versions, --diff, --publish or --backfill-legacy is set")
+		logrus.Fatal("the --pack flag is required unless --search, --delete, --export-pack, --versions, --diff, --publish, --missions, --reanonymize or --backfill-legacy is set")
 	}
-	if *userRef == "" && !*dryRun {
+	if *userRef == "" && (!*dryRun || *reanonymize) {
 		logrus.Fatal("the --user flag is required unless --dry-run is set")
 	}
 	if err := godotenv.Load(*envFile); err != nil && !os.IsNotExist(err) {
@@ -184,6 +193,20 @@ func main() {
 	if *duplicates {
 		if err := printDuplicates(ctx, store, userID, *threshold); err != nil {
 			logrus.WithError(err).Fatal("unable to build the duplicate report")
+		}
+		return
+	}
+
+	if *missions {
+		if err := printMissionMatches(ctx, store, userID, *missionServices, *missionOS, *missionPlatform, *missionTags); err != nil {
+			logrus.WithError(err).Fatal("unable to rank the engagements")
+		}
+		return
+	}
+
+	if *reanonymize {
+		if err := reanonymizeDocuments(ctx, store, cfg, userID, *onlySlugs, *dryRun); err != nil {
+			logrus.WithError(err).Fatal("unable to re-anonymise the documents")
 		}
 		return
 	}
@@ -533,4 +556,122 @@ func splitList(value string) []string {
 		}
 	}
 	return out
+}
+
+func printMissionMatches(ctx context.Context, store *skills.Store, userID int64, services, osName, platform, tags string) error {
+	matches, err := store.SearchEngagements(ctx, userID, skills.EngagementQuery{
+		Services: splitList(services),
+		OS:       osName,
+		Platform: platform,
+		Tags:     splitList(tags),
+	})
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%-7s %-10s %-50s %s\n", "score", "outcome", "slug", "services")
+	for _, match := range matches {
+		fmt.Printf("%-7.2f %-10s %-50s %s\n",
+			match.Score, match.Document.MetadataString("outcome"), match.Document.Slug,
+			strings.Join(match.Document.MetadataStrings("services"), ", "))
+	}
+	fmt.Printf("\n%d engagement(s)\n", len(matches))
+
+	return nil
+}
+
+// reanonymizeDocuments applies the same anonymiser the agent tools use. A real
+// run imports a new version per changed document, so every edit stays diffable.
+func reanonymizeDocuments(ctx context.Context, store *skills.Store, cfg *config.Config, userID int64, onlySlugs string, dryRun bool) error {
+	replacer, err := buildReplacer(cfg)
+	if err != nil {
+		return err
+	}
+
+	documents, err := gatherReanonymizeDocuments(ctx, store, userID, onlySlugs)
+	if err != nil {
+		return err
+	}
+
+	changed, skipped, foreign, flags := 0, 0, 0, 0
+	for _, doc := range documents {
+		if doc.UserID != userID {
+			foreign++
+			continue
+		}
+
+		if dryRun {
+			redacted := skills.RedactDocument(doc, replacer)
+			if !redacted.Changed(doc) {
+				skipped++
+				continue
+			}
+			changed++
+			flags += redacted.Flags
+			fmt.Printf("%-50s would change (title %t, description %t, content %t, flags %d)\n",
+				doc.Slug, redacted.Title != doc.Title, redacted.Description != doc.Description,
+				redacted.Content != doc.Content, redacted.Flags)
+			continue
+		}
+
+		result, err := store.Reanonymize(ctx, userID, doc.Slug, replacer)
+		if err != nil {
+			return fmt.Errorf("re-anonymise %q: %w", doc.Slug, err)
+		}
+		if result.Skipped {
+			skipped++
+			continue
+		}
+		changed++
+		flags += result.Flags
+		fmt.Printf("%-50s v%d (title %t, description %t, content %t, flags %d)\n",
+			doc.Slug, result.Version, result.Title, result.Description, result.Content, result.Flags)
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"dry_run": dryRun,
+		"changed": changed,
+		"skipped": skipped,
+		"flags":   flags,
+		"foreign": foreign,
+	}).Info("re-anonymisation finished")
+
+	return nil
+}
+
+func gatherReanonymizeDocuments(ctx context.Context, store *skills.Store, userID int64, onlySlugs string) ([]skills.Document, error) {
+	only := splitList(onlySlugs)
+	if len(only) > 0 {
+		documents := make([]skills.Document, 0, len(only))
+		for _, slug := range only {
+			doc, err := store.Get(ctx, userID, slug)
+			if err != nil {
+				return nil, fmt.Errorf("read %q: %w", slug, err)
+			}
+			documents = append(documents, *doc)
+		}
+		return documents, nil
+	}
+
+	// Every status is listed on purpose: a deprecated engagement still has to be
+	// scrubbed. The store caps one list, so a larger scope takes --only batches.
+	return store.List(ctx, userID, skills.Filter{
+		Statuses: []string{skills.StatusDraft, skills.StatusReviewed, skills.StatusCanonical, skills.StatusDeprecated},
+		Limit:    skills.MaxListLimit,
+	})
+}
+
+func buildReplacer(cfg *config.Config) (anonymizer.Replacer, error) {
+	allPatterns, err := patterns.LoadPatterns(patterns.PatternListTypeAll)
+	if err != nil {
+		return nil, fmt.Errorf("load anonymiser patterns: %w", err)
+	}
+	allPatterns.Patterns = append(allPatterns.Patterns, cfg.GetSecretPatterns()...)
+
+	replacer, err := anonymizer.NewReplacer(allPatterns.Regexes(), allPatterns.Names())
+	if err != nil {
+		return nil, fmt.Errorf("build anonymiser: %w", err)
+	}
+
+	return replacer, nil
 }
