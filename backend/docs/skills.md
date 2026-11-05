@@ -1,5 +1,11 @@
 # Skills, references and engagements
 
+> Reading this as a user rather than as a developer? Start with
+> [`skills-guide.md`](skills-guide.md): it explains the mental model, how to
+> write a skill the agents will find, the review workflow, the engagement scoping
+> and the measurement loop, without any instance-specific configuration. This
+> file is the reference for storage, APIs, SQL, settings and internals.
+
 PentAGI agents can list, search and read curated skills instead of guessing
 from a raw vector store. A skill is a versioned markdown procedure with a short
 trigger description, tags and a body. A reference is imported documentation
