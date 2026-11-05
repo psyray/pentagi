@@ -17,6 +17,7 @@ import (
 	"pentagi/pkg/providers/provider"
 	"pentagi/pkg/providers/tester/mock"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1356,4 +1357,15 @@ func TestFlows_PrepareAssistant_DoesNotHoldTheFlowAgainstStopOrRename(t *testing
 
 	release()
 	controllerReceive(t, prepared, "the assistant's preparation to end")
+}
+
+func TestNonNilPackIDs_KeepsTheColumnNotNull(t *testing.T) {
+	if got := nonNilPackIDs(nil); got == nil || len(got) != 0 {
+		t.Fatalf("nil selection must become an empty array, got %#v", got)
+	}
+
+	ids := []uuid.UUID{uuid.New()}
+	if got := nonNilPackIDs(ids); len(got) != 1 || got[0] != ids[0] {
+		t.Fatalf("selection = %#v", got)
+	}
 }

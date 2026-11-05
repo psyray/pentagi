@@ -157,7 +157,7 @@ func reserveFlow(ctx context.Context, fwc newFlowWorkerCtx) (database.Flow, erro
 		ToolCallIDTemplate: cast.ToolCallIDTemplate,
 		Functions:          []byte("{}"),
 		UserID:             fwc.userID,
-		SkillPackIds:       fwc.skillPackIDs,
+		SkillPackIds:       nonNilPackIDs(fwc.skillPackIDs),
 	})
 	if err != nil {
 		obs.LogErrorOrCancel(logrus.WithContext(ctx), err, "failed to create flow in DB")
@@ -173,6 +173,16 @@ func reserveFlow(ctx context.Context, fwc newFlowWorkerCtx) (database.Flow, erro
 	}).Info("flow created in DB")
 
 	return flow, nil
+}
+
+// nonNilPackIDs turns "no selection" into an empty array. The column is NOT
+// NULL with an empty default, and the driver encodes a nil slice as NULL, so a
+// flow created without a pack selection would otherwise be refused.
+func nonNilPackIDs(ids []uuid.UUID) []uuid.UUID {
+	if ids == nil {
+		return []uuid.UUID{}
+	}
+	return ids
 }
 
 // skillPackIDs renders the stored selection for the tools layer, which speaks
