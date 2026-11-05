@@ -22,7 +22,10 @@ in dedicated tables so the legacy Knowledges screen stays unchanged.
 
 Chunks are retrieved with a hybrid query: vector similarity and PostgreSQL
 full-text search are fused with Reciprocal Rank Fusion, then one card per
-document is returned. The full body is only fetched by `read_skill`.
+document is returned. The lexical side runs twice, once with every query term
+(precision) and once with the terms whose document frequency is at or below a
+small threshold (recall for identifiers such as ESC8, a CVE id or a tool name).
+The full body is only fetched by `read_skill`.
 
 Statuses: `draft`, `reviewed`, `canonical`, `deprecated`. Deprecated documents
 are excluded unless a caller explicitly filters on that status. Visibility:
@@ -444,7 +447,10 @@ docker exec -w /opt/pentagi pentagi /opt/pentagi/bin/skills-import \
 ```
 
 The dataset shipped in `knowledge-packs/eval/golden.yaml` carries 57 cases over
-25 categories and targets the 54 documents of the dev corpus (2026-11-05). Run
+25 categories and targets the 54 documents of the dev corpus (2026-11-05). The
+baseline after the rare-term lexical branch is recall@3 0.982, recall@5 0.982,
+MRR 0.930 and 0 % empty results; the single miss is `template-detection`, where
+two template-injection documents legitimately compete for the same query. Run
 it with `--eval-statuses reviewed,canonical` to measure what a non-owner agent
 sees in production, where drafts are invisible.
 
