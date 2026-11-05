@@ -15,9 +15,11 @@ const (
 )
 
 // Search runs a hybrid vector plus lexical query and returns one card per
-// document, with the best matching chunk as the excerpt. RRF fuses the two
-// branches so identifiers (CVEs, tool names, ESC8, ...) are not lost when the
-// embedding ranks them poorly.
+// document, with the best matching chunk as the excerpt. RRF fuses three
+// branches: the vector search, a strict lexical search (every term), and a
+// rare-term lexical search. The last one keeps identifiers such as ESC8, a CVE
+// id or a tool name visible even when the embedding dilutes them in a long
+// document, while the strict branch keeps precision on short queries.
 func (s *Store) Search(ctx context.Context, userID int64, query string, filter Filter, limit int) ([]SearchHit, error) {
 	if s.db == nil {
 		return nil, fmt.Errorf("skills: database is not configured")
@@ -41,7 +43,8 @@ func (s *Store) Search(ctx context.Context, userID int64, query string, filter F
 
 	rows, err := s.db.Query(ctx, `
 WITH params AS (
-  SELECT $1::vector AS emb, websearch_to_tsquery('simple', $2) AS tsq
+  SELECT $1::vector AS emb, to_tsvector('simple', $2) AS ts,
+         websearch_to_tsquery('simple', $2) AS tsq
 ),
 filtered AS (
   SELECT d.id, d.user_id, d.pack_id, d.kind, d.slug, d.title, d.description,
@@ -53,6 +56,25 @@ filtered AS (
     AND ($4::text[] IS NULL OR d.kind = ANY($4))
     AND ($5::text[] IS NULL OR d.status = ANY($5))
     AND ($6::text[] IS NULL OR d.tags && $6)
+),
+total AS (
+  SELECT GREATEST(count(*), 1) AS n FROM filtered
+),
+terms AS (
+  SELECT u.lexeme,
+         (SELECT count(DISTINCT c2.document_id)
+          FROM knowledge_chunks c2
+          JOIN filtered f2 ON f2.id = c2.document_id
+          WHERE c2.search_vector @@ to_tsquery('simple', quote_literal(u.lexeme))) AS df
+  FROM params p, unnest(p.ts) u(lexeme)
+  LIMIT 32
+),
+rare AS (
+  SELECT CASE WHEN count(*) = 0 THEN NULL
+              ELSE to_tsquery('simple', string_agg(quote_literal(lexeme), ' | '))
+         END AS tsq
+  FROM terms, total t
+  WHERE df <= GREATEST(3, t.n / 50)
 ),
 vec AS (
   SELECT c.id, c.document_id, c.chunk_index, c.heading_path, c.content,
@@ -69,7 +91,17 @@ lex AS (
   FROM knowledge_chunks c
   JOIN filtered f ON f.id = c.document_id
   CROSS JOIN params p
-  WHERE c.search_vector @@ p.tsq
+  WHERE p.tsq IS NOT NULL AND c.search_vector @@ p.tsq
+  ORDER BY score DESC
+  LIMIT $7
+),
+rare_lex AS (
+  SELECT c.id, c.document_id, c.chunk_index, c.heading_path, c.content,
+         ts_rank_cd(c.search_vector, r.tsq) AS score
+  FROM knowledge_chunks c
+  JOIN filtered f ON f.id = c.document_id
+  CROSS JOIN rare r
+  WHERE r.tsq IS NOT NULL AND c.search_vector @@ r.tsq
   ORDER BY score DESC
   LIMIT $7
 ),
@@ -82,6 +114,9 @@ fused AS (
     UNION ALL
     SELECT id, document_id, chunk_index, heading_path, content,
            row_number() OVER (ORDER BY score DESC) AS rank FROM lex
+    UNION ALL
+    SELECT id, document_id, chunk_index, heading_path, content,
+           row_number() OVER (ORDER BY score DESC) AS rank FROM rare_lex
   ) ranked
   GROUP BY id, document_id, chunk_index, heading_path, content
 )
