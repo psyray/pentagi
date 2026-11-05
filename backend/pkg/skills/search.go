@@ -56,6 +56,7 @@ filtered AS (
     AND ($4::text[] IS NULL OR d.kind = ANY($4))
     AND ($5::text[] IS NULL OR d.status = ANY($5))
     AND ($6::text[] IS NULL OR d.tags && $6)
+    AND ($7::text[] IS NULL OR d.pack_id::text = ANY($7))
 ),
 total AS (
   SELECT GREATEST(count(*), 1) AS n FROM filtered
@@ -83,7 +84,7 @@ vec AS (
   JOIN filtered f ON f.id = c.document_id
   CROSS JOIN params p
   ORDER BY c.embedding <=> p.emb
-  LIMIT $7
+  LIMIT $8
 ),
 lex AS (
   SELECT c.id, c.document_id, c.chunk_index, c.heading_path, c.content,
@@ -93,7 +94,7 @@ lex AS (
   CROSS JOIN params p
   WHERE p.tsq IS NOT NULL AND c.search_vector @@ p.tsq
   ORDER BY score DESC
-  LIMIT $7
+  LIMIT $8
 ),
 rare_lex AS (
   SELECT c.id, c.document_id, c.chunk_index, c.heading_path, c.content,
@@ -103,11 +104,11 @@ rare_lex AS (
   CROSS JOIN rare r
   WHERE r.tsq IS NOT NULL AND c.search_vector @@ r.tsq
   ORDER BY score DESC
-  LIMIT $7
+  LIMIT $8
 ),
 fused AS (
   SELECT id, document_id, chunk_index, heading_path, content,
-         SUM(1.0 / ($9::float8 + rank)) AS score
+         SUM(1.0 / ($10::float8 + rank)) AS score
   FROM (
     SELECT id, document_id, chunk_index, heading_path, content,
            row_number() OVER (ORDER BY score DESC) AS rank FROM vec
@@ -127,10 +128,10 @@ SELECT f.id::text, f.document_id::text, f.chunk_index, f.heading_path, f.content
 FROM fused f
 JOIN filtered d ON d.id = f.document_id
 ORDER BY f.score DESC
-LIMIT $8`,
+LIMIT $9`,
 		formatVector(vector), query, userID,
 		nullableStrings(filter.Kinds), nullableStrings(defaultStatuses(filter.Statuses)), nullableStrings(filter.Tags),
-		candidates, limit, rrfRankConstant,
+		nullableStrings(filter.PackIDs), candidates, limit, rrfRankConstant,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("skills: search documents: %w", err)

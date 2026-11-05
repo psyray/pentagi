@@ -27,10 +27,12 @@ func (fp *flowProvider) skillCatalogueText(ctx context.Context) string {
 		}
 
 		store := skills.NewStore(fp.cfg.PgxPool, fp.embedder, fp.cfg.EmbeddingMaxTextBytes)
+		packs := fp.skillPacks()
 		catalogue, err := store.BuildCatalogue(ctx, fp.userID, skills.CatalogueOptions{
 			Query:         fp.catalogueQuery(),
 			Limit:         fp.cfg.SkillCatalogueLimit,
 			IncludeDrafts: fp.cfg.SkillCatalogueIncludeDrafts,
+			Packs:         packs,
 		})
 		if err != nil {
 			logrus.WithContext(ctx).WithError(err).WithField("flow_id", fp.flowID).
@@ -52,10 +54,20 @@ func (fp *flowProvider) skillCatalogueText(ctx context.Context) string {
 			"truncated": catalogue.Truncated,
 			"hash":      catalogue.Hash,
 			"chars":     len(catalogue.Text),
+			"packs":     packs,
 		}).Info("skill catalogue frozen for the flow")
 	})
 
 	return fp.skillCatalogue
+}
+
+// skillPacks returns the pack selection stored on the flow, empty when the flow
+// was created without a selection or when the executor is unavailable.
+func (fp *flowProvider) skillPacks() []string {
+	if fp == nil || fp.executor == nil {
+		return nil
+	}
+	return fp.executor.SkillPacks()
 }
 
 // catalogueQuery combines the flow title with the head of the initial request,

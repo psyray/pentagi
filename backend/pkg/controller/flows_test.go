@@ -340,7 +340,7 @@ func (c *creatingController) registered() bool {
 func (c *creatingController) create(t *testing.T) int64 {
 	t.Helper()
 
-	flowID, err := c.fc.CreateFlow(context.Background(), 1, "scan it", "anthropic", "anthropic", nil, nil)
+	flowID, err := c.fc.CreateFlow(context.Background(), 1, "scan it", "anthropic", "anthropic", nil, nil, nil)
 	require.NoError(t, err)
 
 	return flowID
@@ -351,7 +351,7 @@ func TestFlows_CreateFlow_AnswersAndAnnouncesTheFlowBeforePreparingIt(t *testing
 
 	answered := make(chan int64, 1)
 	go func() {
-		flowID, _ := c.fc.CreateFlow(context.Background(), 1, "scan it", "anthropic", "anthropic", nil, nil)
+		flowID, _ := c.fc.CreateFlow(context.Background(), 1, "scan it", "anthropic", "anthropic", nil, nil, nil)
 		answered <- flowID
 	}()
 
@@ -388,7 +388,7 @@ func TestFlows_PrepareFlow_OutlivesTheRequestThatAskedForIt(t *testing.T) {
 	c := newCreatingController(t, nil)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	flowID, err := c.fc.CreateFlow(ctx, 1, "scan it", "anthropic", "anthropic", nil, nil)
+	flowID, err := c.fc.CreateFlow(ctx, 1, "scan it", "anthropic", "anthropic", nil, nil, nil)
 	require.NoError(t, err)
 
 	c.waitForPreparation(t)

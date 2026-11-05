@@ -28,10 +28,10 @@ WHERE f.id = $1 AND f.user_id = $2 AND f.deleted_at IS NULL;
 
 -- name: CreateFlow :one
 INSERT INTO flows (
-  title, status, model, model_provider_name, model_provider_type, language, tool_call_id_template, functions, user_id
+  title, status, model, model_provider_name, model_provider_type, language, tool_call_id_template, functions, user_id, skill_pack_ids
 )
 VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
 )
 RETURNING *;
 

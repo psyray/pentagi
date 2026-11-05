@@ -10,16 +10,19 @@ import (
 	"database/sql"
 	"encoding/json"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 const createFlow = `-- name: CreateFlow :one
 INSERT INTO flows (
-  title, status, model, model_provider_name, model_provider_type, language, tool_call_id_template, functions, user_id
+  title, status, model, model_provider_name, model_provider_type, language, tool_call_id_template, functions, user_id, skill_pack_ids
 )
 VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
 )
-RETURNING id, status, title, model, model_provider_name, language, functions, user_id, created_at, updated_at, deleted_at, trace_id, model_provider_type, tool_call_id_template
+RETURNING id, status, title, model, model_provider_name, language, functions, user_id, created_at, updated_at, deleted_at, trace_id, model_provider_type, tool_call_id_template, skill_pack_ids
 `
 
 type CreateFlowParams struct {
@@ -32,6 +35,7 @@ type CreateFlowParams struct {
 	ToolCallIDTemplate string          `json:"tool_call_id_template"`
 	Functions          json.RawMessage `json:"functions"`
 	UserID             int64           `json:"user_id"`
+	SkillPackIds       []uuid.UUID     `json:"skill_pack_ids"`
 }
 
 func (q *Queries) CreateFlow(ctx context.Context, arg CreateFlowParams) (Flow, error) {
@@ -45,6 +49,7 @@ func (q *Queries) CreateFlow(ctx context.Context, arg CreateFlowParams) (Flow, e
 		arg.ToolCallIDTemplate,
 		arg.Functions,
 		arg.UserID,
+		pq.Array(arg.SkillPackIds),
 	)
 	var i Flow
 	err := row.Scan(
@@ -62,6 +67,7 @@ func (q *Queries) CreateFlow(ctx context.Context, arg CreateFlowParams) (Flow, e
 		&i.TraceID,
 		&i.ModelProviderType,
 		&i.ToolCallIDTemplate,
+		pq.Array(&i.SkillPackIds),
 	)
 	return i, err
 }
@@ -70,7 +76,7 @@ const deleteFlow = `-- name: DeleteFlow :one
 UPDATE flows
 SET deleted_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, status, title, model, model_provider_name, language, functions, user_id, created_at, updated_at, deleted_at, trace_id, model_provider_type, tool_call_id_template
+RETURNING id, status, title, model, model_provider_name, language, functions, user_id, created_at, updated_at, deleted_at, trace_id, model_provider_type, tool_call_id_template, skill_pack_ids
 `
 
 func (q *Queries) DeleteFlow(ctx context.Context, id int64) (Flow, error) {
@@ -91,13 +97,14 @@ func (q *Queries) DeleteFlow(ctx context.Context, id int64) (Flow, error) {
 		&i.TraceID,
 		&i.ModelProviderType,
 		&i.ToolCallIDTemplate,
+		pq.Array(&i.SkillPackIds),
 	)
 	return i, err
 }
 
 const getFlow = `-- name: GetFlow :one
 SELECT
-  f.id, f.status, f.title, f.model, f.model_provider_name, f.language, f.functions, f.user_id, f.created_at, f.updated_at, f.deleted_at, f.trace_id, f.model_provider_type, f.tool_call_id_template
+  f.id, f.status, f.title, f.model, f.model_provider_name, f.language, f.functions, f.user_id, f.created_at, f.updated_at, f.deleted_at, f.trace_id, f.model_provider_type, f.tool_call_id_template, f.skill_pack_ids
 FROM flows f
 WHERE f.id = $1 AND f.deleted_at IS NULL
 `
@@ -120,6 +127,7 @@ func (q *Queries) GetFlow(ctx context.Context, id int64) (Flow, error) {
 		&i.TraceID,
 		&i.ModelProviderType,
 		&i.ToolCallIDTemplate,
+		pq.Array(&i.SkillPackIds),
 	)
 	return i, err
 }
@@ -154,7 +162,7 @@ func (q *Queries) GetFlowStats(ctx context.Context, id int64) (GetFlowStatsRow, 
 
 const getFlows = `-- name: GetFlows :many
 SELECT
-  f.id, f.status, f.title, f.model, f.model_provider_name, f.language, f.functions, f.user_id, f.created_at, f.updated_at, f.deleted_at, f.trace_id, f.model_provider_type, f.tool_call_id_template
+  f.id, f.status, f.title, f.model, f.model_provider_name, f.language, f.functions, f.user_id, f.created_at, f.updated_at, f.deleted_at, f.trace_id, f.model_provider_type, f.tool_call_id_template, f.skill_pack_ids
 FROM flows f
 WHERE f.deleted_at IS NULL
 ORDER BY f.created_at DESC
@@ -184,6 +192,7 @@ func (q *Queries) GetFlows(ctx context.Context) ([]Flow, error) {
 			&i.TraceID,
 			&i.ModelProviderType,
 			&i.ToolCallIDTemplate,
+			pq.Array(&i.SkillPackIds),
 		); err != nil {
 			return nil, err
 		}
@@ -287,7 +296,7 @@ func (q *Queries) GetFlowsStatsByDay(ctx context.Context, arg GetFlowsStatsByDay
 
 const getUserFlow = `-- name: GetUserFlow :one
 SELECT
-  f.id, f.status, f.title, f.model, f.model_provider_name, f.language, f.functions, f.user_id, f.created_at, f.updated_at, f.deleted_at, f.trace_id, f.model_provider_type, f.tool_call_id_template
+  f.id, f.status, f.title, f.model, f.model_provider_name, f.language, f.functions, f.user_id, f.created_at, f.updated_at, f.deleted_at, f.trace_id, f.model_provider_type, f.tool_call_id_template, f.skill_pack_ids
 FROM flows f
 INNER JOIN users u ON f.user_id = u.id
 WHERE f.id = $1 AND f.user_id = $2 AND f.deleted_at IS NULL
@@ -316,13 +325,14 @@ func (q *Queries) GetUserFlow(ctx context.Context, arg GetUserFlowParams) (Flow,
 		&i.TraceID,
 		&i.ModelProviderType,
 		&i.ToolCallIDTemplate,
+		pq.Array(&i.SkillPackIds),
 	)
 	return i, err
 }
 
 const getUserFlows = `-- name: GetUserFlows :many
 SELECT
-  f.id, f.status, f.title, f.model, f.model_provider_name, f.language, f.functions, f.user_id, f.created_at, f.updated_at, f.deleted_at, f.trace_id, f.model_provider_type, f.tool_call_id_template
+  f.id, f.status, f.title, f.model, f.model_provider_name, f.language, f.functions, f.user_id, f.created_at, f.updated_at, f.deleted_at, f.trace_id, f.model_provider_type, f.tool_call_id_template, f.skill_pack_ids
 FROM flows f
 INNER JOIN users u ON f.user_id = u.id
 WHERE f.user_id = $1 AND f.deleted_at IS NULL
@@ -353,6 +363,7 @@ func (q *Queries) GetUserFlows(ctx context.Context, userID int64) ([]Flow, error
 			&i.TraceID,
 			&i.ModelProviderType,
 			&i.ToolCallIDTemplate,
+			pq.Array(&i.SkillPackIds),
 		); err != nil {
 			return nil, err
 		}
@@ -404,7 +415,7 @@ const updateFlow = `-- name: UpdateFlow :one
 UPDATE flows
 SET title = $1, model = $2, language = $3, tool_call_id_template = $4, functions = $5, trace_id = $6
 WHERE id = $7
-RETURNING id, status, title, model, model_provider_name, language, functions, user_id, created_at, updated_at, deleted_at, trace_id, model_provider_type, tool_call_id_template
+RETURNING id, status, title, model, model_provider_name, language, functions, user_id, created_at, updated_at, deleted_at, trace_id, model_provider_type, tool_call_id_template, skill_pack_ids
 `
 
 type UpdateFlowParams struct {
@@ -443,6 +454,7 @@ func (q *Queries) UpdateFlow(ctx context.Context, arg UpdateFlowParams) (Flow, e
 		&i.TraceID,
 		&i.ModelProviderType,
 		&i.ToolCallIDTemplate,
+		pq.Array(&i.SkillPackIds),
 	)
 	return i, err
 }
@@ -451,7 +463,7 @@ const updateFlowLanguage = `-- name: UpdateFlowLanguage :one
 UPDATE flows
 SET language = $1
 WHERE id = $2
-RETURNING id, status, title, model, model_provider_name, language, functions, user_id, created_at, updated_at, deleted_at, trace_id, model_provider_type, tool_call_id_template
+RETURNING id, status, title, model, model_provider_name, language, functions, user_id, created_at, updated_at, deleted_at, trace_id, model_provider_type, tool_call_id_template, skill_pack_ids
 `
 
 type UpdateFlowLanguageParams struct {
@@ -477,6 +489,7 @@ func (q *Queries) UpdateFlowLanguage(ctx context.Context, arg UpdateFlowLanguage
 		&i.TraceID,
 		&i.ModelProviderType,
 		&i.ToolCallIDTemplate,
+		pq.Array(&i.SkillPackIds),
 	)
 	return i, err
 }
@@ -485,7 +498,7 @@ const updateFlowProvider = `-- name: UpdateFlowProvider :one
 UPDATE flows
 SET model_provider_name = $1, model_provider_type = $2, tool_call_id_template = $3, model = $4
 WHERE id = $5
-RETURNING id, status, title, model, model_provider_name, language, functions, user_id, created_at, updated_at, deleted_at, trace_id, model_provider_type, tool_call_id_template
+RETURNING id, status, title, model, model_provider_name, language, functions, user_id, created_at, updated_at, deleted_at, trace_id, model_provider_type, tool_call_id_template, skill_pack_ids
 `
 
 type UpdateFlowProviderParams struct {
@@ -520,6 +533,7 @@ func (q *Queries) UpdateFlowProvider(ctx context.Context, arg UpdateFlowProvider
 		&i.TraceID,
 		&i.ModelProviderType,
 		&i.ToolCallIDTemplate,
+		pq.Array(&i.SkillPackIds),
 	)
 	return i, err
 }
@@ -528,7 +542,7 @@ const updateFlowStatus = `-- name: UpdateFlowStatus :one
 UPDATE flows
 SET status = $1
 WHERE id = $2
-RETURNING id, status, title, model, model_provider_name, language, functions, user_id, created_at, updated_at, deleted_at, trace_id, model_provider_type, tool_call_id_template
+RETURNING id, status, title, model, model_provider_name, language, functions, user_id, created_at, updated_at, deleted_at, trace_id, model_provider_type, tool_call_id_template, skill_pack_ids
 `
 
 type UpdateFlowStatusParams struct {
@@ -554,6 +568,7 @@ func (q *Queries) UpdateFlowStatus(ctx context.Context, arg UpdateFlowStatusPara
 		&i.TraceID,
 		&i.ModelProviderType,
 		&i.ToolCallIDTemplate,
+		pq.Array(&i.SkillPackIds),
 	)
 	return i, err
 }
@@ -562,7 +577,7 @@ const updateFlowTitle = `-- name: UpdateFlowTitle :one
 UPDATE flows
 SET title = $1
 WHERE id = $2
-RETURNING id, status, title, model, model_provider_name, language, functions, user_id, created_at, updated_at, deleted_at, trace_id, model_provider_type, tool_call_id_template
+RETURNING id, status, title, model, model_provider_name, language, functions, user_id, created_at, updated_at, deleted_at, trace_id, model_provider_type, tool_call_id_template, skill_pack_ids
 `
 
 type UpdateFlowTitleParams struct {
@@ -588,6 +603,7 @@ func (q *Queries) UpdateFlowTitle(ctx context.Context, arg UpdateFlowTitleParams
 		&i.TraceID,
 		&i.ModelProviderType,
 		&i.ToolCallIDTemplate,
+		pq.Array(&i.SkillPackIds),
 	)
 	return i, err
 }
@@ -596,7 +612,7 @@ const updateFlowToolCallIDTemplate = `-- name: UpdateFlowToolCallIDTemplate :one
 UPDATE flows
 SET tool_call_id_template = $1
 WHERE id = $2
-RETURNING id, status, title, model, model_provider_name, language, functions, user_id, created_at, updated_at, deleted_at, trace_id, model_provider_type, tool_call_id_template
+RETURNING id, status, title, model, model_provider_name, language, functions, user_id, created_at, updated_at, deleted_at, trace_id, model_provider_type, tool_call_id_template, skill_pack_ids
 `
 
 type UpdateFlowToolCallIDTemplateParams struct {
@@ -622,6 +638,7 @@ func (q *Queries) UpdateFlowToolCallIDTemplate(ctx context.Context, arg UpdateFl
 		&i.TraceID,
 		&i.ModelProviderType,
 		&i.ToolCallIDTemplate,
+		pq.Array(&i.SkillPackIds),
 	)
 	return i, err
 }
@@ -630,7 +647,7 @@ const updateFlowsProviderNameByOldName = `-- name: UpdateFlowsProviderNameByOldN
 UPDATE flows
 SET model_provider_name = $1
 WHERE user_id = $2 AND model_provider_name = $3 AND deleted_at IS NULL
-RETURNING id, status, title, model, model_provider_name, language, functions, user_id, created_at, updated_at, deleted_at, trace_id, model_provider_type, tool_call_id_template
+RETURNING id, status, title, model, model_provider_name, language, functions, user_id, created_at, updated_at, deleted_at, trace_id, model_provider_type, tool_call_id_template, skill_pack_ids
 `
 
 type UpdateFlowsProviderNameByOldNameParams struct {
@@ -668,6 +685,7 @@ func (q *Queries) UpdateFlowsProviderNameByOldName(ctx context.Context, arg Upda
 			&i.TraceID,
 			&i.ModelProviderType,
 			&i.ToolCallIDTemplate,
+			pq.Array(&i.SkillPackIds),
 		); err != nil {
 			return nil, err
 		}

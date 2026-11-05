@@ -951,6 +951,7 @@ type Flow struct {
 	TraceID            sql.NullString  `json:"trace_id"`
 	ModelProviderType  ProviderType    `json:"model_provider_type"`
 	ToolCallIDTemplate string          `json:"tool_call_id_template"`
+	SkillPackIds       []uuid.UUID     `json:"skill_pack_ids"`
 }
 
 type FlowTemplate struct {

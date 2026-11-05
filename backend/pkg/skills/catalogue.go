@@ -34,6 +34,9 @@ type CatalogueOptions struct {
 	CharBudget    int
 	IncludeDrafts bool
 	Kinds         []string
+	// Packs restricts the selection to these packs. Empty means every visible
+	// pack, which is the historical behaviour and the control arm of an A/B run.
+	Packs []string
 }
 
 // Catalogue is the set of skills a flow may use, frozen for its lifetime by
@@ -57,6 +60,7 @@ func (s *Store) BuildCatalogue(ctx context.Context, userID int64, opts Catalogue
 	filter := Filter{
 		Kinds:    opts.Kinds,
 		Statuses: catalogueStatuses(opts.IncludeDrafts),
+		PackIDs:  normalisePackIDs(opts.Packs),
 	}
 
 	var documents []Document

@@ -180,7 +180,9 @@ type flowToolsExecutor struct {
 	cfg            *config.Config
 	embedder       embeddings.Embedder
 	store          *pgvector.Store
+	skillStoreRaw  *skills.Store
 	skillStore     SkillStore
+	skillPacks     []string
 	graphitiClient *graphiti.Client
 	image          string
 	docker         docker.DockerClient
@@ -343,6 +345,12 @@ type FlowToolsExecutor interface {
 	SetToolCallLogProvider(tclp ToolCallLogProvider)
 	SetKnowledgeProvider(knp KnowledgeProvider)
 	SetGraphitiClient(client *graphiti.Client)
+	// SetSkillPacks restricts the flow to these skill packs. Called once, from
+	// the flow's stored selection; an empty slice leaves the catalogue whole.
+	SetSkillPacks(packIDs []string)
+	// SkillPacks returns that selection, so the prompt builder can restrict the
+	// catalogue built outside this executor.
+	SkillPacks() []string
 
 	Prepare(ctx context.Context) error
 	Release(ctx context.Context) error
@@ -445,8 +453,32 @@ func (fte *flowToolsExecutor) SetEmbedder(embedder embeddings.Embedder) {
 	fte.store = &store
 
 	if fte.cfg.PgxPool != nil {
-		fte.skillStore = skills.NewStore(fte.cfg.PgxPool, embedder, fte.cfg.EmbeddingMaxTextBytes)
+		fte.skillStoreRaw = skills.NewStore(fte.cfg.PgxPool, embedder, fte.cfg.EmbeddingMaxTextBytes)
+		fte.skillStore = fte.scopedSkillStore()
 	}
+}
+
+// SetSkillPacks restricts every skill read of the flow to these packs. It must
+// be called after SetEmbedder: the store it wraps is built there.
+func (fte *flowToolsExecutor) SetSkillPacks(packIDs []string) {
+	fte.skillPacks = packIDs
+	fte.skillStore = fte.scopedSkillStore()
+}
+
+func (fte *flowToolsExecutor) SkillPacks() []string {
+	return fte.skillPacks
+}
+
+// scopedSkillStore wraps the flow store in the pack selection, or returns it
+// untouched when the flow selects no pack.
+func (fte *flowToolsExecutor) scopedSkillStore() SkillStore {
+	if fte.skillStoreRaw == nil {
+		return nil
+	}
+	if len(fte.skillPacks) == 0 {
+		return fte.skillStoreRaw
+	}
+	return fte.skillStoreRaw.Scope(fte.skillPacks)
 }
 
 func (fte *flowToolsExecutor) skillTool(taskID, subtaskID *int64) Tool {

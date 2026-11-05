@@ -971,3 +971,76 @@ func TestStore_LiveUsageReportAndStaleSelection(t *testing.T) {
 		t.Fatalf("another user sees %d documents", len(other.Skills))
 	}
 }
+
+func TestStore_LivePackScope(t *testing.T) {
+	pool, _ := openSkillsSchema(t)
+	store := NewStore(pool, unitEmbedder{}, 8192)
+	ctx := context.Background()
+
+	packA, err := store.UpsertPack(ctx, 1, PackManifest{Name: "pack-a", Description: "first"})
+	if err != nil {
+		t.Fatalf("pack a: %v", err)
+	}
+	packB, err := store.UpsertPack(ctx, 1, PackManifest{Name: "pack-b", Description: "second"})
+	if err != nil {
+		t.Fatalf("pack b: %v", err)
+	}
+
+	inA, err := store.ImportMarkdown(ctx, 1, ImportInput{
+		Content: "---\nname: lpd-pjl\ndescription: printer file read over JetDirect\n---\n# LPD PJL\n\nsend @PJL FSUPLOAD\n",
+		Kind:    KindSkill,
+		Status:  StatusReviewed,
+		PackID:  &packA,
+	})
+	if err != nil {
+		t.Fatalf("import a: %v", err)
+	}
+	inB, err := store.ImportMarkdown(ctx, 1, ImportInput{
+		Content: "---\nname: adcs-esc8\ndescription: relay NTLM to ADCS enrollment\n---\n# ADCS ESC8\n\nrun certipy\n",
+		Kind:    KindSkill,
+		Status:  StatusReviewed,
+		PackID:  &packB,
+	})
+	if err != nil {
+		t.Fatalf("import b: %v", err)
+	}
+
+	scoped := store.Scope([]string{packA})
+	listed, err := scoped.List(ctx, 1, Filter{})
+	if err != nil {
+		t.Fatalf("scoped list: %v", err)
+	}
+	if len(listed) != 1 || listed[0].Slug != inA.Slug {
+		t.Fatalf("scoped list = %+v", listed)
+	}
+
+	hits, err := scoped.Search(ctx, 1, "certipy esc8 relay", Filter{}, 5)
+	if err != nil {
+		t.Fatalf("scoped search: %v", err)
+	}
+	for _, hit := range hits {
+		if hit.Document.Slug == inB.Slug {
+			t.Fatalf("a document of another pack was searchable: %+v", hit.Document)
+		}
+	}
+
+	if _, _, err := scoped.Read(ctx, 1, inB.Slug); err != ErrNotFound {
+		t.Fatalf("read outside the pack = %v, want ErrNotFound", err)
+	}
+	if doc, _, err := scoped.Read(ctx, 1, inA.Slug); err != nil || doc.Slug != inA.Slug {
+		t.Fatalf("read inside the pack = %+v, %v", doc, err)
+	}
+
+	catalogue, err := store.BuildCatalogue(ctx, 1, CatalogueOptions{Packs: []string{packA}, IncludeDrafts: false})
+	if err != nil {
+		t.Fatalf("catalogue: %v", err)
+	}
+	if len(catalogue.Entries) != 1 || catalogue.Entries[0].Slug != inA.Slug {
+		t.Fatalf("catalogue entries = %+v", catalogue.Entries)
+	}
+
+	whole, err := store.List(ctx, 1, Filter{})
+	if err != nil || len(whole) != 2 {
+		t.Fatalf("unscoped list = %+v, %v", whole, err)
+	}
+}

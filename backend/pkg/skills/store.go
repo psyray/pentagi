@@ -358,8 +358,10 @@ WHERE deleted_at IS NULL
   AND ($2::text[] IS NULL OR kind = ANY($2))
   AND ($3::text[] IS NULL OR status = ANY($3))
   AND ($4::text[] IS NULL OR tags && $4)
+  AND ($5::text[] IS NULL OR pack_id::text = ANY($5))
 ORDER BY updated_at DESC
-LIMIT $5`, userID, nullableStrings(filter.Kinds), nullableStrings(statuses), nullableStrings(filter.Tags), limit)
+LIMIT $6`, userID, nullableStrings(filter.Kinds), nullableStrings(statuses), nullableStrings(filter.Tags),
+		nullableStrings(filter.PackIDs), limit)
 	if err != nil {
 		return nil, fmt.Errorf("skills: list documents: %w", err)
 	}

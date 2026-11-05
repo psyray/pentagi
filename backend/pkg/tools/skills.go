@@ -38,6 +38,13 @@ type SkillEventRecorder interface {
 // and the score of the head of the list, not the whole result.
 const maxUsageHits = 10
 
+// A pack scoped store must satisfy both interfaces, which is what lets a flow
+// be restricted to a pack without the tools knowing about the scope.
+var (
+	_ SkillStore         = (*skills.ScopedStore)(nil)
+	_ SkillEventRecorder = (*skills.ScopedStore)(nil)
+)
+
 type skillTool struct {
 	userID       int64
 	flowID       int64

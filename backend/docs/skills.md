@@ -541,6 +541,43 @@ and its versions remain diffable. A document that is stale but still cited by an
 eval case is either a corpus gap or a ranking gap, and the eval run tells which
 one before anything is retired.
 
+## Pack scoping and A/B runs (L4.3)
+
+A flow can be restricted to explicit packs. The selection is stored on the flow
+(`flows.skill_pack_ids`, empty by default) and applied everywhere the flow reads
+skills: the catalogue injected into the prompts, `list_skills`, `search_skills`,
+`read_skill`, the engagement search, the automatic surfacing and the
+`<relevant_skills>` block of the legacy knowledge tools. A `read_skill` of a
+document outside the selection answers "not found", so an agent cannot escape
+the scope by replaying a slug it read elsewhere.
+
+```graphql
+mutation {
+  createFlow(
+    modelProvider: "Optimized cloud v2"
+    input: "Assess 10.129.x.x, credentials in the brief"
+    skillPackIds: ["a3f1c2d4-0000-4000-8000-000000000000"]
+  ) { id }
+}
+```
+
+The REST route accepts the same selection as `skill_pack_ids` in its create
+payload. An absent or empty list means "every visible pack", which keeps every
+existing flow unchanged and is the control arm of a comparison.
+
+The A/B protocol is therefore: same box, same provider, same prompts, two flows;
+the control passes no `skillPackIds`, the treatment passes the pack under test.
+The log line `skill catalogue frozen for the flow` carries the `packs` field,
+so a run can be checked afterwards, and the retrieval events are recorded in
+both arms: `--stats` then shows whether the pack was suggested and read at all.
+
+Two properties matter for reading the result. The selection is fixed when the
+flow is created, because the catalogue is frozen for the flow's lifetime; and it
+is fail closed, so an unknown pack id yields an empty catalogue instead of the
+whole corpus. A document imported without a pack is invisible to a scoped flow,
+which is the intended way to keep an untrusted pack out of an engagement:
+curate the pack explicitly rather than rely on exclusion.
+
 ## Limits and current gaps
 
 - Embedding dimension is fixed at 1024 (`bge-m3`). A different model needs a
@@ -589,3 +626,8 @@ one before anything is retired.
   of twenty searches shows twenty suggestions whatever its rank was.
 - `updated_at` is touched by any write, including a metadata edit, so `--stale`
   treats a recently edited document as fresh even if its body did not change.
+- A pack selection cannot be changed on a running flow: the catalogue is frozen
+  when the flow starts, and a different selection needs a new flow.
+- The pack selection restricts reads only. It does not restrict writes, so an
+  agent can still import a skill into the store from a scoped flow, and that
+  document is visible to the next unscoped flow.

@@ -1165,7 +1165,9 @@ type Query {
 
 type Mutation {
   # Flow management
-  createFlow(modelProvider: String!, input: String!, resourceIds: [ID!]): Flow!
+  # skillPackIds restricts the flow to these skill packs; omit it to let the
+  # flow see every pack it is allowed to read. It is the A/B control knob.
+  createFlow(modelProvider: String!, input: String!, resourceIds: [ID!], skillPackIds: [String!]): Flow!
   putUserInput(flowId: ID!, input: String!, modelProvider: String, resourceIds: [ID!]): ResultType!
   stopFlow(flowId: ID!): ResultType!
   finishFlow(flowId: ID!): ResultType!

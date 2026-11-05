@@ -27,6 +27,7 @@ import (
 	"pentagi/pkg/resources"
 	"pentagi/pkg/tools"
 
+	"github.com/google/uuid"
 	"github.com/moby/moby/client"
 	"github.com/sirupsen/logrus"
 )
@@ -86,6 +87,9 @@ type newFlowWorkerCtx struct {
 	prvtype   provider.ProviderType
 	functions *tools.Functions
 	resources []database.UserResource
+	// skillPackIDs restricts the flow to these packs when it is created. An
+	// empty slice keeps the whole visible catalogue.
+	skillPackIDs []uuid.UUID
 
 	flowWorkerCtx
 }
@@ -153,6 +157,7 @@ func reserveFlow(ctx context.Context, fwc newFlowWorkerCtx) (database.Flow, erro
 		ToolCallIDTemplate: cast.ToolCallIDTemplate,
 		Functions:          []byte("{}"),
 		UserID:             fwc.userID,
+		SkillPackIds:       fwc.skillPackIDs,
 	})
 	if err != nil {
 		obs.LogErrorOrCancel(logrus.WithContext(ctx), err, "failed to create flow in DB")
@@ -164,9 +169,25 @@ func reserveFlow(ctx context.Context, fwc newFlowWorkerCtx) (database.Flow, erro
 		"user_id":       fwc.userID,
 		"provider_name": fwc.prvname.String(),
 		"provider_type": fwc.prvtype.String(),
+		"skill_packs":   flow.SkillPackIds,
 	}).Info("flow created in DB")
 
 	return flow, nil
+}
+
+// skillPackIDs renders the stored selection for the tools layer, which speaks
+// pack ids as strings.
+func skillPackIDs(ids []uuid.UUID) []string {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		out = append(out, id.String())
+	}
+
+	return out
 }
 
 func buildFlowWorker(
@@ -254,6 +275,7 @@ func buildFlowWorker(
 
 	executor.SetImage(flowProvider.Image())
 	executor.SetEmbedder(flowProvider.Embedder())
+	executor.SetSkillPacks(skillPackIDs(flow.SkillPackIds))
 	executor.SetScreenshotProvider(workers.sw)
 	executor.SetAgentLogProvider(workers.alw)
 	executor.SetMsgLogProvider(workers.mlw)
@@ -422,6 +444,7 @@ func LoadFlowWorker(ctx context.Context, flow database.Flow, fwc flowWorkerCtx) 
 
 	executor.SetImage(flowProvider.Image())
 	executor.SetEmbedder(flowProvider.Embedder())
+	executor.SetSkillPacks(skillPackIDs(flow.SkillPackIds))
 	executor.SetScreenshotProvider(workers.sw)
 	executor.SetAgentLogProvider(workers.alw)
 	executor.SetMsgLogProvider(workers.mlw)

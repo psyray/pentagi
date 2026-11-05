@@ -16,6 +16,7 @@ import (
 	"pentagi/pkg/providers/provider"
 	"pentagi/pkg/tools"
 
+	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -35,6 +36,7 @@ type FlowController interface {
 		prvtype provider.ProviderType,
 		functions *tools.Functions,
 		resources []database.UserResource,
+		skillPackIDs []uuid.UUID,
 	) (int64, error)
 	CreateAssistant(
 		ctx context.Context,
@@ -281,6 +283,7 @@ func (fc *flowController) CreateFlow(
 	prvtype provider.ProviderType,
 	functions *tools.Functions,
 	resources []database.UserResource,
+	skillPackIDs []uuid.UUID,
 ) (int64, error) {
 	fwc := newFlowWorkerCtx{
 		userID:        userID,
@@ -289,6 +292,7 @@ func (fc *flowController) CreateFlow(
 		prvtype:       prvtype,
 		functions:     functions,
 		resources:     resources,
+		skillPackIDs:  skillPackIDs,
 		flowWorkerCtx: fc.flowWorkerCtx(),
 	}
 

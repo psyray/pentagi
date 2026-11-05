@@ -18,6 +18,7 @@ import (
 	"pentagi/pkg/server/models"
 	"pentagi/pkg/server/rdb"
 	"pentagi/pkg/server/response"
+	"pentagi/pkg/skills"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
@@ -370,7 +371,14 @@ func (s *FlowService) CreateFlow(c *gin.Context) {
 		return
 	}
 
-	flowID, err := s.fc.CreateFlow(c, int64(uid), createFlow.Input, prvname, prvtype, createFlow.Functions, dbResources)
+	skillPacks, err := skills.ParsePackIDs(createFlow.SkillPackIDs)
+	if err != nil {
+		logger.FromContext(c).WithError(err).Errorf("error validating skill pack ids")
+		response.Error(c, response.ErrFlowsInvalidRequest, err)
+		return
+	}
+
+	flowID, err := s.fc.CreateFlow(c, int64(uid), createFlow.Input, prvname, prvtype, createFlow.Functions, dbResources, skillPacks)
 	if err != nil {
 		logger.FromContext(c).WithError(err).Errorf("error creating flow")
 		response.Error(c, response.ErrInternal, err)

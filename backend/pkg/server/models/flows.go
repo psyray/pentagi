@@ -83,10 +83,11 @@ func (f Flow) Validate(db *gorm.DB) {
 // CreateFlow is model to contain flow creation paylaod
 // nolint:lll
 type CreateFlow struct {
-	Input       string           `form:"input" json:"input" validate:"required" example:"user input for first task in the flow"`
-	Provider    string           `form:"provider" json:"provider" validate:"required" example:"openai"`
-	Functions   *tools.Functions `form:"functions,omitempty" json:"functions,omitempty" validate:"omitempty,valid"`
-	ResourceIDs []uint64         `form:"resource_ids,omitempty" json:"resource_ids,omitempty" validate:"omitempty" swaggertype:"array,integer"`
+	Input        string           `form:"input" json:"input" validate:"required" example:"user input for first task in the flow"`
+	Provider     string           `form:"provider" json:"provider" validate:"required" example:"openai"`
+	Functions    *tools.Functions `form:"functions,omitempty" json:"functions,omitempty" validate:"omitempty,valid"`
+	ResourceIDs  []uint64         `form:"resource_ids,omitempty" json:"resource_ids,omitempty" validate:"omitempty" swaggertype:"array,integer"`
+	SkillPackIDs []string         `form:"skill_pack_ids,omitempty" json:"skill_pack_ids,omitempty" validate:"omitempty" swaggertype:"array,string" example:"a3f1c2d4-0000-4000-8000-000000000000"`
 }
 
 // Valid is function to control input/output data

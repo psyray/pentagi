@@ -68,7 +68,10 @@ type Filter struct {
 	Kinds    []string
 	Statuses []string
 	Tags     []string
-	Limit    int
+	// PackIDs restricts the result to the documents imported from these packs.
+	// Empty means every pack the caller may see, which is the default.
+	PackIDs []string
+	Limit   int
 }
 
 // SearchHit is a ranked skill card. Excerpt is the best matching chunk, never
