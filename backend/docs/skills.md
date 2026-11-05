@@ -458,6 +458,89 @@ The run only reads, but it costs one embedding call per case. A non-zero exit
 means recall at the largest k is below `--eval-min-recall`, which makes the
 command usable as a CI gate. `--eval-json` prints the full report for BenchDash.
 
+## Distillation from a flow (L4.1)
+
+A finished flow already contains the procedure that worked: the terminal calls
+that produced the evidence. `skills-import --distill-flow` turns one of them into
+a draft skill, so the catalogue grows from real engagements instead of manual
+write-ups.
+
+```bash
+docker exec -w /opt/pentagi pentagi /opt/pentagi/bin/skills-import \
+  --user admin@pentagi.com --distill-flow 195 \
+  --distill-redact 'wingdata,WingData,wacky,wingftp' --dry-run
+docker exec -w /opt/pentagi pentagi /opt/pentagi/bin/skills-import \
+  --user admin@pentagi.com --distill-flow 195 \
+  --distill-redact 'wingdata,WingData,wacky,wingftp' --distill-tags paper-printer
+```
+
+The evidence decides what is kept. A shell as a new user, a root shell or a read
+flag is a proof point; a hash alone is not, because a hash in a transcript is
+usually a file name or a tool banner. Around each proof point the builder keeps
+a window of two commands, so the step that produced the evidence keeps its
+context. When no proof point is found, the last commands of the subtasks that
+closed with `objective-achieved-evidence` are used; without any of that the
+first 40 commands are kept and the draft says so in its limitations.
+
+Every command is redacted before it is written: the literals passed to
+`--distill-redact`, the generic anonymiser, and a 32 character hexadecimal token
+inside a flag-proof command becomes `<REDACTED-FLAG>`. The draft is imported as
+`kind=skill`, `status=draft`, `visibility=private`, `source_kind=distilled`,
+`source_uri=pentagi://flow/<id>`, with `distill_flow_id`, `distill_commands`,
+`distill_evidence` and `distill_generated_at` in its metadata. A distilled draft
+is never canonical: a human reviews it with `--publish` before it reaches another
+agent.
+
+The run refuses to import when a near duplicate already exists (same similarity
+threshold as `--duplicates`); `--distill-force` overrides the refusal. `--dry-run`
+prints the markdown it would import and skips the duplicate check, because it
+needs no embedding.
+
+## Retrieval usage (L4.4)
+
+The skill tools record two events in `knowledge_events`: `searched`, with the hit
+slugs, their rank and their score, and `read`, tied to the document id and
+carrying the slug. The raw query is not stored, only a 16 character hash, so the
+usage table never duplicates target data. A metrics write is best effort: a
+failure is logged and the tool call succeeds.
+
+```bash
+docker exec -w /opt/pentagi pentagi /opt/pentagi/bin/skills-import \
+  --user admin@pentagi.com --stats --stats-days 30
+docker exec -w /opt/pentagi pentagi /opt/pentagi/bin/skills-import \
+  --user admin@pentagi.com --stats --stats-json
+```
+
+The report shows the number of searches, the empty-search rate, how many skills
+were suggested, how many were read and which share of reads followed a
+suggestion. It then lists every document visible to the user with its suggestion
+count, read count and last seen date, and repeats the documents that were never
+suggested nor read in the window. Success per skill (flags, shells) is not
+computed here: that needs the benchmark harness, which reads the same events.
+
+`--stats` needs no embedding client, so it works while the embedding service is
+unreachable. The `searched` and `read` values are also the audit trail of what an
+agent was shown: a suggestion that is never read is a ranking or writing problem,
+not a coverage problem.
+
+## Review and deprecation (L4.5)
+
+A curated document that nobody suggests or reads slowly becomes noise in the
+catalogue. `--stale` lists the candidates: reviewed or canonical, no suggestion,
+no read for the window, and unchanged for as long as the window.
+
+```bash
+docker exec -w /opt/pentagi pentagi /opt/pentagi/bin/skills-import \
+  --user admin@pentagi.com --stale --stats-days 90
+```
+
+Deprecation stays manual: `--publish <slug> --publish-to deprecated --note "..."`
+keeps the document readable for its owner and removes it from what other agents
+see. Never delete a document that taught something: deprecate it, so its history
+and its versions remain diffable. A document that is stale but still cited by an
+eval case is either a corpus gap or a ranking gap, and the eval run tells which
+one before anything is retired.
+
 ## Limits and current gaps
 
 - Embedding dimension is fixed at 1024 (`bge-m3`). A different model needs a
@@ -495,3 +578,14 @@ command usable as a CI gate. `--eval-json` prints the full report for BenchDash.
 - The golden set targets one corpus snapshot: a document removed or renamed must
   be updated in `knowledge-packs/eval/golden.yaml`, otherwise the case counts as
   a miss until someone fixes it.
+- Distillation only keeps what the flow logged as a terminal call: work done
+  inside a script that was never printed yields a thin draft. The draft is also
+  phrased for the target of that flow, which is why it stays private until a
+  human generalises it.
+- Usage events come from the agent tools only. A read through REST, GraphQL or the
+  web UI is not counted yet, and the automatic surfacing is not either, so the
+  read-after-suggestion rate is a lower bound.
+- `--stats` counts one suggestion per hit, so a document that stays in the top 5
+  of twenty searches shows twenty suggestions whatever its rank was.
+- `updated_at` is touched by any write, including a metadata edit, so `--stale`
+  treats a recently edited document as fresh even if its body did not change.

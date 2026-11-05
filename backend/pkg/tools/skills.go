@@ -2,6 +2,8 @@ package tools
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"path"
@@ -24,6 +26,17 @@ type SkillStore interface {
 	Read(ctx context.Context, userID int64, idOrSlug string) (*skills.Document, []skills.File, error)
 	SearchEngagements(ctx context.Context, userID int64, query skills.EngagementQuery) ([]skills.EngagementMatch, error)
 }
+
+// SkillEventRecorder persists retrieval events (searched, read) so the store can
+// report which documents are suggested, read, or never used. It is optional: a
+// store without it keeps the tools working, they just record nothing.
+type SkillEventRecorder interface {
+	RecordEvent(ctx context.Context, userID int64, event skills.Event) error
+}
+
+// maxUsageHits caps the hits kept in one event: usage analysis needs the rank
+// and the score of the head of the list, not the whole result.
+const maxUsageHits = 10
 
 type skillTool struct {
 	userID       int64
@@ -110,6 +123,7 @@ func (t *skillTool) Handle(ctx context.Context, name string, args json.RawMessag
 			if err != nil {
 				return "", err
 			}
+			t.recordSearch(ctx, name, query, filter, hits)
 			result = formatSkillHits(hits)
 		} else {
 			docs, err := t.store.List(ctx, t.userID, filter)
@@ -140,6 +154,7 @@ func (t *skillTool) Handle(ctx context.Context, name string, args json.RawMessag
 		if err != nil {
 			return "", err
 		}
+		t.recordSearch(ctx, name, action.Query, filter, hits)
 
 		result := clampKnowledgeResult(formatSkillHits(hits), DefaultResultSizeLimit)
 		t.log(ctx, name, action.Query, filter, result)
@@ -165,6 +180,7 @@ func (t *skillTool) Handle(ctx context.Context, name string, args json.RawMessag
 			return "", err
 		}
 		result = clampKnowledgeResult(result, DefaultResultSizeLimit)
+		t.recordRead(ctx, name, doc, action.Section, len(result))
 		t.log(ctx, name, action.Slug, skills.Filter{}, result)
 		logger.WithFields(logrus.Fields{
 			"slug":         doc.Slug,
@@ -192,6 +208,7 @@ func (t *skillTool) Handle(ctx context.Context, name string, args json.RawMessag
 		}
 
 		result := clampKnowledgeResult(formatEngagementMatches(matches), DefaultResultSizeLimit)
+		t.recordEngagementSearch(ctx, name, query, matches)
 		t.log(ctx, name, strings.Join(query.Services, ", "), skills.Filter{Tags: query.Tags}, result)
 		logger.WithFields(logrus.Fields{
 			"matches":      len(matches),
@@ -220,6 +237,7 @@ func (t *skillTool) Handle(ctx context.Context, name string, args json.RawMessag
 		}
 
 		result := formatSkillMaterialization(materialized)
+		t.recordRead(ctx, name, doc, "", len(result))
 		t.log(ctx, name, action.Slug, skills.Filter{}, result)
 		logger.WithFields(logrus.Fields{
 			"slug":    materialized.Slug,
@@ -233,6 +251,122 @@ func (t *skillTool) Handle(ctx context.Context, name string, args json.RawMessag
 	default:
 		return "", fmt.Errorf("unknown tool: %s", name)
 	}
+}
+
+// recordEvent writes one usage event. A metrics failure is logged and dropped:
+// retrieval must never fail because the audit table is unavailable.
+func (t *skillTool) recordEvent(ctx context.Context, event skills.Event) {
+	recorder, ok := t.store.(SkillEventRecorder)
+	if !ok {
+		return
+	}
+
+	flowID := t.flowID
+	event.FlowID = &flowID
+	event.TaskID = t.taskID
+	event.SubtaskID = t.subtaskID
+
+	if err := recorder.RecordEvent(ctx, t.userID, event); err != nil {
+		logrus.WithContext(ctx).WithError(err).WithFields(enrichLogrusFields(t.flowID, t.taskID, t.subtaskID, logrus.Fields{
+			"event": event.Name,
+		})).Warn("failed to record skill usage event")
+	}
+}
+
+func (t *skillTool) recordSearch(ctx context.Context, name, query string, filter skills.Filter, hits []skills.SearchHit) {
+	details := map[string]any{
+		"tool":       name,
+		"query_hash": queryHash(query),
+		"hit_count":  len(hits),
+		"hits":       searchHitUsage(hits),
+	}
+	if len(filter.Kinds) > 0 {
+		details["kinds"] = filter.Kinds
+	}
+	if len(filter.Statuses) > 0 {
+		details["statuses"] = filter.Statuses
+	}
+	if len(filter.Tags) > 0 {
+		details["tags"] = filter.Tags
+	}
+
+	t.recordEvent(ctx, skills.Event{Name: skills.EventSearched, Details: details})
+}
+
+func (t *skillTool) recordEngagementSearch(ctx context.Context, name string, query skills.EngagementQuery, matches []skills.EngagementMatch) {
+	hits := make([]skillHitUsage, 0, len(matches))
+	for i, match := range matches {
+		if i >= maxUsageHits {
+			break
+		}
+		hits = append(hits, skillHitUsage{Slug: match.Document.Slug, Rank: i + 1, Score: match.Score})
+	}
+
+	details := map[string]any{
+		"tool":         name,
+		"query_hash":   queryHash(strings.Join(query.Services, ",")),
+		"hit_count":    len(matches),
+		"hits":         hits,
+		"service_list": query.Services,
+	}
+	if query.OS != "" {
+		details["os"] = query.OS
+	}
+	if query.Platform != "" {
+		details["platform"] = query.Platform
+	}
+	if len(query.Tags) > 0 {
+		details["tags"] = query.Tags
+	}
+
+	t.recordEvent(ctx, skills.Event{Name: skills.EventSearched, Details: details})
+}
+
+func (t *skillTool) recordRead(ctx context.Context, name string, doc *skills.Document, section string, size int) {
+	if doc == nil {
+		return
+	}
+
+	details := map[string]any{
+		"tool":    name,
+		"slug":    doc.Slug,
+		"version": doc.Version,
+		"bytes":   size,
+	}
+	if section != "" {
+		details["section"] = section
+	}
+
+	t.recordEvent(ctx, skills.Event{DocumentID: doc.ID, Name: skills.EventRead, Details: details})
+}
+
+// skillHitUsage is the compact hit kept in an event: the raw query is not stored,
+// only its hash, so usage analysis never duplicates target data.
+type skillHitUsage struct {
+	Slug  string  `json:"slug"`
+	Rank  int     `json:"rank"`
+	Score float64 `json:"score"`
+}
+
+func searchHitUsage(hits []skills.SearchHit) []skillHitUsage {
+	limit := len(hits)
+	if limit > maxUsageHits {
+		limit = maxUsageHits
+	}
+
+	usage := make([]skillHitUsage, 0, limit)
+	for i, hit := range hits[:limit] {
+		usage = append(usage, skillHitUsage{Slug: hit.Document.Slug, Rank: i + 1, Score: hit.Score})
+	}
+
+	return usage
+}
+
+// queryHash keeps a stable, short fingerprint of a query for grouping without
+// storing the query itself.
+func queryHash(query string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(strings.ToLower(query))))
+	return hex.EncodeToString(sum[:8])
 }
 
 func (t *skillTool) log(ctx context.Context, name, query string, filter skills.Filter, result string) {

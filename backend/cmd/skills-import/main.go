@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -83,17 +84,28 @@ func main() {
 	evalMinRecall := flag.Float64("eval-min-recall", 0, "Exit non-zero when recall at the largest k is below this value (0 disables the gate)")
 	evalStatuses := flag.String("eval-statuses", "", "Comma-separated statuses searched by --eval (default: every non-deprecated status)")
 	evalJSON := flag.Bool("eval-json", false, "Print the --eval report as JSON")
+	distillFlowID := flag.Int64("distill-flow", 0, "Distill a completed flow into a draft skill and exit")
+	distillRedact := flag.String("distill-redact", "", "Comma-separated literals redacted before the anonymiser (target name, hostname, internal identifiers)")
+	distillTags := flag.String("distill-tags", "", "Comma-separated tags added to the distilled draft")
+	distillForce := flag.Bool("distill-force", false, "Import even without evidence or when a near duplicate exists")
+	stats := flag.Bool("stats", false, "Print the retrieval usage report of the last --stats-days days and exit")
+	statsDays := flag.Int("stats-days", 30, "Window in days for --stats and --stale")
+	statsJSON := flag.Bool("stats-json", false, "Print the --stats or --stale report as JSON")
+	stale := flag.Bool("stale", false, "List the reviewed or canonical documents unused for --stats-days days and exit")
 	outDir := flag.String("out", "", "Output directory for --export-pack")
 	dryRun := flag.Bool("dry-run", false, "Parse the pack and print the plan without writing")
 	flag.Parse()
 
 	readOnly := *searchQuery != "" || *deleteSlug != "" || *backfillLegacy || *exportPack != "" ||
 		*versionsSlug != "" || *diffSlug != "" || *publishSlug != "" || *duplicates || *mergeTarget != "" ||
-		*engagements || *reanonymize || *evalFile != ""
+		*engagements || *reanonymize || *evalFile != "" || *distillFlowID > 0 || *stats || *stale
 	if *packPath == "" && !readOnly {
-		logrus.Fatal("the --pack flag is required unless --search, --delete, --export-pack, --versions, --diff, --publish, --engagements, --reanonymize, --eval or --backfill-legacy is set")
+		logrus.Fatal("the --pack flag is required unless --search, --delete, --export-pack, --versions, --diff, --publish, --engagements, --reanonymize, --eval, --distill-flow, --stats, --stale or --backfill-legacy is set")
 	}
-	userless := *dryRun && !*reanonymize && *evalFile == ""
+	// Usage reports only read knowledge_events and knowledge_documents: they must
+	// work when the embedding service is unreachable.
+	usageOnly := *stats || *stale
+	userless := *dryRun && !*reanonymize && *evalFile == "" && *distillFlowID == 0
 	if *userRef == "" && !userless {
 		logrus.Fatal("the --user flag is required unless --dry-run is set")
 	}
@@ -167,7 +179,7 @@ func main() {
 	}
 
 	var embedder embeddings.Embedder
-	if !*dryRun {
+	if !*dryRun && !usageOnly {
 		embedder, err = embeddings.New(cfg)
 		if err != nil {
 			logrus.WithError(err).Fatal("unable to build the embedding client")
@@ -178,8 +190,22 @@ func main() {
 	}
 
 	store := skills.NewStore(pool, embedder, cfg.EmbeddingMaxTextBytes)
-	if !*dryRun && !store.IsAvailable() {
+	if !*dryRun && !usageOnly && !store.IsAvailable() {
 		logrus.Fatal("the skill store is not available")
+	}
+
+	if *stats {
+		if err := runStats(ctx, store, userID, *statsDays, *statsJSON); err != nil {
+			logrus.WithError(err).Fatal("unable to build the usage report")
+		}
+		return
+	}
+
+	if *stale {
+		if err := runStale(ctx, store, userID, *statsDays, *statsJSON); err != nil {
+			logrus.WithError(err).Fatal("unable to list the stale documents")
+		}
+		return
 	}
 
 	if *backfillLegacy {
@@ -192,6 +218,14 @@ func main() {
 	if *evalFile != "" {
 		if err := runEval(ctx, store, userID, *evalFile, *evalKs, *evalStatuses, *evalMinRecall, *evalJSON); err != nil {
 			logrus.WithError(err).Fatal("evaluation failed")
+		}
+		return
+	}
+
+	if *distillFlowID > 0 {
+		if err := runDistill(ctx, pool, store, cfg, userID, *distillFlowID,
+			splitList(*distillRedact), splitList(*distillTags), *distillForce, *dryRun); err != nil {
+			logrus.WithError(err).Fatal("distillation failed")
 		}
 		return
 	}
@@ -665,6 +699,86 @@ func printEvalReport(report *skills.EvalReport) {
 			fmt.Printf("    top: %s\n", strings.Join(miss.TopSlugs, ", "))
 		}
 	}
+}
+
+func runStats(ctx context.Context, store *skills.Store, userID int64, days int, asJSON bool) error {
+	report, err := store.UsageReport(ctx, userID, days)
+	if err != nil {
+		return err
+	}
+
+	if asJSON {
+		return printJSON(report)
+	}
+
+	printUsageReport(report)
+	return nil
+}
+
+func printUsageReport(report *skills.UsageReport) {
+	fmt.Printf("window: %d days\n", report.Days)
+	fmt.Printf("%d search(es), %d empty (%.1f%%), %d suggestion(s), %d read(s), %.1f%% of reads followed a suggestion\n",
+		report.Searches, report.EmptySearches, report.EmptyRate*100,
+		report.Suggestions, report.Reads, report.ReadAfterSuggestion*100)
+
+	if len(report.Skills) == 0 {
+		fmt.Println("\nno document is visible in this scope")
+		return
+	}
+
+	fmt.Printf("\n%-40s %-11s %-10s %8s %6s  %s\n", "slug", "kind", "status", "suggest", "reads", "last seen")
+	for _, usage := range report.Skills {
+		lastSeen := "-"
+		if usage.LastSeen != nil {
+			lastSeen = usage.LastSeen.UTC().Format("2006-01-02")
+		}
+		fmt.Printf("%-40s %-11s %-10s %8d %6d  %s\n",
+			usage.Slug, usage.Kind, usage.Status, usage.Suggestions, usage.Reads, lastSeen)
+	}
+
+	if len(report.Dead) > 0 {
+		fmt.Printf("\nnever suggested or read in the window (%d):\n", len(report.Dead))
+		for _, usage := range report.Dead {
+			fmt.Printf("  %s [%s/%s]\n", usage.Slug, usage.Kind, usage.Status)
+		}
+	}
+}
+
+// runStale lists the documents that deserve a review: reviewed or canonical,
+// unused for the window, and unchanged for as long. Deprecation stays manual.
+func runStale(ctx context.Context, store *skills.Store, userID int64, days int, asJSON bool) error {
+	report, err := store.UsageReport(ctx, userID, days)
+	if err != nil {
+		return err
+	}
+
+	stale := skills.StaleDocuments(report)
+	if asJSON {
+		return printJSON(stale)
+	}
+
+	fmt.Printf("stale candidates: reviewed or canonical, no suggestion, no read, unchanged for at least %d days\n", report.Days)
+	if len(stale) == 0 {
+		fmt.Println("\nnone")
+		return nil
+	}
+
+	for _, usage := range stale {
+		fmt.Printf("  %-40s %-10s updated %s\n",
+			usage.Slug, usage.Status, usage.UpdatedAt.UTC().Format("2006-01-02"))
+	}
+	fmt.Printf("\n%d candidate(s); retire one with --publish <slug> --publish-to deprecated --note \"...\"\n", len(stale))
+
+	return nil
+}
+
+func printJSON(value any) error {
+	data, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(data))
+	return nil
 }
 
 func printEngagementMatches(ctx context.Context, store *skills.Store, userID int64, services, osName, platform, tags string) error {

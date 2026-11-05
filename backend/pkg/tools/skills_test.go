@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -15,6 +16,8 @@ type fakeSkillStore struct {
 	files       []skills.File
 	engagements []skills.EngagementMatch
 	err         error
+	eventErr    error
+	events      []skills.Event
 
 	lastQuery           string
 	lastFilter          skills.Filter
@@ -47,6 +50,14 @@ func (f *fakeSkillStore) Read(_ context.Context, _ int64, idOrSlug string) (*ski
 func (f *fakeSkillStore) SearchEngagements(_ context.Context, _ int64, query skills.EngagementQuery) ([]skills.EngagementMatch, error) {
 	f.lastEngagementQuery = query
 	return f.engagements, f.err
+}
+
+func (f *fakeSkillStore) RecordEvent(_ context.Context, _ int64, event skills.Event) error {
+	if f.eventErr != nil {
+		return f.eventErr
+	}
+	f.events = append(f.events, event)
+	return nil
 }
 
 func newSkillDoor(t *testing.T, store SkillStore, log VectorStoreLogProvider) Tool {
@@ -254,5 +265,112 @@ func TestSkillTool_RefusesAnUnknownTool(t *testing.T) {
 	door := newSkillDoor(t, &fakeSkillStore{}, &recordingVectorStoreLog{})
 	if _, err := door.Handle(context.Background(), "store_skill", nil); err == nil {
 		t.Fatal("an unknown tool was accepted")
+	}
+}
+
+func TestSkillTool_Search_RecordsAUsageEvent(t *testing.T) {
+	store := &fakeSkillStore{hits: []skills.SearchHit{
+		{Document: skills.Document{ID: "d1", Slug: "lpd-pjl"}, Score: 0.8},
+		{Document: skills.Document{ID: "d2", Slug: "ssrf"}, Score: 0.4},
+	}}
+	door := newSkillDoor(t, store, &recordingVectorStoreLog{})
+
+	_, err := door.Handle(PutAgentContext(t.Context(), database.MsgchainTypePentester), SearchSkillsToolName,
+		mustJSON(map[string]any{"message": "m", "query": "printer file read", "kind": "skill"}))
+	if err != nil {
+		t.Fatalf("search_skills: %v", err)
+	}
+
+	if len(store.events) != 1 {
+		t.Fatalf("events = %d, want 1", len(store.events))
+	}
+	event := store.events[0]
+	if event.Name != skills.EventSearched {
+		t.Errorf("event name = %q", event.Name)
+	}
+	if event.DocumentID != "" {
+		t.Errorf("a search must not be tied to one document, got %q", event.DocumentID)
+	}
+	if event.FlowID == nil || *event.FlowID != 2 || event.TaskID == nil || *event.TaskID != 3 {
+		t.Errorf("event scope = flow %v task %v", event.FlowID, event.TaskID)
+	}
+	if got := event.Details["hit_count"]; got != 2 {
+		t.Errorf("hit_count = %v", got)
+	}
+	if _, ok := event.Details["query"]; ok {
+		t.Error("the raw query must not be stored, only its hash")
+	}
+	if hash, _ := event.Details["query_hash"].(string); len(hash) != 16 {
+		t.Errorf("query_hash = %q", hash)
+	}
+
+	hits, ok := event.Details["hits"].([]skillHitUsage)
+	if !ok || len(hits) != 2 {
+		t.Fatalf("hits = %#v", event.Details["hits"])
+	}
+	if hits[0].Slug != "lpd-pjl" || hits[0].Rank != 1 || hits[1].Rank != 2 {
+		t.Errorf("hits = %+v", hits)
+	}
+}
+
+func TestSkillTool_Read_RecordsAUsageEvent(t *testing.T) {
+	store := &fakeSkillStore{docs: []skills.Document{{
+		ID: "d1", Slug: "adcs-esc8", Title: "ADCS ESC8", Version: 2,
+		Content: "# ADCS ESC8\n\nrun certipy\n",
+	}}}
+	door := newSkillDoor(t, store, &recordingVectorStoreLog{})
+
+	_, err := door.Handle(PutAgentContext(t.Context(), database.MsgchainTypePentester), ReadSkillToolName,
+		mustJSON(map[string]any{"message": "m", "slug": "adcs-esc8"}))
+	if err != nil {
+		t.Fatalf("read_skill: %v", err)
+	}
+
+	if len(store.events) != 1 {
+		t.Fatalf("events = %d, want 1", len(store.events))
+	}
+	event := store.events[0]
+	if event.Name != skills.EventRead || event.DocumentID != "d1" {
+		t.Errorf("event = %+v", event)
+	}
+	if event.Details["slug"] != "adcs-esc8" || event.Details["version"] != 2 {
+		t.Errorf("details = %v", event.Details)
+	}
+}
+
+func TestSkillTool_SearchEngagements_RecordsAUsageEvent(t *testing.T) {
+	store := &fakeSkillStore{engagements: []skills.EngagementMatch{{
+		Document: skills.Document{ID: "d9", Slug: "htb-example"}, Score: 3,
+	}}}
+	door := newSkillDoor(t, store, &recordingVectorStoreLog{})
+
+	_, err := door.Handle(PutAgentContext(t.Context(), database.MsgchainTypePentester), SearchEngagementsToolName,
+		mustJSON(map[string]any{"message": "m", "services": []string{"9100/JetDirect"}}))
+	if err != nil {
+		t.Fatalf("search_engagements: %v", err)
+	}
+
+	if len(store.events) != 1 {
+		t.Fatalf("events = %d, want 1", len(store.events))
+	}
+	if store.events[0].Name != skills.EventSearched || store.events[0].Details["hit_count"] != 1 {
+		t.Errorf("event = %+v", store.events[0])
+	}
+}
+
+func TestSkillTool_UsageEventFailureDoesNotFailTheCall(t *testing.T) {
+	store := &fakeSkillStore{
+		docs:     []skills.Document{{ID: "d1", Slug: "adcs-esc8", Title: "ADCS ESC8", Content: "# ADCS\n\nrun\n"}},
+		eventErr: errors.New("audit table is down"),
+	}
+	door := newSkillDoor(t, store, &recordingVectorStoreLog{})
+
+	got, err := door.Handle(PutAgentContext(t.Context(), database.MsgchainTypePentester), ReadSkillToolName,
+		mustJSON(map[string]any{"message": "m", "slug": "adcs-esc8"}))
+	if err != nil {
+		t.Fatalf("a metrics failure must not fail the read: %v", err)
+	}
+	if !strings.Contains(got, "adcs-esc8") {
+		t.Fatalf("read result was not rendered: %q", got)
 	}
 }

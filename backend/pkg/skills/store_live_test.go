@@ -850,3 +850,124 @@ WHERE slug = $1`, doc.Slug); err != nil {
 		t.Fatalf("another user re-anonymised the document: %v", err)
 	}
 }
+
+func TestStore_LiveUsageReportAndStaleSelection(t *testing.T) {
+	pool, _ := openSkillsSchema(t)
+	store := NewStore(pool, unitEmbedder{}, 8192)
+	ctx := context.Background()
+
+	used, err := store.ImportMarkdown(ctx, 1, ImportInput{
+		Content: "---\nname: used-skill\ndescription: suggested then read\n---\n# Used\n\nbody\n",
+		Kind:    KindSkill,
+		Status:  StatusReviewed,
+	})
+	if err != nil {
+		t.Fatalf("import used: %v", err)
+	}
+	unused, err := store.ImportMarkdown(ctx, 1, ImportInput{
+		Content: "---\nname: unused-skill\ndescription: never suggested\n---\n# Unused\n\nbody\n",
+		Kind:    KindSkill,
+		Status:  StatusReviewed,
+	})
+	if err != nil {
+		t.Fatalf("import unused: %v", err)
+	}
+	draft, err := store.ImportMarkdown(ctx, 1, ImportInput{
+		Content: "---\nname: draft-skill\ndescription: not curated yet\n---\n# Draft\n\nbody\n",
+		Kind:    KindSkill,
+		Status:  StatusDraft,
+	})
+	if err != nil {
+		t.Fatalf("import draft: %v", err)
+	}
+
+	// A search that suggests used-skill, then a read of it, then an empty search.
+	if err := store.RecordEvent(ctx, 1, Event{Name: EventSearched, Details: map[string]any{
+		"hit_count": 1,
+		"hits": []map[string]any{
+			{"slug": used.Slug, "rank": 1, "score": 0.9},
+		},
+	}}); err != nil {
+		t.Fatalf("record search: %v", err)
+	}
+	if err := store.RecordEvent(ctx, 1, Event{
+		DocumentID: used.ID,
+		Name:       EventRead,
+		Details:    map[string]any{"slug": used.Slug, "version": used.Version},
+	}); err != nil {
+		t.Fatalf("record read: %v", err)
+	}
+	if err := store.RecordEvent(ctx, 1, Event{Name: EventSearched, Details: map[string]any{
+		"hit_count": 0,
+		"hits":      []map[string]any{},
+	}}); err != nil {
+		t.Fatalf("record empty search: %v", err)
+	}
+
+	report, err := store.UsageReport(ctx, 1, 30)
+	if err != nil {
+		t.Fatalf("usage report: %v", err)
+	}
+	if report.Searches != 2 || report.EmptySearches != 1 {
+		t.Fatalf("searches = %d, empty = %d", report.Searches, report.EmptySearches)
+	}
+	if report.EmptyRate != 0.5 {
+		t.Errorf("empty rate = %v", report.EmptyRate)
+	}
+	if report.Suggestions != 1 || report.Reads != 1 || report.ReadAfterSuggestion != 1 {
+		t.Fatalf("suggestions = %d, reads = %d, read after = %v",
+			report.Suggestions, report.Reads, report.ReadAfterSuggestion)
+	}
+
+	bySlug := map[string]SkillUsage{}
+	for _, usage := range report.Skills {
+		bySlug[usage.Slug] = usage
+	}
+	if got := bySlug[used.Slug]; got.Suggestions != 1 || got.Reads != 1 || got.LastSeen == nil {
+		t.Errorf("used usage = %+v", got)
+	}
+	if got := bySlug[unused.Slug]; got.Suggestions != 0 || got.Reads != 0 || got.LastSeen != nil {
+		t.Errorf("unused usage = %+v", got)
+	}
+	if len(report.Dead) != 2 {
+		t.Fatalf("dead = %d, want the unused skill and the draft", len(report.Dead))
+	}
+
+	// A freshly imported document is not stale: only the backdated reviewed one is.
+	if stale := StaleDocuments(report); len(stale) != 0 {
+		t.Fatalf("fresh documents were called stale: %+v", stale)
+	}
+
+	// updated_at is maintained by a trigger, so a backdating update needs it off.
+	if _, err := pool.Exec(ctx, `ALTER TABLE knowledge_documents DISABLE TRIGGER knowledge_documents_updated_at`); err != nil {
+		t.Fatalf("disable updated_at trigger: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), `ALTER TABLE knowledge_documents ENABLE TRIGGER knowledge_documents_updated_at`)
+	})
+	for _, doc := range []*Document{unused, draft} {
+		if _, err := pool.Exec(ctx,
+			`UPDATE knowledge_documents SET updated_at = now() - interval '40 days' WHERE id = $1::uuid`,
+			doc.ID); err != nil {
+			t.Fatalf("backdate %s: %v", doc.Slug, err)
+		}
+	}
+
+	report, err = store.UsageReport(ctx, 1, 30)
+	if err != nil {
+		t.Fatalf("second usage report: %v", err)
+	}
+	stale := StaleDocuments(report)
+	if len(stale) != 1 || stale[0].Slug != unused.Slug {
+		t.Fatalf("stale = %+v, want only %s", stale, unused.Slug)
+	}
+
+	// Another user sees neither the private documents nor their usage.
+	other, err := store.UsageReport(ctx, 2, 30)
+	if err != nil {
+		t.Fatalf("other usage report: %v", err)
+	}
+	if len(other.Skills) != 0 || len(other.Dead) != 0 {
+		t.Fatalf("another user sees %d documents", len(other.Skills))
+	}
+}
