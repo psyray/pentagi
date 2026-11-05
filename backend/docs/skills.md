@@ -1,4 +1,4 @@
-# Skills and references
+# Skills, references and engagements
 
 PentAGI agents can list, search and read curated skills instead of guessing
 from a raw vector store. A skill is a versioned markdown procedure with a short
@@ -14,6 +14,7 @@ in dedicated tables so the legacy Knowledges screen stays unchanged.
 | Table | Purpose |
 |---|---|
 | `knowledge_documents` | one row per skill, reference or engagement: slug, title, description, body, status, visibility, tags, metadata |
+| `knowledge_document_versions` | one row per imported version: title, description, body, hash, status, visibility, tags, metadata and actor |
 | `knowledge_chunks` | chunked body, embedding (`vector(1024)`, bge-m3), generated `tsvector` for lexical search |
 | `knowledge_files` | attachment metadata; the bytes live in the user resources blob store |
 | `knowledge_packs` / `knowledge_pack_items` | optional grouping of documents |
