@@ -78,17 +78,23 @@ func main() {
 	engagementPlatform := flag.String("platform", "", "Platform filter for --engagements")
 	engagementTags := flag.String("tags", "", "Comma-separated tags for --engagements")
 	reanonymize := flag.Bool("reanonymize", false, "Re-anonymise the stored documents with the current anonymiser and exit")
+	evalFile := flag.String("eval", "", "Run the golden query set from this YAML file and exit")
+	evalKs := flag.String("eval-k", "3,5", "Comma-separated k values reported as recall@k")
+	evalMinRecall := flag.Float64("eval-min-recall", 0, "Exit non-zero when recall at the largest k is below this value (0 disables the gate)")
+	evalStatuses := flag.String("eval-statuses", "", "Comma-separated statuses searched by --eval (default: every non-deprecated status)")
+	evalJSON := flag.Bool("eval-json", false, "Print the --eval report as JSON")
 	outDir := flag.String("out", "", "Output directory for --export-pack")
 	dryRun := flag.Bool("dry-run", false, "Parse the pack and print the plan without writing")
 	flag.Parse()
 
 	readOnly := *searchQuery != "" || *deleteSlug != "" || *backfillLegacy || *exportPack != "" ||
 		*versionsSlug != "" || *diffSlug != "" || *publishSlug != "" || *duplicates || *mergeTarget != "" ||
-		*engagements || *reanonymize
+		*engagements || *reanonymize || *evalFile != ""
 	if *packPath == "" && !readOnly {
-		logrus.Fatal("the --pack flag is required unless --search, --delete, --export-pack, --versions, --diff, --publish, --engagements, --reanonymize or --backfill-legacy is set")
+		logrus.Fatal("the --pack flag is required unless --search, --delete, --export-pack, --versions, --diff, --publish, --engagements, --reanonymize, --eval or --backfill-legacy is set")
 	}
-	if *userRef == "" && (!*dryRun || *reanonymize) {
+	userless := *dryRun && !*reanonymize && *evalFile == ""
+	if *userRef == "" && !userless {
 		logrus.Fatal("the --user flag is required unless --dry-run is set")
 	}
 	if err := godotenv.Load(*envFile); err != nil && !os.IsNotExist(err) {
@@ -179,6 +185,13 @@ func main() {
 	if *backfillLegacy {
 		if err := backfillLegacyKnowledge(ctx, pool, store, userID, *backfillLimit, *backfillMinChars, *dryRun); err != nil {
 			logrus.WithError(err).Fatal("unable to backfill legacy knowledge")
+		}
+		return
+	}
+
+	if *evalFile != "" {
+		if err := runEval(ctx, store, userID, *evalFile, *evalKs, *evalStatuses, *evalMinRecall, *evalJSON); err != nil {
+			logrus.WithError(err).Fatal("evaluation failed")
 		}
 		return
 	}
@@ -556,6 +569,102 @@ func splitList(value string) []string {
 		}
 	}
 	return out
+}
+
+func parseIntList(value string) ([]int, error) {
+	parts := splitList(value)
+	out := make([]int, 0, len(parts))
+	for _, part := range parts {
+		number, err := strconv.Atoi(part)
+		if err != nil || number <= 0 {
+			return nil, fmt.Errorf("invalid k %q", part)
+		}
+		out = append(out, number)
+	}
+	return out, nil
+}
+
+// runEval runs the golden query set and returns an error when the recall gate
+// is not met, so a CI job can fail on a regression.
+func runEval(ctx context.Context, store *skills.Store, userID int64, path, ksList, statuses string, minRecall float64, asJSON bool) error {
+	dataset, err := skills.LoadEvalFile(path)
+	if err != nil {
+		return err
+	}
+
+	ks, err := parseIntList(ksList)
+	if err != nil {
+		return err
+	}
+
+	report, err := store.Evaluate(ctx, userID, dataset, skills.EvalOptions{
+		Ks:       ks,
+		Statuses: splitList(statuses),
+	})
+	if err != nil {
+		return err
+	}
+
+	if asJSON {
+		data, err := report.JSON()
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(data))
+	} else {
+		fmt.Printf("dataset: %s\n", path)
+		printEvalReport(report)
+	}
+
+	if minRecall > 0 && !report.Pass(minRecall) {
+		return fmt.Errorf("recall@%d is below the target %.2f", report.Ks[len(report.Ks)-1], minRecall)
+	}
+
+	return nil
+}
+
+func printEvalReport(report *skills.EvalReport) {
+	if report.Corpus != "" {
+		fmt.Printf("corpus: %s\n", report.Corpus)
+	}
+
+	fmt.Printf("%d cases", report.Cases)
+	for _, k := range report.Ks {
+		fmt.Printf("  recall@%d %.3f", k, report.Recall[k])
+	}
+	fmt.Printf("  MRR %.3f  empty %.3f\n", report.MRR, report.EmptyRate)
+
+	fmt.Printf("\n%-24s %4s", "category", "n")
+	for _, k := range report.Ks {
+		fmt.Printf("  recall@%-2d", k)
+	}
+	fmt.Printf("      MRR  empty\n")
+	for _, category := range report.Categories {
+		fmt.Printf("%-24s %4d", category.Category, category.Cases)
+		for _, k := range report.Ks {
+			fmt.Printf("  %9.3f", category.Recall[k])
+		}
+		fmt.Printf("  %6.3f  %5.3f\n", category.MRR, category.EmptyRate)
+	}
+
+	lastK := report.Ks[len(report.Ks)-1]
+	misses := make([]skills.EvalCaseResult, 0)
+	for _, result := range report.Results {
+		if result.Rank == 0 || result.Rank > lastK {
+			misses = append(misses, result)
+		}
+	}
+	if len(misses) == 0 {
+		return
+	}
+
+	fmt.Printf("\nmisses (not found or below recall@%d):\n", lastK)
+	for _, miss := range misses {
+		fmt.Printf("  %-30s %s\n", miss.ID, miss.Query)
+		if len(miss.TopSlugs) > 0 {
+			fmt.Printf("    top: %s\n", strings.Join(miss.TopSlugs, ", "))
+		}
+	}
 }
 
 func printEngagementMatches(ctx context.Context, store *skills.Store, userID int64, services, osName, platform, tags string) error {

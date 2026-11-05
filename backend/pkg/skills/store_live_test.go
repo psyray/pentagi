@@ -720,6 +720,58 @@ A TLS portal without a printer.
 	}
 }
 
+func TestStore_LiveEvaluate(t *testing.T) {
+	pool, _ := openSkillsSchema(t)
+	store := NewStore(pool, unitEmbedder{}, 8192)
+	ctx := context.Background()
+
+	importDoc := func(slug, title, body string) {
+		t.Helper()
+		content := "---\nname: " + slug + "\ndescription: " + title + "\ntags: [test]\n---\n# " + title + "\n\n" + body + "\n"
+		if _, err := store.ImportMarkdown(ctx, 1, ImportInput{
+			Content: content, Kind: KindReference, Status: StatusReviewed,
+		}); err != nil {
+			t.Fatalf("import %s: %v", slug, err)
+		}
+	}
+	importDoc("adcs-esc8", "ADCS ESC8 NTLM relay", "Relay NTLM to the ADCS HTTP enrollment endpoint with certipy.")
+	importDoc("kerberoast", "Kerberos service ticket cracking", "Request service tickets and crack them offline with hashcat.")
+	importDoc("printer", "Printer job language", "Read a file through PJL FSUPLOAD on port 9100.")
+
+	report, err := store.Evaluate(ctx, 1, &EvalDataset{
+		Corpus: "test",
+		Cases: []EvalCase{
+			{ID: "adcs", Category: "ad", Query: "relay NTLM to the ADCS enrollment endpoint", Expected: []string{"adcs-esc8"}},
+			{ID: "printer", Category: "printer", Query: "read a file through PJL FSUPLOAD on 9100", Expected: []string{"printer"}},
+		},
+	}, EvalOptions{Ks: []int{3, 5}})
+	if err != nil {
+		t.Fatalf("evaluate: %v", err)
+	}
+	if report.Cases != 2 || report.Recall[3] != 1 || report.Recall[5] != 1 {
+		t.Fatalf("report = %+v", report)
+	}
+	if !report.Pass(0.9) {
+		t.Fatal("a perfect report must pass the gate")
+	}
+	if len(report.Categories) != 2 {
+		t.Fatalf("categories = %+v", report.Categories)
+	}
+	if len(report.Results) != 2 || report.Results[0].Rank != 1 || len(report.Results[0].TopSlugs) == 0 {
+		t.Fatalf("results = %+v", report.Results)
+	}
+
+	miss, err := store.Evaluate(ctx, 1, &EvalDataset{
+		Cases: []EvalCase{{ID: "miss", Query: "a topic absent from this corpus", Expected: []string{"absent"}}},
+	}, EvalOptions{Ks: []int{3}})
+	if err != nil {
+		t.Fatalf("evaluate miss: %v", err)
+	}
+	if miss.Recall[3] != 0 || miss.Results[0].Rank != 0 {
+		t.Fatalf("miss report = %+v", miss)
+	}
+}
+
 func TestStore_LiveReanonymize(t *testing.T) {
 	pool, _ := openSkillsSchema(t)
 	store := NewStore(pool, unitEmbedder{}, 8192)

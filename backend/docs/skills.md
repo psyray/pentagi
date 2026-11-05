@@ -429,6 +429,29 @@ e-mail addresses, so a vendor domain quoted in a reference (`microsoft.com`)
 is masked too. Use `--only` to scope a campaign to the documents that matter,
 and remember that `--dry-run` still needs a `--user`.
 
+## Evaluation (L4.2)
+
+`skills-import --eval` runs a golden query set against the live store and reports
+recall@k, MRR and the empty-search rate, globally and per category. Each case
+lists the query, the expected slugs and an optional category; the query is
+written the way an agent would phrase it, never as the document title.
+
+```bash
+docker cp knowledge-packs/eval/golden.yaml pentagi:/tmp/golden.yaml
+docker exec -w /opt/pentagi pentagi /opt/pentagi/bin/skills-import \
+  --user admin@pentagi.com --eval /tmp/golden.yaml --eval-k 3,5 \
+  --eval-min-recall 0.9
+```
+
+The dataset shipped in `knowledge-packs/eval/golden.yaml` carries 57 cases over
+25 categories and targets the 54 documents of the dev corpus (2026-11-05). Run
+it with `--eval-statuses reviewed,canonical` to measure what a non-owner agent
+sees in production, where drafts are invisible.
+
+The run only reads, but it costs one embedding call per case. A non-zero exit
+means recall at the largest k is below `--eval-min-recall`, which makes the
+command usable as a CI gate. `--eval-json` prints the full report for BenchDash.
+
 ## Limits and current gaps
 
 - Embedding dimension is fixed at 1024 (`bge-m3`). A different model needs a
@@ -463,3 +486,6 @@ and remember that `--dry-run` still needs a `--user`.
   of scope, attach those files to a skill instead.
 - The ingestion sidecar is not packaged in the installer yet: it is built from
   the source tree through `docker-compose-ingest.yml`.
+- The golden set targets one corpus snapshot: a document removed or renamed must
+  be updated in `knowledge-packs/eval/golden.yaml`, otherwise the case counts as
+  a miss until someone fixes it.
