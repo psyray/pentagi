@@ -193,7 +193,7 @@ Skills do not live in `langchain_pg_embedding`. The migration `20261104_120000_k
 | `knowledge_chunks` | chunk body, `vector(1024)` embedding, generated `tsvector` for lexical search, HNSW and GIN indexes |
 | `knowledge_files` | attachment metadata, with the bytes addressed through the user resources blob hash |
 | `knowledge_packs` / `knowledge_pack_items` | optional document grouping |
-| `knowledge_events` | import, update, delete and retrieval audit |
+| `knowledge_events` | import, update, delete, publication and merge audit (retrieval events are not recorded yet) |
 
 The store, import and hybrid search implementation is in `backend/pkg/skills`; the REST surface and the operator-facing documentation are in `docs/skills.md`.
 
