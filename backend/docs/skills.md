@@ -294,7 +294,9 @@ front of the agent. The score rewards the fingerprint rather than the prose:
 
 Each query service contributes its best candidate, so a document cannot gain
 more than one match per queried service, and a repeated service is deduplicated.
-A query with at least one criterion drops the documents that score nothing; an
+A bare token (`80` or `ssh`) matches either part of a fingerprint at the partial
+weight, so an agent that only knows the port still gets a hint. A query with at
+least one criterion drops the documents that score nothing; an
 empty query lists the most recently updated engagements. The response is a
 small card per mission (score, platform, OS, machine, services with the matched
 ones starred, outcome) and a `read_skill(slug=...)` hint, never the write-up.
