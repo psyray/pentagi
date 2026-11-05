@@ -108,6 +108,18 @@ func TestScoreEngagement_Weights(t *testing.T) {
 			wantMatchd: []string{"80/http"},
 		},
 		{
+			name:       "a bare port matches the port of a fingerprint",
+			query:      EngagementQuery{Services: []string{"80"}},
+			wantScore:  engagementServiceNameWeight,
+			wantMatchd: []string{"80/http"},
+		},
+		{
+			name:       "a bare service name matches the name of a fingerprint",
+			query:      EngagementQuery{Services: []string{"SSH"}},
+			wantScore:  engagementServiceNameWeight,
+			wantMatchd: []string{"22/ssh"},
+		},
+		{
 			name:      "the os adds its weight",
 			query:     EngagementQuery{OS: "Linux"},
 			wantScore: engagementOSWeight,

@@ -242,14 +242,27 @@ func scoreServices(wanted, candidate string) float64 {
 	candidatePort, candidateName := splitService(candidate)
 
 	var score float64
-	if wantedPort != "" && wantedPort == candidatePort {
+	if wantedPort != "" && candidatePort != "" && wantedPort == candidatePort {
 		score += engagementServicePortWeight
 	}
-	if wantedName != "" && wantedName == candidateName {
+	if wantedName != "" && candidateName != "" && wantedName == candidateName {
 		score += engagementServiceNameWeight
 	}
+	if score > 0 {
+		return score
+	}
 
-	return score
+	// One side is a bare token: match it against either part of the other
+	// fingerprint, so an agent that only knows the port or the service name
+	// still gets a hint.
+	if wantedPort == "" && (wantedName == candidatePort || wantedName == candidateName) {
+		return engagementServiceNameWeight
+	}
+	if candidatePort == "" && (candidateName == wantedPort || candidateName == wantedName) {
+		return engagementServiceNameWeight
+	}
+
+	return 0
 }
 
 func splitService(value string) (port, name string) {
