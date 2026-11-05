@@ -1,7 +1,6 @@
 package skills
 
 import (
-	"strings"
 	"testing"
 	"testing/fstest"
 
@@ -106,34 +105,6 @@ func TestParseTreePack_RefusesAnEmptyPack(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestParseTreePack_AcceptsTheLegacyMissionsDirectory(t *testing.T) {
-	fsys := fstest.MapFS{
-		"pack.yaml":           {Data: []byte("name: legacy\nmissions: [old-run]\n")},
-		"missions/old-run.md": {Data: []byte("# Old run\n\nKept.\n")},
-	}
-
-	pack, err := ParseTreePack(fsys)
-	require.NoError(t, err)
-	require.Len(t, pack.Documents, 1)
-	assert.Equal(t, KindEngagement, pack.Documents[0].Kind)
-	assert.Equal(t, "old-run", pack.Documents[0].Slug)
-	assert.Contains(t, strings.Join(pack.Warnings, "\n"), "deprecated")
-}
-
-func TestParseTreePack_PrefersEngagementsOverTheLegacyDirectory(t *testing.T) {
-	fsys := fstest.MapFS{
-		"pack.yaml":              {Data: []byte("name: both\nengagements: [current]\nmissions: [old]\n")},
-		"engagements/current.md": {Data: []byte("# Current\n\nNew.\n")},
-		"missions/old.md":        {Data: []byte("# Old\n\nIgnored.\n")},
-	}
-
-	pack, err := ParseTreePack(fsys)
-	require.NoError(t, err)
-	require.Len(t, pack.Documents, 1)
-	assert.Equal(t, "current", pack.Documents[0].Slug)
-	assert.Contains(t, strings.Join(pack.Warnings, "\n"), "ignored")
-}
-
 func TestRenderPack_LaysOutTheTreeAndRoundTrips(t *testing.T) {
 	manifest := PackManifest{Name: "web-app", Description: "Playbooks.", Version: "1.2.0", Visibility: "private"}
 	documents := []Document{
@@ -157,7 +128,6 @@ func TestRenderPack_LaysOutTheTreeAndRoundTrips(t *testing.T) {
 	assert.Contains(t, manifestYAML, "skills:\n    - ssrf-out-of-band")
 	assert.Contains(t, manifestYAML, "references:\n    - wstg")
 	assert.Contains(t, manifestYAML, "engagements:\n    - htb-paperwork")
-	assert.NotContains(t, manifestYAML, "missions:", "the export never writes the legacy key")
 
 	fsys := fstest.MapFS{}
 	for name, content := range export.Files {

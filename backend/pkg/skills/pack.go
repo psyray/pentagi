@@ -20,9 +20,6 @@ const (
 	PackReferencesDir = "references"
 	// PackEngagementsDir holds the engagement write-ups.
 	PackEngagementsDir = "engagements"
-	// LegacyPackMissionsDir is the pre-L3.5 name of PackEngagementsDir. It is still
-	// read, with a warning, so an older pack keeps importing.
-	LegacyPackMissionsDir = "missions"
 	// PackSkillFile is the required body of a skill directory.
 	PackSkillFile = "SKILL.md"
 	// PackAttachmentsDir holds the attachments of a skill.
@@ -45,9 +42,6 @@ type PackManifest struct {
 	Skills      []string `yaml:"skills,omitempty"`
 	References  []string `yaml:"references,omitempty"`
 	Engagements []string `yaml:"engagements,omitempty"`
-	// Missions is the pre-L3.5 spelling of Engagements, kept for the packs that
-	// still use it. Engagements wins when both are present.
-	Missions []string `yaml:"missions,omitempty"`
 }
 
 // PackFile is one attachment read from a skill directory.
@@ -88,14 +82,12 @@ func ManifestIsTree(data []byte) bool {
 		Skills      []string `yaml:"skills"`
 		References  []string `yaml:"references"`
 		Engagements []string `yaml:"engagements"`
-		Missions    []string `yaml:"missions"`
 	}
 	if err := yaml.Unmarshal(data, &probe); err != nil {
 		return false
 	}
 
-	return len(probe.Skills) > 0 || len(probe.References) > 0 ||
-		len(probe.Engagements) > 0 || len(probe.Missions) > 0
+	return len(probe.Skills) > 0 || len(probe.References) > 0 || len(probe.Engagements) > 0
 }
 
 // ParsePackManifest reads the tree manifest and checks the fields the import
@@ -311,24 +303,26 @@ func (p *Pack) readReferenceDir(fsys fs.FS, dir, slug string) (PackDocument, boo
 }
 
 func (p *Pack) readEngagements(fsys fs.FS, seen map[string]struct{}) {
-	dir, entries, ok := p.engagementDir(fsys)
-	if !ok {
+	entries, err := fs.ReadDir(fsys, PackEngagementsDir)
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			p.Warnings = append(p.Warnings, fmt.Sprintf("cannot read %s: %v", PackEngagementsDir, err))
+		}
 		return
 	}
 
-	allow := p.engagementAllowlist()
 	for _, entry := range entries {
 		name := entry.Name()
 		if entry.IsDir() || !textPackFile(name) {
 			continue
 		}
 		slug := strings.TrimSuffix(name, path.Ext(name))
-		if !packAllows(allow, slug) || !p.claim(KindEngagement, slug, seen) {
+		if !packAllows(p.Manifest.Engagements, slug) || !p.claim(KindEngagement, slug, seen) {
 			continue
 		}
-		content, err := readPackFile(fsys, path.Join(dir, name))
+		content, err := readPackFile(fsys, path.Join(PackEngagementsDir, name))
 		if err != nil {
-			p.Warnings = append(p.Warnings, fmt.Sprintf("%s/%s: %v", dir, name, err))
+			p.Warnings = append(p.Warnings, fmt.Sprintf("%s/%s: %v", PackEngagementsDir, name, err))
 			delete(seen, KindEngagement+"/"+slug)
 			continue
 		}
@@ -337,45 +331,9 @@ func (p *Pack) readEngagements(fsys fs.FS, seen map[string]struct{}) {
 			Slug:       slug,
 			Title:      packFirstHeading(string(content), slug),
 			Markdown:   string(content),
-			SourcePath: path.Join(dir, name),
+			SourcePath: path.Join(PackEngagementsDir, name),
 		})
 	}
-}
-
-// engagementDir returns the directory that holds the engagements. A pack written
-// before L3.5 used "missions"; it still imports, with a warning, so renaming the
-// concept does not break an existing tree.
-func (p *Pack) engagementDir(fsys fs.FS) (string, []fs.DirEntry, bool) {
-	entries, err := fs.ReadDir(fsys, PackEngagementsDir)
-	if err == nil {
-		if legacy, legacyErr := fs.ReadDir(fsys, LegacyPackMissionsDir); legacyErr == nil && len(legacy) > 0 {
-			p.Warnings = append(p.Warnings, fmt.Sprintf(
-				"%s/ is ignored because %s/ exists", LegacyPackMissionsDir, PackEngagementsDir))
-		}
-		return PackEngagementsDir, entries, true
-	}
-	if !errors.Is(err, fs.ErrNotExist) {
-		p.Warnings = append(p.Warnings, fmt.Sprintf("cannot read %s: %v", PackEngagementsDir, err))
-		return "", nil, false
-	}
-
-	entries, legacyErr := fs.ReadDir(fsys, LegacyPackMissionsDir)
-	if legacyErr != nil {
-		return "", nil, false
-	}
-	p.Warnings = append(p.Warnings, fmt.Sprintf(
-		"%s/ is deprecated, rename it to %s/", LegacyPackMissionsDir, PackEngagementsDir))
-
-	return LegacyPackMissionsDir, entries, true
-}
-
-// engagementAllowlist prefers the new manifest key and falls back to the legacy
-// one, so a pack cannot be silently filtered down to nothing.
-func (p *Pack) engagementAllowlist() []string {
-	if len(p.Manifest.Engagements) > 0 {
-		return p.Manifest.Engagements
-	}
-	return p.Manifest.Missions
 }
 
 func (p *Pack) claim(kind, slug string, seen map[string]struct{}) bool {
@@ -425,8 +383,6 @@ func RenderPack(manifest PackManifest, documents []Document, files map[string][]
 	export.Manifest.Skills = skills
 	export.Manifest.References = references
 	export.Manifest.Engagements = engagements
-	// The export always writes the new key, never the legacy one it may have read.
-	export.Manifest.Missions = nil
 
 	manifestYAML, err := yaml.Marshal(export.Manifest)
 	if err != nil {

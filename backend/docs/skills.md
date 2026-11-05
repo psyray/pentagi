@@ -253,9 +253,7 @@ Rules:
 - a reference is one markdown file, or a directory whose files are concatenated
   into one document so retrieval can cite a chapter heading;
 - an engagement is one markdown file under `engagements/`, imported as the
-  `engagement` kind; the pre-L3.5 `missions/` directory and `missions:` manifest
-  key are still read with a deprecation warning, and an export always writes the
-  new name;
+  `engagement` kind;
 - the three manifest lists act as an allowlist when present: anything not listed
   is left out, which lets a pack ship drafts it does not want imported yet;
 - the directory name is the slug, so a reference stays `wstg` even when its
@@ -312,8 +310,6 @@ docker exec -w /opt/pentagi pentagi /opt/pentagi/bin/skills-import \
 docker exec -w /opt/pentagi pentagi /opt/pentagi/bin/skills-import \
   --user admin@pentagi.com --engagements --platform HTB --tags lpd
 ```
-
-`--missions` is still accepted as a deprecated alias of `--engagements`.
 
 An engagement imported before L3.5 has no fingerprint in its metadata: re-importing
 its pack versions it and fills `machine`, `os`, `services`, `cves`, `outcome`

@@ -73,7 +73,6 @@ func main() {
 	mergeTarget := flag.String("merge", "", "Target slug for a merge and exit")
 	mergeSources := flag.String("merge-from", "", "Comma-separated source slugs for --merge")
 	engagements := flag.Bool("engagements", false, "Rank the stored engagements against a target fingerprint and exit")
-	legacyMissions := flag.Bool("missions", false, "Deprecated alias of --engagements")
 	engagementServices := flag.String("services", "", "Comma-separated service fingerprints for --engagements, such as 22/ssh,443/https")
 	engagementOS := flag.String("os", "", "Operating system filter for --engagements")
 	engagementPlatform := flag.String("platform", "", "Platform filter for --engagements")
@@ -85,7 +84,7 @@ func main() {
 
 	readOnly := *searchQuery != "" || *deleteSlug != "" || *backfillLegacy || *exportPack != "" ||
 		*versionsSlug != "" || *diffSlug != "" || *publishSlug != "" || *duplicates || *mergeTarget != "" ||
-		*engagements || *legacyMissions || *reanonymize
+		*engagements || *reanonymize
 	if *packPath == "" && !readOnly {
 		logrus.Fatal("the --pack flag is required unless --search, --delete, --export-pack, --versions, --diff, --publish, --engagements, --reanonymize or --backfill-legacy is set")
 	}
@@ -198,10 +197,7 @@ func main() {
 		return
 	}
 
-	if *engagements || *legacyMissions {
-		if *legacyMissions {
-			logrus.Warn("--missions is deprecated, use --engagements")
-		}
+	if *engagements {
 		if err := printEngagementMatches(ctx, store, userID, *engagementServices, *engagementOS, *engagementPlatform, *engagementTags); err != nil {
 			logrus.WithError(err).Fatal("unable to rank the engagements")
 		}
