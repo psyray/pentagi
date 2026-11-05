@@ -70,8 +70,8 @@ The frontmatter is optional. Without it, the first `#` heading becomes the
 title, the first paragraph becomes the description, the kind defaults to
 `reference`, and the slug is derived from the title.
 
-An engagement (a mission write-up) carries a service fingerprint on top of the
-common fields. Every field is optional except `name`:
+An engagement (a write-up of a completed assessment) carries a service fingerprint
+on top of the common fields. Every field is optional except `name`:
 
 ```yaml
 ---
@@ -155,7 +155,7 @@ Deletion is a soft delete of the parent plus a hard delete of the chunks.
 | `search_skills` | hybrid search, returns cards with an excerpt |
 | `read_skill` | full body or one markdown section, plus the attachment list |
 | `materialize_skill` | copies the attachments of one skill into `/work/skills/<slug>/` |
-| `search_missions` | ranks past engagements against the target fingerprint |
+| `search_engagements` | ranks past engagements against the target fingerprint |
 
 They are attached to the assistant, primary, generator, refiner, installer,
 coder, pentester, searcher and enricher executors when the shared pgx pool and
@@ -232,7 +232,7 @@ web-app/
   skills/ssrf-out-of-band/files/ssrf_probe.py
   references/owasp-wstg/chapter-01.md
   references/owasp-wstg/chapter-02.md
-  missions/htb-example.md
+  engagements/htb-example.md
 ```
 
 ```yaml
@@ -243,7 +243,7 @@ license: private
 visibility: private
 skills: [ssrf-out-of-band]
 references: [owasp-wstg]
-missions: []
+engagements: []
 ```
 
 Rules:
@@ -252,7 +252,10 @@ Rules:
   stored as an attachment in the shared resource blob store;
 - a reference is one markdown file, or a directory whose files are concatenated
   into one document so retrieval can cite a chapter heading;
-- a mission is one markdown file, imported as the `engagement` kind;
+- an engagement is one markdown file under `engagements/`, imported as the
+  `engagement` kind; the pre-L3.5 `missions/` directory and `missions:` manifest
+  key are still read with a deprecation warning, and an export always writes the
+  new name;
 - the three manifest lists act as an allowlist when present: anything not listed
   is left out, which lets a pack ship drafts it does not want imported yet;
 - the directory name is the slug, so a reference stays `wstg` even when its
@@ -273,14 +276,14 @@ without writing. Imports are idempotent: a second run versions the documents and
 keeps the same pack. A `pack.yaml` that lists `documents:` instead of the three
 lists is the previous flat format, still accepted by the CLI.
 
-## Missions and fingerprint search (L3.5)
+## Engagements and fingerprint search (L3.5)
 
-An engagement is a mission write-up: a markdown document of kind `engagement`,
-imported from a pack under `missions/` or through the REST route, with the
-service fingerprint described above. It is not a procedure, so it never enters
-the catalogue; the agent reaches it on purpose.
+An engagement is a write-up of a completed assessment: a markdown document of
+kind `engagement`, imported from a pack under `engagements/` or through the REST
+route, with the service fingerprint described above. It is not a procedure, so
+it never enters the catalogue; the agent reaches it on purpose.
 
-`search_missions` ranks the engagements of the scope against the target in
+`search_engagements` ranks the engagements of the scope against the target in
 front of the agent. The score rewards the fingerprint rather than the prose:
 
 | Criterion | Weight |
@@ -298,20 +301,23 @@ A bare token (`80` or `ssh`) matches either part of a fingerprint at the partial
 weight, so an agent that only knows the port still gets a hint. A query with at
 least one criterion drops the documents that score nothing; an
 empty query lists the most recently updated engagements. The response is a
-small card per mission (score, platform, OS, machine, services with the matched
-ones starred, outcome) and a `read_skill(slug=...)` hint, never the write-up.
+small card per engagement (score, platform, OS, machine, services with the
+matched ones starred, outcome) and a `read_skill(slug=...)` hint, never the
+write-up.
 
 ```bash
 # CLI, against the live data directory
 docker exec -w /opt/pentagi pentagi /opt/pentagi/bin/skills-import \
-  --user admin@pentagi.com --missions --services 9100/jetdirect,80/http --os linux
+  --user admin@pentagi.com --engagements --services 9100/jetdirect,80/http --os linux
 docker exec -w /opt/pentagi pentagi /opt/pentagi/bin/skills-import \
-  --user admin@pentagi.com --missions --platform HTB --tags lpd
+  --user admin@pentagi.com --engagements --platform HTB --tags lpd
 ```
 
-A mission imported before L3.5 has no fingerprint in its metadata: re-importing
+`--missions` is still accepted as a deprecated alias of `--engagements`.
+
+An engagement imported before L3.5 has no fingerprint in its metadata: re-importing
 its pack versions it and fills `machine`, `os`, `services`, `cves`, `outcome`
-and `anonymized` without touching the body. A mission with no `services` can
+and `anonymized` without touching the body. An engagement with no `services` can
 still match on `os`, `platform` or tags.
 
 ## Review, versions and diff (L3.3)
@@ -440,9 +446,9 @@ and remember that `--dry-run` still needs a `--user`.
   leaves the documents imported before it. Re-running the same pack converges.
 - A merge is not reversible from the UI: undoing it means restoring the source
   by hand, though its content stays in the version history.
-- `search_missions` reads metadata only: a mission imported before L3.5 stays
-  invisible to the fingerprint search until its pack is re-imported. The score
-  is a heuristic, not a ranking trained on outcomes.
+- `search_engagements` reads metadata only: an engagement imported before L3.5
+  stays invisible to the fingerprint search until its pack is re-imported. The
+  score is a heuristic, not a ranking trained on outcomes.
 - Re-anonymisation masks with the generic pattern set: it can over-redact a
   vendor domain in a reference. The dry run is the review gate, and there is no
   per-pattern allow list yet.

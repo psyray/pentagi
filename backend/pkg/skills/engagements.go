@@ -28,7 +28,7 @@ const (
 )
 
 // EngagementQuery describes the target in front of the agent. Services use the
-// "port/service" fingerprint of the mission frontmatter, such as
+// "port/service" fingerprint of the engagement frontmatter, such as
 // "9100/jetdirect"; a bare service name or a bare port is accepted too.
 type EngagementQuery struct {
 	Services []string
@@ -317,7 +317,7 @@ func engagementStatuses() []string {
 }
 
 // normalizeCVEs upper-cases the identifiers and drops the duplicates, so a
-// mission can write "cve-2021-44228" and still be found by the canonical form.
+// engagement can write "cve-2021-44228" and still be found by the canonical form.
 func normalizeCVEs(values []string) []string {
 	if len(values) == 0 {
 		return nil

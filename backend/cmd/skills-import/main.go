@@ -72,11 +72,12 @@ func main() {
 	threshold := flag.Float64("threshold", 0, "Similarity threshold for --duplicates (default 0.93)")
 	mergeTarget := flag.String("merge", "", "Target slug for a merge and exit")
 	mergeSources := flag.String("merge-from", "", "Comma-separated source slugs for --merge")
-	missions := flag.Bool("missions", false, "Rank the stored engagements against a target fingerprint and exit")
-	missionServices := flag.String("services", "", "Comma-separated service fingerprints for --missions, such as 22/ssh,443/https")
-	missionOS := flag.String("os", "", "Operating system filter for --missions")
-	missionPlatform := flag.String("platform", "", "Platform filter for --missions")
-	missionTags := flag.String("tags", "", "Comma-separated tags for --missions")
+	engagements := flag.Bool("engagements", false, "Rank the stored engagements against a target fingerprint and exit")
+	legacyMissions := flag.Bool("missions", false, "Deprecated alias of --engagements")
+	engagementServices := flag.String("services", "", "Comma-separated service fingerprints for --engagements, such as 22/ssh,443/https")
+	engagementOS := flag.String("os", "", "Operating system filter for --engagements")
+	engagementPlatform := flag.String("platform", "", "Platform filter for --engagements")
+	engagementTags := flag.String("tags", "", "Comma-separated tags for --engagements")
 	reanonymize := flag.Bool("reanonymize", false, "Re-anonymise the stored documents with the current anonymiser and exit")
 	outDir := flag.String("out", "", "Output directory for --export-pack")
 	dryRun := flag.Bool("dry-run", false, "Parse the pack and print the plan without writing")
@@ -84,9 +85,9 @@ func main() {
 
 	readOnly := *searchQuery != "" || *deleteSlug != "" || *backfillLegacy || *exportPack != "" ||
 		*versionsSlug != "" || *diffSlug != "" || *publishSlug != "" || *duplicates || *mergeTarget != "" ||
-		*missions || *reanonymize
+		*engagements || *legacyMissions || *reanonymize
 	if *packPath == "" && !readOnly {
-		logrus.Fatal("the --pack flag is required unless --search, --delete, --export-pack, --versions, --diff, --publish, --missions, --reanonymize or --backfill-legacy is set")
+		logrus.Fatal("the --pack flag is required unless --search, --delete, --export-pack, --versions, --diff, --publish, --engagements, --reanonymize or --backfill-legacy is set")
 	}
 	if *userRef == "" && (!*dryRun || *reanonymize) {
 		logrus.Fatal("the --user flag is required unless --dry-run is set")
@@ -197,8 +198,11 @@ func main() {
 		return
 	}
 
-	if *missions {
-		if err := printMissionMatches(ctx, store, userID, *missionServices, *missionOS, *missionPlatform, *missionTags); err != nil {
+	if *engagements || *legacyMissions {
+		if *legacyMissions {
+			logrus.Warn("--missions is deprecated, use --engagements")
+		}
+		if err := printEngagementMatches(ctx, store, userID, *engagementServices, *engagementOS, *engagementPlatform, *engagementTags); err != nil {
 			logrus.WithError(err).Fatal("unable to rank the engagements")
 		}
 		return
@@ -558,7 +562,7 @@ func splitList(value string) []string {
 	return out
 }
 
-func printMissionMatches(ctx context.Context, store *skills.Store, userID int64, services, osName, platform, tags string) error {
+func printEngagementMatches(ctx context.Context, store *skills.Store, userID int64, services, osName, platform, tags string) error {
 	matches, err := store.SearchEngagements(ctx, userID, skills.EngagementQuery{
 		Services: splitList(services),
 		OS:       osName,

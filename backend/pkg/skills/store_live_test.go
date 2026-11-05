@@ -366,11 +366,11 @@ func TestStore_LivePackImportAndExport(t *testing.T) {
 	ctx := context.Background()
 
 	fsys := fstest.MapFS{
-		"pack.yaml":                     {Data: []byte("name: web-app\ndescription: Playbooks.\nversion: 1.0.0\nvisibility: private\nskills: [ssrf]\nreferences: [wstg]\nmissions: [example]\n")},
+		"pack.yaml":                     {Data: []byte("name: web-app\ndescription: Playbooks.\nversion: 1.0.0\nvisibility: private\nskills: [ssrf]\nreferences: [wstg]\nengagements: [example]\n")},
 		"skills/ssrf/SKILL.md":          {Data: []byte("# SSRF\n\nStart a listener.\n")},
 		"skills/ssrf/files/probe.py":    {Data: []byte("print('probe')\n")},
 		"references/wstg/chapter-01.md": {Data: []byte("# Chapter one\n\nInjection.\n")},
-		"missions/example.md":           {Data: []byte("# Example\n\nAnonymized.\n")},
+		"engagements/example.md":        {Data: []byte("# Example\n\nAnonymized.\n")},
 	}
 	pack, err := ParseTreePack(fsys)
 	if err != nil {
@@ -423,7 +423,7 @@ func TestStore_LivePackImportAndExport(t *testing.T) {
 		"skills/ssrf/SKILL.md",
 		"skills/ssrf/files/probe.py",
 		"references/wstg.md",
-		"missions/example.md",
+		"engagements/example.md",
 	} {
 		if _, ok := export.Files[name]; !ok {
 			t.Errorf("export is missing %s", name)
@@ -616,16 +616,16 @@ func TestStore_LiveSearchEngagements(t *testing.T) {
 	store := NewStore(pool, unitEmbedder{}, 8192)
 	ctx := context.Background()
 
-	importMission := func(content string) {
+	importEngagement := func(content string) {
 		t.Helper()
 		if _, err := store.ImportMarkdown(ctx, 1, ImportInput{
 			Content: content, Kind: KindEngagement, Status: StatusReviewed,
 		}); err != nil {
-			t.Fatalf("import mission: %v", err)
+			t.Fatalf("import engagement: %v", err)
 		}
 	}
 
-	importMission(`---
+	importEngagement(`---
 name: lpd-host
 description: Printer job language host.
 platform: HTB
@@ -641,7 +641,7 @@ tags: [lpd]
 
 The printer shares the filesystem of the web application.
 `)
-	importMission(`---
+	importEngagement(`---
 name: https-host
 description: TLS host.
 platform: htb
@@ -656,7 +656,7 @@ A TLS portal without a printer.
 
 	doc, err := store.Get(ctx, 1, "lpd-host")
 	if err != nil {
-		t.Fatalf("read mission: %v", err)
+		t.Fatalf("read engagement: %v", err)
 	}
 	if doc.MetadataString("os") != "linux" {
 		t.Fatalf("os metadata = %q, want linux", doc.MetadataString("os"))
@@ -716,7 +716,7 @@ A TLS portal without a printer.
 		t.Fatalf("search as another user: %v", err)
 	}
 	if len(other) != 0 {
-		t.Fatalf("another user sees %d missions", len(other))
+		t.Fatalf("another user sees %d engagements", len(other))
 	}
 }
 

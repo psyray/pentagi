@@ -349,10 +349,10 @@ type MaterializeSkillAction struct {
 type SearchEngagementsAction struct {
 	Services []string `json:"services,omitempty" jsonschema_description:"Technical-channel payload, always English: service fingerprints of the target, in 'port/service' form such as '22/ssh', '443/https' or '9100/jetdirect'. A bare port or a bare service name is accepted."`
 	OS       string   `json:"os,omitempty" jsonschema:"type=string,enum=linux,enum=windows,enum=freebsd,enum=macos,enum=other" jsonschema_description:"Optional operating system of the target, when the earlier findings already told you (for example a Linux banner or a Windows SMB signature)."`
-	Platform string   `json:"platform,omitempty" jsonschema_description:"Optional platform or program the target comes from, as written in the mission metadata: HTB, OSCP, ProLab, internal. Only pass it when you know it."`
+	Platform string   `json:"platform,omitempty" jsonschema_description:"Optional platform or program the target comes from, as written in the engagement metadata: HTB, OSCP, ProLab, internal. Only pass it when you know it."`
 	Tags     []string `json:"tags,omitempty" jsonschema_description:"Optional technique or theme tags to narrow the search, for example 'privesc', 'kerberos' or 'lpd'."`
-	Limit    *Int64   `json:"limit,omitempty" jsonschema:"title=Limit,type=integer" jsonschema_description:"Optional maximum number of mission cards (default 5, max 50)."`
-	Message  string   `json:"message" jsonschema:"required,title=Search missions message" jsonschema_description:"Engagement-log entry, written in the engagement language declared by your system prompt."`
+	Limit    *Int64   `json:"limit,omitempty" jsonschema:"title=Limit,type=integer" jsonschema_description:"Optional maximum number of engagement cards (default 5, max 50)."`
+	Message  string   `json:"message" jsonschema:"required,title=Search engagements message" jsonschema_description:"Engagement-log entry, written in the engagement language declared by your system prompt."`
 }
 
 type MaintenanceAction struct {

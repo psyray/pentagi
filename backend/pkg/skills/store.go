@@ -136,7 +136,7 @@ func (s *Store) ImportMarkdown(ctx context.Context, userID int64, input ImportIn
 		metadata["platform"] = []string(fm.Platform)
 	}
 
-	// Mission fields. They are stored for every kind so a skill that starts as a
+	// Engagement fields. They are stored for every kind so a skill that starts as a
 	// write-up keeps its fingerprint, but only an engagement is scored on them.
 	putIfNotEmpty(metadata, "machine", strings.ToLower(strings.TrimSpace(fm.Machine)))
 	putIfNotEmpty(metadata, "os", strings.ToLower(strings.TrimSpace(fm.OS)))

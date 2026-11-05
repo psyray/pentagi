@@ -340,7 +340,7 @@ func formatEngagementMatches(matches []skills.EngagementMatch) string {
 	return b.String()
 }
 
-// engagementFingerprint renders the mission metadata on one line, marking the
+// engagementFingerprint renders the engagement metadata on one line, marking the
 // services that matched so the agent sees why the card surfaced.
 func engagementFingerprint(match skills.EngagementMatch) string {
 	doc := match.Document

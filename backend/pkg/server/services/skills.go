@@ -51,7 +51,7 @@ func (s *SkillsService) available(c *gin.Context) bool {
 // @Tags Skills
 // @Produce json
 // @Security BearerAuth
-// @Param kind query string false "skill, reference or mission"
+// @Param kind query string false "skill, reference or engagement"
 // @Param status query string false "draft, reviewed, canonical or deprecated"
 // @Param tags query string false "comma-separated tags"
 // @Param limit query int false "maximum results (default 100, max 500)"

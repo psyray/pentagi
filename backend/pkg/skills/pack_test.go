@@ -1,6 +1,7 @@
 package skills
 
 import (
+	"strings"
 	"testing"
 	"testing/fstest"
 
@@ -20,7 +21,7 @@ skills:
   - jwt-alg-none
 references:
   - wstg
-missions:
+engagements:
   - htb-paperwork
 `)},
 		"skills/ssrf-out-of-band/SKILL.md":                {Data: []byte("# SSRF out of band\n\nStart a callback listener.\n")},
@@ -31,7 +32,7 @@ missions:
 		"references/wstg/chapter-01.md":                   {Data: []byte("# Chapter one\n\nInjection.\n")},
 		"references/wstg/chapter-02.md":                   {Data: []byte("Access control.\n")},
 		"references/cheatsheet.md":                        {Data: []byte("# Cheatsheet\n\nShort one.\n")},
-		"missions/htb-paperwork.md":                       {Data: []byte("# Paperwork\n\nuser and root\n")},
+		"engagements/htb-paperwork.md":                    {Data: []byte("# Paperwork\n\nuser and root\n")},
 		"references/binary.pdf":                           {Data: []byte("%PDF")},
 	}
 }
@@ -56,7 +57,7 @@ func TestParsePackManifest_ValidatesTheFieldsTheImportCannotInvent(t *testing.T)
 	assert.Equal(t, "x", manifest.Name)
 }
 
-func TestParseTreePack_ReadsSkillsReferencesAndMissions(t *testing.T) {
+func TestParseTreePack_ReadsSkillsReferencesAndEngagements(t *testing.T) {
 	pack, err := ParseTreePack(treePackFS())
 	require.NoError(t, err)
 
@@ -105,6 +106,34 @@ func TestParseTreePack_RefusesAnEmptyPack(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestParseTreePack_AcceptsTheLegacyMissionsDirectory(t *testing.T) {
+	fsys := fstest.MapFS{
+		"pack.yaml":           {Data: []byte("name: legacy\nmissions: [old-run]\n")},
+		"missions/old-run.md": {Data: []byte("# Old run\n\nKept.\n")},
+	}
+
+	pack, err := ParseTreePack(fsys)
+	require.NoError(t, err)
+	require.Len(t, pack.Documents, 1)
+	assert.Equal(t, KindEngagement, pack.Documents[0].Kind)
+	assert.Equal(t, "old-run", pack.Documents[0].Slug)
+	assert.Contains(t, strings.Join(pack.Warnings, "\n"), "deprecated")
+}
+
+func TestParseTreePack_PrefersEngagementsOverTheLegacyDirectory(t *testing.T) {
+	fsys := fstest.MapFS{
+		"pack.yaml":              {Data: []byte("name: both\nengagements: [current]\nmissions: [old]\n")},
+		"engagements/current.md": {Data: []byte("# Current\n\nNew.\n")},
+		"missions/old.md":        {Data: []byte("# Old\n\nIgnored.\n")},
+	}
+
+	pack, err := ParseTreePack(fsys)
+	require.NoError(t, err)
+	require.Len(t, pack.Documents, 1)
+	assert.Equal(t, "current", pack.Documents[0].Slug)
+	assert.Contains(t, strings.Join(pack.Warnings, "\n"), "ignored")
+}
+
 func TestRenderPack_LaysOutTheTreeAndRoundTrips(t *testing.T) {
 	manifest := PackManifest{Name: "web-app", Description: "Playbooks.", Version: "1.2.0", Visibility: "private"}
 	documents := []Document{
@@ -122,12 +151,13 @@ func TestRenderPack_LaysOutTheTreeAndRoundTrips(t *testing.T) {
 	assert.Contains(t, export.Files, "skills/ssrf-out-of-band/SKILL.md")
 	assert.Contains(t, export.Files, "skills/ssrf-out-of-band/files/ssrf_probe.py")
 	assert.Contains(t, export.Files, "references/wstg.md")
-	assert.Contains(t, export.Files, "missions/htb-paperwork.md")
+	assert.Contains(t, export.Files, "engagements/htb-paperwork.md")
 
 	manifestYAML := string(export.Files["pack.yaml"])
 	assert.Contains(t, manifestYAML, "skills:\n    - ssrf-out-of-band")
 	assert.Contains(t, manifestYAML, "references:\n    - wstg")
-	assert.Contains(t, manifestYAML, "missions:\n    - htb-paperwork")
+	assert.Contains(t, manifestYAML, "engagements:\n    - htb-paperwork")
+	assert.NotContains(t, manifestYAML, "missions:", "the export never writes the legacy key")
 
 	fsys := fstest.MapFS{}
 	for name, content := range export.Files {

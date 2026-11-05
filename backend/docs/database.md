@@ -188,7 +188,7 @@ Skills do not live in `langchain_pg_embedding`. The migration `20261104_120000_k
 
 | Table | Purpose |
 |---|---|
-| `knowledge_documents` | skill, reference or mission parent: slug, title, description, body, status, visibility, tags, metadata, version |
+| `knowledge_documents` | skill, reference or engagement parent: slug, title, description, body, status, visibility, tags, metadata, version |
 | `knowledge_chunks` | chunk body, `vector(1024)` embedding, generated `tsvector` for lexical search, HNSW and GIN indexes |
 | `knowledge_files` | attachment metadata, with the bytes addressed through the user resources blob hash |
 | `knowledge_packs` / `knowledge_pack_items` | optional document grouping |

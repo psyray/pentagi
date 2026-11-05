@@ -217,7 +217,7 @@ func TestSkillTool_SearchEngagements_RendersTheFingerprint(t *testing.T) {
 			"limit":    3,
 		}))
 	if err != nil {
-		t.Fatalf("search_missions: %v", err)
+		t.Fatalf("search_engagements: %v", err)
 	}
 
 	for _, want := range []string{
@@ -243,7 +243,7 @@ func TestSkillTool_SearchEngagements_ExplainsAnEmptyResult(t *testing.T) {
 	got, err := door.Handle(PutAgentContext(t.Context(), database.MsgchainTypePentester), SearchEngagementsToolName,
 		mustJSON(map[string]any{"message": "m"}))
 	if err != nil {
-		t.Fatalf("search_missions: %v", err)
+		t.Fatalf("search_engagements: %v", err)
 	}
 	if !strings.Contains(got, "no past engagement") {
 		t.Fatalf("empty result is not actionable: %q", got)

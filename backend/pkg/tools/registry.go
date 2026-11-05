@@ -44,7 +44,7 @@ const (
 	SearchSkillsToolName       = "search_skills"
 	ReadSkillToolName          = "read_skill"
 	MaterializeSkillToolName   = "materialize_skill"
-	SearchEngagementsToolName  = "search_missions"
+	SearchEngagementsToolName  = "search_engagements"
 	GraphitiSearchToolName     = "graphiti_search"
 	ReportResultToolName       = "report_result"
 	SubtaskListToolName        = "subtask_list"
@@ -382,7 +382,7 @@ var registryDefinitions = map[string]llms.FunctionDefinition{
 	},
 	SearchEngagementsToolName: {
 		Name: SearchEngagementsToolName,
-		Description: "Search past engagements (anonymised write-ups of machines and missions) whose service fingerprint matches the target in front of you. " +
+		Description: "Search past engagements (anonymised write-ups of completed assessments) whose service fingerprint matches the target in front of you. " +
 			"Pass the ports and services the scan already showed, the operating system if known, and optionally the platform or a theme tag. " +
 			"The score rewards a shared service fingerprint over a shared platform or tag; documents with no criterion match are dropped. " +
 			"Returns short cards, never whole write-ups: use read_skill(slug=\"...\") to load the procedure that worked.",

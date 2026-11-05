@@ -19,7 +19,7 @@ const (
 	maxSlugLen          = 80
 )
 
-// looseBool accepts a YAML boolean or its scalar spelling, so a mission can
+// looseBool accepts a YAML boolean or its scalar spelling, so an engagement can
 // write "anonymized: true" or "anonymized: yes" without failing the import.
 type looseBool struct {
 	Value bool
@@ -90,7 +90,7 @@ type frontMatter struct {
 	Language    string     `yaml:"language"`
 	Kind        string     `yaml:"kind"`
 
-	// Mission fields. A reference or a skill may leave them empty; an
+	// Engagement fields. A reference or a skill may leave them empty; an
 	// engagement uses them as its service fingerprint.
 	Machine    string     `yaml:"machine"`
 	OS         string     `yaml:"os"`

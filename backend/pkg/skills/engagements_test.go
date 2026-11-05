@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func missionDocument(slug string, services []string, os, platform string, tags []string) Document {
+func engagementDocument(slug string, services []string, os, platform string, tags []string) Document {
 	metadata := map[string]any{}
 	if len(services) > 0 {
 		metadata["services"] = services
@@ -75,7 +75,7 @@ func TestNormalizeServices_DropsTheDuplicates(t *testing.T) {
 func TestScoreEngagement_Weights(t *testing.T) {
 	t.Parallel()
 
-	doc := missionDocument("lpd", []string{"22/ssh", "80/http", "9100/jetdirect"}, "linux", "HTB", []string{"lpd", "privesc"})
+	doc := engagementDocument("lpd", []string{"22/ssh", "80/http", "9100/jetdirect"}, "linux", "HTB", []string{"lpd", "privesc"})
 
 	tests := []struct {
 		name       string
@@ -176,10 +176,10 @@ func TestRankEngagements_OrdersAndFilters(t *testing.T) {
 	t.Parallel()
 
 	documents := []Document{
-		missionDocument("alpha", []string{"22/ssh", "80/http", "9100/jetdirect"}, "linux", "HTB", []string{"lpd"}),
-		missionDocument("beta", []string{"443/https"}, "windows", "HTB", []string{"kerberos"}),
-		missionDocument("gamma", []string{"80/http"}, "linux", "OSCP", []string{"web"}),
-		{Slug: "a-skill", Kind: KindSkill, Title: "not a mission"},
+		engagementDocument("alpha", []string{"22/ssh", "80/http", "9100/jetdirect"}, "linux", "HTB", []string{"lpd"}),
+		engagementDocument("beta", []string{"443/https"}, "windows", "HTB", []string{"kerberos"}),
+		engagementDocument("gamma", []string{"80/http"}, "linux", "OSCP", []string{"web"}),
+		{Slug: "a-skill", Kind: KindSkill, Title: "not an engagement"},
 	}
 
 	slugs := func(matches []EngagementMatch) []string {
@@ -232,7 +232,7 @@ func TestRankEngagements_OrdersAndFilters(t *testing.T) {
 		equal(t, got, []string{"alpha"})
 	})
 
-	t.Run("a skill is never a mission", func(t *testing.T) {
+	t.Run("a skill is never an engagement", func(t *testing.T) {
 		t.Parallel()
 		for _, match := range RankEngagements(documents, EngagementQuery{}) {
 			if match.Document.Kind != KindEngagement {
